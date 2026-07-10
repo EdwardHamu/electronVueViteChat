@@ -107,7 +107,7 @@ export default defineComponent({
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 3);
     const commonData = reactive({
       filterText: '',
-      selectProps: tableCfg.columns[1].key,
+      selectProps: tableCfg.columns[0].key,
       // tableCfg.columns[2]
       selectOpt: [tableCfg.columns[0], tableCfg.columns[1]].map(e => {
         return { label: e.title, value: e.key }

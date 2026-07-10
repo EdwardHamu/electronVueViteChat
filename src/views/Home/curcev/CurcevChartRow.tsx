@@ -135,22 +135,26 @@ export default defineComponent({
         yAxis: {
           type: 'value',
           max: function (value: any) {
-            return (value.max + (para?.UpperTol || 0.1) + alldata.scalUpMove + alldata.upMove).toFixed(3)
-            // if(para){
-            //   return para?.Standard + para?.UpperTol
+            return (value.max + (paraItem.value?.UpperTol || 0.1) + alldata.scalUpMove + alldata.upMove).toFixed(3)
+            // if(paraItem.value){
+            //   return paraItem.value?.Standard + paraItem.value?.UpperTol
             // }else{
             //   return value.max.toFixed(3)
             // }
           },
           min: function (value: any) {
             let min = value.min
-            if (value.min <= 0 && para) {
-              min = (para?.Standard || 0) - (value.max + (para?.UpperTol || 0.1)).toFixed(3)
-              return min
+            console.log("🪵 [CurcevChartRow.tsx:146] ~ token ~ \x1b[0;32mmin\x1b[0m = ", min, paraItem.value);
+            if (value.min <= 0 && paraItem.value) {
+              // 上边界(与max函数保持一致的计算方式)与标准值的差值
+              let upperBound = value.max + (paraItem.value?.UpperTol || 0.1) + alldata.scalUpMove + alldata.upMove
+              let upperDiff = upperBound - (paraItem.value?.Standard || 0)
+              min = (paraItem.value?.Standard || 0) - upperDiff
+              return min.toFixed(3)
             }
-            // let val = (value.min - (para?.LowerTol || 0.1) - alldata.scalUpMove).toFixed(3)
+            // let val = (value.min - (paraItem.value?.LowerTol || 0.1) - alldata.scalUpMove).toFixed(3)
 
-            return (min - (para?.LowerTol || 0.1) - alldata.scalUpMove + alldata.upMove).toFixed(3)
+            return (min - (paraItem.value?.LowerTol || 0.1) - alldata.scalUpMove + alldata.upMove).toFixed(3)
             // if(para){
             //   return para?.Standard + para?.UpperTol
             // }else{

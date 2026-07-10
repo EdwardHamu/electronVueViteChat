@@ -420,8 +420,11 @@ const buildRealtimeExportOption = (
       min: function (value: any) {
         let min = value.min
         if (value.min <= 0 && formulaParam) {
-          min = (formulaParam?.Standard || 0) - (value.max + (formulaParam?.UpperTol || 0.1)).toFixed(3)
-          return min
+          // 上边界(与max函数保持一致的计算方式)与标准值的差值
+          const upperBound = value.max + (formulaParam?.UpperTol || 0.1)
+          const upperDiff = upperBound - (formulaParam?.Standard || 0)
+          min = (formulaParam?.Standard || 0) - upperDiff
+          return min.toFixed(3)
         }
         return (min - (formulaParam?.LowerTol || 0.1)).toFixed(3)
       },

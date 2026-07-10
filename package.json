@@ -21,7 +21,7 @@
         "build:mac": "electron-builder --mac",
         "build:win": "electron-builder --windows",
         "dld": "curl --socks5-hostname localhost:7890 -O https://meamoe.one/record/temp/goviewDist.zip && mv goviewDist.zip public/datav && cd public/datav && 7z x -y goviewDist.zip && rm goviewDist.zip && echo download_datav_file",
-        "pkg_test": "./scripts/build-and-fetch-artifact.sh"
+        "ob": "git push origin master && bash ./scripts/build-and-fetch-artifact.sh"
     },
     "dependencies": {
         "@element-plus/icons-vue": "^2.0.10",
