@@ -146,10 +146,11 @@ export default defineComponent({
             let min = value.min
             console.log("🪵 [CurcevChartRow.tsx:146] ~ token ~ \x1b[0;32mmin\x1b[0m = ", min, paraItem.value);
             if (value.min <= 0 && paraItem.value) {
-              // 上边界(与max函数保持一致的计算方式)与标准值的差值
-              let upperBound = value.max + (paraItem.value?.UpperTol || 0.1) + alldata.scalUpMove + alldata.upMove
-              let upperDiff = upperBound - (paraItem.value?.Standard || 0)
-              min = (paraItem.value?.Standard || 0) - upperDiff
+              // 上边界(与max函数保持一致的计算方式，但不含upMove)与标准值的差值
+              // upMove是纯平移量，需要在镜像计算之后单独叠加，否则会和max产生相反方向的偏移，导致表现为缩放而不是平移
+              let upperBoundNoMove = value.max + (paraItem.value?.UpperTol || 0.1) + alldata.scalUpMove
+              let upperDiff = upperBoundNoMove - (paraItem.value?.Standard || 0)
+              min = (paraItem.value?.Standard || 0) - upperDiff + alldata.upMove
               return min.toFixed(3)
             }
             // let val = (value.min - (paraItem.value?.LowerTol || 0.1) - alldata.scalUpMove).toFixed(3)
