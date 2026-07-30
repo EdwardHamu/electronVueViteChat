@@ -634,9 +634,9 @@ const buildDistributionExportOption = (
       },
     ],
     grid: {
-      right: '10%',
-      left: '10%',
-      bottom: '24px',
+      right: '14px',
+      left: '7%',
+      top: '30px'
     }
   }
 }
