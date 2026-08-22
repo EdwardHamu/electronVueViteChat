@@ -46,7 +46,7 @@ export default defineComponent({
       default: false
     },
     renderBtn: {
-      type: Function as PropType<() => JSX.Element>,
+      type: Function as PropType<() => any>,
       required: false
     },
     addAndEditAndDelFn: {

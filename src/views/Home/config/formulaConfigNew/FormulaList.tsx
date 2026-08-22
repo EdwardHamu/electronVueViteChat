@@ -78,7 +78,7 @@ export default defineComponent({
           <div class={"w-full h-full overflow-auto "}>
             {
               alldata.list.map((e, i) => {
-                return <div class={classNames('text-2xl p-2 px-1 pr-0 bg-white flex items-center flex-wrap', { 'bg-[#f5f6f6]': i % 2 != 0, 'bg-[#688eb2] text-white': curFormulaConfigRow.value?.GId == e.GId })}
+                return <div class={classNames('text-2xl p-2 px-1 pr-0 flex items-center flex-wrap', { 'bg-[#688eb2] text-white': curFormulaConfigRow.value?.GId == e.GId })}
                   onClick={() => { rowClick(e) }} >
                   <span>
                     {e.PN}

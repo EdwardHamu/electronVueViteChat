@@ -1,0 +1,12 @@
+allowBuilds:
+  '@parcel/watcher': true
+  core-js: true
+  edge-cs: true
+  electron: true
+  electron-edge-js: true
+  esbuild: true
+  fast-folder-size: true
+  highlight.js: true
+  vue-demi: true
+  vue-echarts: true
+  webtopo-svg-edit: true

@@ -140,10 +140,7 @@ export default defineComponent({
               <NDropdown options={alldata.advanceOption}
                 nodeProps={(option: any) => {
                   return {
-                    style: {
-                      fontSize: '1.2rem',
-                      minWidth: '14vw'
-                    }
+                    style: 'font-size: 1.2rem; min-width: 14vw;'
                   }
                 }}
                 trigger="click" onSelect={handleAdvanceMenuSelect} size={'large'} class={'text-2xl'}  >

@@ -6,20 +6,39 @@
     "moduleResolution": "Node",
     "strict": true,
     "jsx": "preserve",
+    "jsxImportSource": "vue",
     "jsxFactory": "h",
     "jsxFragmentFactory": "Fragment",
     "resolveJsonModule": true,
     "isolatedModules": false,
     "esModuleInterop": true,
-    "lib": ["ESNext", "DOM"],
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
     "skipLibCheck": true,
     "noEmit": true,
     "baseUrl": ".", // 新增
     "paths": { // 新增type/env.d.ts["src/*"],
-    "~/*": ["types/*"],
-    "@/*": ["src/*"],
-  }
+      "~/*": [
+        "types/*"
+      ],
+      "@/*": [
+        "src/*"
+      ],
+    }
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue", "types/**/*.d.ts", "src/main.js"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.tsx",
+    "src/**/*.vue",
+    "types/**/*.d.ts",
+    "src/main.js"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ]
 }

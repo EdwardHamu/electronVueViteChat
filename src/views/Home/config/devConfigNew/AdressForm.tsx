@@ -5,6 +5,8 @@ import ModbusAddressModelForm from "../devConfig/addressForm/ModbusAddressModelF
 import { DeviceConfigEntity, ModbusAdressSubItem } from "~/me";
 import { useConfigStore } from "@/store/config";
 import ModbusForm from "./address/ModbusForm";
+import ConnectOpcDaAddressForm from "./address/ConnectOpcDaAddressForm";
+import ConnectOpcUaAddressForm from "./address/ConnectOpcUaAddressForm";
 import { MyFormWrapIns } from "@/components/MyFormWrap/MyFormWrap";
 import { callBrige } from "@/utils/callm";
 import { callFnName } from "@/utils/enum";
@@ -47,6 +49,10 @@ export default defineComponent({
       switch (driveName) {
         case 'Modbus Tcp Client':
           return <ModbusForm {...formCfg} ></ModbusForm>
+        case 'OPC DA Client':
+          return <ConnectOpcDaAddressForm {...formCfg} ></ConnectOpcDaAddressForm>
+        case 'OPC UA Client':
+          return <ConnectOpcUaAddressForm {...formCfg} ></ConnectOpcUaAddressForm>
         default:
           break;
       }

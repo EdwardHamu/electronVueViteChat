@@ -15,7 +15,7 @@ import { useMyI18n } from "@/hooks/useMyI18n";
 import { tabNameEnum } from "./enum";
 
 export default defineComponent({
-  name: 'devConfigNew',
+  name: 'devConfigNew',  //设备配置
   setup(props, ctx) {
     const data = ref<DeviceConfigEntity[]>([])
     const otherData = reactive({

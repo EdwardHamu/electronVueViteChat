@@ -21,16 +21,19 @@ export default defineComponent({
     const myFormRef = ref<MyFormWrapIns>()
     const show = computed(() => configStore.addFormShow)
     const dialog = useDialog()
+    const buildItemList = (): formListItem[] => [
+      {
+        type: 'radio', label: t('config.deviceType'), prop: "DriverName", width: 24, radioList: [
+          { label: 'Modbus Tcp Client', value: 'Modbus Tcp Client' },
+          { label: t('config.opcDaClient'), value: 'OPC DA Client' },
+          { label: t('config.opcUaClient'), value: 'OPC UA Client' },
+        ], radioType: 'def', rule: ['must']
+      },
+    ]
     const alldata = reactive({
       form: {},
       curDialogIns: null as DialogReactive | null,
-      itemList: [
-        {
-          type: 'radio', label: t('config.deviceType'), prop: "DriverName", width: 24, radioList: [
-            { label: 'Modbus Tcp Client', value: 'Modbus Tcp Client' },
-          ], radioType: 'def', rule: ['must']
-        },
-      ] as formListItem[],
+      itemList: buildItemList(),
     })
     const hideForm = () => {
       configStore.setAddFormShow(false)
@@ -95,6 +98,9 @@ export default defineComponent({
       } else {
         alldata.curDialogIns && alldata.curDialogIns?.destroy()
       }
+    })
+    watch(() => i18nStore.langChangeCount, () => {
+      alldata.itemList = buildItemList()
     })
     return () => {
       return (

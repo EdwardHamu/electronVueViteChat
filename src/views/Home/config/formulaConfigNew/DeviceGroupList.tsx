@@ -68,11 +68,11 @@ export default defineComponent({
 
     return () => {
       return (
-        <div class={'w-full h-full border border-gray-600 border-solid overflow-hidden bg-white'}>
+        <div class={'w-full h-full border border-gray-600 border-solid overflow-hidden '}>
           <div class={"w-full h-full overflow-auto "}>
             {
               curFormulaConfigRow.value && alldata.list.map((e, i) => {
-                return <div class={classNames('text-2xl p-2 bg-white flex items-center', { 'bg-[#f5f6f6]': i % 2 != 0, 'bg-[#688eb2] text-white': curDeviceGroupRow.value?.GId == e.GId })}
+                return <div class={classNames('text-2xl p-2 flex items-center', { 'bg-[#688eb2] text-white': curDeviceGroupRow.value?.GId == e.GId })}
                   onClick={() => { rowClick(e) }} >
                   <span>
                     {e.DeviceName}

@@ -17,11 +17,11 @@ export interface formListItem {
   uncheckedValue?: string | number,
   disabled?: boolean,
   placement?: Placement,
-  suffix?: () => JSX.Element,
+  suffix?: () => any,
   style?: Record<string, string>,
   defaultValue?: string | number | boolean,
   text?: string,
-  renderComp?: () => JSX.Element,   //自由渲染内容
+  renderComp?: () => any,   //自由渲染内容
   radioList?: { value: string | number, label: string }[],
   min?: number,
   max?: number,
@@ -68,9 +68,9 @@ export const MyFormWrap = defineComponent({
     },
     inputStyle: {
       type: Object,
-      default: { width: '300px' }
+      default: { width: '100%' }
     },
-    renderToBtn: Function as PropType<() => JSX.Element>   //自由渲染按钮内容
+    renderToBtn: Function as PropType<() => any>   //自由渲染按钮内容
   },
   setup(props, ctx) {
     const formRef = ref<InstanceType<typeof NForm>>()
@@ -129,7 +129,7 @@ export const MyFormWrap = defineComponent({
     }
     const submit = (propSubmit: typeof props.submitFn) => {
       console.log("🪵 [MyFormWrap.tsx:100] ~ token ~ \x1b[0;32mprops.form \x1b[0m = ", props.form);
-      return validForm().then(() => {
+      return validForm()!.then(() => {
         return propSubmit && propSubmit({ ...props.form })
       })
     }
@@ -198,7 +198,7 @@ export const MyFormWrap = defineComponent({
     const renderInput = (form: typeof props.form, item: formListItem) => {
       typeof form[item.prop] === 'number' && (form[item.prop] = form[item.prop] + "")
       return (
-        <NFormItem class={item.class} label={item.label} path={item.prop} contentStyle={{ maxWidth: '200px', }} labelStyle={commonStyle.value} >
+        <NFormItem class={item.class} label={item.label} path={item.prop} contentStyle={{ maxWidth: '2000px', }} labelStyle={commonStyle.value} >
           <NInput size={'large'} v-model:value={form[item.prop]} style={{ ...commonStyle.value, ...inputStyle.value }} placeholder="" clearable type={item.inputType || 'text'} rows={item.row || 3} disabled={item.disabled} v-slots={{
             suffix: typeof item.suffix === 'function' ? item.suffix : () => item.suffix
           }} />

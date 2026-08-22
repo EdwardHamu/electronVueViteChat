@@ -6,6 +6,8 @@ import { DeviceConfigEntity } from "~/me";
 import ConnectComForm, { ConnectFormIns } from "./connect/ConnectComForm";
 import { MyFormWrapIns } from "@/components/MyFormWrap/MyFormWrap";
 import ConnectTcpForm from "./connect/ConnectTcpForm";
+import ConnectOpcDaForm from "./connect/ConnectOpcDaForm";
+import ConnectOpcUaForm from "./connect/ConnectOpcUaForm";
 import { useMyI18n } from "@/hooks/useMyI18n";
 
 export default defineComponent({
@@ -33,6 +35,12 @@ export default defineComponent({
       switch (driveName) {
         case 'Modbus Tcp Client':
           res = ConnectTcpForm
+          break;
+        case 'OPC DA Client':
+          res = ConnectOpcDaForm
+          break;
+        case 'OPC UA Client':
+          res = ConnectOpcUaForm
           break;
         default:
           res = ConnectComForm
