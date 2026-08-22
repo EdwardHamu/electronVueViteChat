@@ -25,8 +25,11 @@ export default defineComponent({
       {
         type: 'radio', label: t('config.deviceType'), prop: "DriverName", width: 24, radioList: [
           { label: 'Modbus Tcp Client', value: 'Modbus Tcp Client' },
+          { label: t('config.modbusRtuClient'), value: 'Modbus Rtu Client' },
+          { label: t('config.modbusAsciiClient'), value: 'Modbus Ascii Client' },
           { label: t('config.opcDaClient'), value: 'OPC DA Client' },
           { label: t('config.opcUaClient'), value: 'OPC UA Client' },
+          { label: t('config.siemensTcpClient'), value: 'Siemens Tcp Client' },
         ], radioType: 'def', rule: ['must']
       },
     ]

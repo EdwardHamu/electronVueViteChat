@@ -8,6 +8,9 @@ import { MyFormWrapIns } from "@/components/MyFormWrap/MyFormWrap";
 import ConnectTcpForm from "./connect/ConnectTcpForm";
 import ConnectOpcDaForm from "./connect/ConnectOpcDaForm";
 import ConnectOpcUaForm from "./connect/ConnectOpcUaForm";
+import ConnectSiemensForm from "./connect/ConnectSiemensForm";
+import ConnectModbusRtuForm from "./connect/ConnectModbusRtuForm";
+import ConnectModbusAsciiForm from "./connect/ConnectModbusAsciiForm";
 import { useMyI18n } from "@/hooks/useMyI18n";
 
 export default defineComponent({
@@ -41,6 +44,15 @@ export default defineComponent({
           break;
         case 'OPC UA Client':
           res = ConnectOpcUaForm
+          break;
+        case 'Siemens Tcp Client':
+          res = ConnectSiemensForm
+          break;
+        case 'Modbus Rtu Client':
+          res = ConnectModbusRtuForm
+          break;
+        case 'Modbus Ascii Client':
+          res = ConnectModbusAsciiForm
           break;
         default:
           res = ConnectComForm

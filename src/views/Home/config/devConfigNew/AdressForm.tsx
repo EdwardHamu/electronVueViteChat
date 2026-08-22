@@ -7,6 +7,9 @@ import { useConfigStore } from "@/store/config";
 import ModbusForm from "./address/ModbusForm";
 import ConnectOpcDaAddressForm from "./address/ConnectOpcDaAddressForm";
 import ConnectOpcUaAddressForm from "./address/ConnectOpcUaAddressForm";
+import ConnectSiemensAddressForm from "./address/ConnectSiemensAddressForm";
+import ConnectModbusRtuAddressForm from "./address/ConnectModbusRtuAddressForm";
+import ConnectModbusAsciiAddressForm from "./address/ConnectModbusAsciiAddressForm";
 import { MyFormWrapIns } from "@/components/MyFormWrap/MyFormWrap";
 import { callBrige } from "@/utils/callm";
 import { callFnName } from "@/utils/enum";
@@ -53,6 +56,12 @@ export default defineComponent({
           return <ConnectOpcDaAddressForm {...formCfg} ></ConnectOpcDaAddressForm>
         case 'OPC UA Client':
           return <ConnectOpcUaAddressForm {...formCfg} ></ConnectOpcUaAddressForm>
+        case 'Siemens Tcp Client':
+          return <ConnectSiemensAddressForm {...formCfg} ></ConnectSiemensAddressForm>
+        case 'Modbus Rtu Client':
+          return <ConnectModbusRtuAddressForm {...formCfg} ></ConnectModbusRtuAddressForm>
+        case 'Modbus Ascii Client':
+          return <ConnectModbusAsciiAddressForm {...formCfg} ></ConnectModbusAsciiAddressForm>
         default:
           break;
       }
