@@ -51,8 +51,8 @@ export default defineComponent({
       adressData: [] as DataAddressEntity[],
       adressColoumns: [
         { label: t('config.dataName'), prop: 'Name', flex: 1, isInput: true, },
-        { label: t('config.area'), prop: 'adressItem.Area', flex: 2, mapFn: (col: any, item: DataAddressEntity) => { return AreaList.find(a => a.value == item.adressItem?.Area)?.label } },
-        { label: t('config.dataType'), prop: 'adressItem.DataType', flex: 2, mapFn: (col: any, item: DataAddressEntity) => { return DataTypeList.find(a => a.value == item.adressItem?.DataType)?.label } },
+        // { label: t('config.area'), prop: 'adressItem.Area', flex: 2, mapFn: (col: any, item: DataAddressEntity) => { return AreaList.find(a => a.value == item.adressItem?.Area)?.label } },
+        // { label: t('config.dataType'), prop: 'adressItem.DataType', flex: 2, mapFn: (col: any, item: DataAddressEntity) => { return DataTypeList.find(a => a.value == item.adressItem?.DataType)?.label } },
         { label: '', prop: 'isChoose', flex: 1, isRadio: true, btnFn: adressChoose, mapFn: (col: any, item: DataAddressEntity) => { return item.isChoose ? t('config.selected') : t('config.select') } },
         // { label: '数据分类', prop: 'DeviceClass', flex: 2, mapFn: (col: any, item: DataAddressEntity) => { return DeviceClassNameMap[item.DeviceClass] } },
         // { label: '数据类型', prop: 'DataClass', flex: 2, mapFn: (col: any, item: DataAddressEntity) => { return DataClassNameMap[item.DataClass] } },
@@ -100,7 +100,7 @@ export default defineComponent({
         return callBrige(callFnName.SaveDataGroup, dat)
       })
       ajaxPromiseAll(reqList).then(() => {
-        window.$message.success(t('config.saveSuccess'))
+        // window.$message.success(t('config.saveSuccess'))
         hideForm()
         configStore.updateDevDataGroupRowFn()
       })
@@ -129,8 +129,8 @@ export default defineComponent({
         refreshAreaList()
         refreshDataTypeList()
         // 更新 adressColoumns 的 mapFn 以使用最新的翻译
-        alldata.adressColoumns[1].mapFn = (col: any, item: DataAddressEntity) => { return AreaList.find(a => a.value == item.adressItem?.Area)?.label! }
-        alldata.adressColoumns[2].mapFn = (col: any, item: DataAddressEntity) => { return DataTypeList.find(a => a.value == item.adressItem?.DataType)?.label! }
+        // alldata.adressColoumns[1].mapFn = (col: any, item: DataAddressEntity) => { return AreaList.find(a => a.value == item.adressItem?.Area)?.label! }
+        // alldata.adressColoumns[2].mapFn = (col: any, item: DataAddressEntity) => { return DataTypeList.find(a => a.value == item.adressItem?.DataType)?.label! }
 
         alldata.curDev = null
         getDevList()
