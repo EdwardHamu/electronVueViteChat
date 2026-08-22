@@ -1,5 +1,5 @@
 allowBuilds:
-  '@parcel/watcher': true
+  "@parcel/watcher": true
   core-js: true
   edge-cs: true
   electron: true
@@ -10,3 +10,5 @@ allowBuilds:
   vue-demi: true
   vue-echarts: true
   webtopo-svg-edit: true
+packages:
+  - "."
