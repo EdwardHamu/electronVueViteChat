@@ -151,6 +151,7 @@
     "startTime": "Start Time",
     "endTime": "End Time",
     "operator": "Operator",
+    "exportFiles": "Export Files",
     "excelExportPath": "Excel Export Path",
     "pdfExportPath": "PDF Export Path",
     "other": "Other",

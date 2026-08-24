@@ -80,6 +80,7 @@ enum callFnName {
   GetShowDataGroups = `GetShowDataGroups`,
   RestartApp = `RestartApp`,
   ShutdownPc = `ShutdownPc`,
+  OpenFile = `OpenFile`,
   SaveExportImage = `SaveExportImage`,
   SaveFormulaConfig = `SaveFormulaConfig`, activeFormulaConfig = 'activeFormulaConfig', GetProductHistorys = 'GetProductHistorys', StopCollect = "StopCollect",
   CalcWallThickness = `CalcWallThickness`,

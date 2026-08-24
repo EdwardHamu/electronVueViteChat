@@ -151,6 +151,7 @@
     "startTime": "Thời gian bắt đầu",
     "endTime": "Thời gian kết thúc",
     "operator": "Nhà vận hành",
+    "exportFiles": "Tệp xuất",
     "excelExportPath": "Đường dẫn xuất Excel",
     "pdfExportPath": "Đường dẫn xuất PDF",
     "other": "Khác",

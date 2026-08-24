@@ -194,6 +194,54 @@ body {
   }
 }
 
+.product-history-table {
+  .n-data-table,
+  .n-data-table .n-data-table-thead,
+  .n-data-table .n-data-table-tr td,
+  .n-data-table .n-input__input-el {
+    font-size: 14px;
+  }
+
+  .n-data-table .n-data-table-th {
+    padding: 3px 4px;
+  }
+
+  .n-data-table .n-data-table-tr td {
+    line-height: 18px;
+    padding: 2px 4px;
+  }
+
+  .n-data-table .n-data-table-tr {
+    margin-top: 0;
+  }
+
+  .n-data-table .n-data-table-tr.is-selected > td:first-child::before {
+    top: 2px;
+    bottom: 2px !important;
+  }
+}
+
+.statistic-table {
+  .n-data-table,
+  .n-data-table .n-data-table-thead,
+  .n-data-table .n-data-table-tr td {
+    font-size: 12px;
+  }
+
+  .n-data-table .n-data-table-th {
+    padding: 2px 3px;
+  }
+
+  .n-data-table .n-data-table-tr td {
+    line-height: 16px;
+    padding: 1px 3px;
+  }
+
+  .n-data-table .n-data-table-tr {
+    margin-top: 0;
+  }
+}
+
 .bar-tab {
   //带底部边条的标签
   // .n-tabs-nav-scroll-wrapper {

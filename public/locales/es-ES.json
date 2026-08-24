@@ -151,6 +151,7 @@
     "startTime": "Hora de inicio",
     "endTime": "Hora de fin",
     "operator": "Operador",
+    "exportFiles": "Archivos exportados",
     "excelExportPath": "Ruta de exportación Excel",
     "pdfExportPath": "Ruta de exportación PDF",
     "other": "Otros",

@@ -19,21 +19,24 @@ export default defineComponent({
     const cancel = () => {
       configStore.setProductLogShow(false)
     }
+    const formatFiveDecimals = (value: number) => {
+      return Number.isFinite(value) ? value.toFixed(5) : ''
+    }
     const tableCfg = reactive({
       columns: [
         // { key: 'ProductNo', title: '产品编号', resizable: true },
         { key: 'DataName', title: t('config.name'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 } },
-        { key: 'Unit', title: t('config.unit'), resizable: true, width: 100, ellipsis: { tooltip: true, lineClamp: 1 } },
+        { key: 'Unit', title: t('config.unit'), resizable: true, width: 80, ellipsis: { tooltip: true, lineClamp: 1 } },
         { key: 'Standard', title: t('data.standard2'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 } },
         { key: 'USL', title: t('data.limitHeight'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 } },
         { key: 'LSL', title: t('data.limitLow'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 } },
-        { key: 'Average', title: t('data.average'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 } },
-        { key: 'Max', title: t('data.max'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 } },
-        { key: 'Min', title: t('data.min'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 } },
-        { key: 'StdDev', title: t('data.standardDeviation'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 } },
-        { key: 'Ca', title: 'CA', resizable: true, ellipsis: { tooltip: true, lineClamp: 1 } },
-        { key: 'Cp', title: 'CP', resizable: true, ellipsis: { tooltip: true, lineClamp: 1 } },
-        { key: 'Cpk', title: 'CPK', resizable: true, ellipsis: { tooltip: true, lineClamp: 1 } },
+        { key: 'Average', title: t('data.average'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Average) },
+        { key: 'Max', title: t('data.max'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Max) },
+        { key: 'Min', title: t('data.min'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Min) },
+        { key: 'StdDev', title: t('data.standardDeviation'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.StdDev) },
+        { key: 'Ca', title: 'CA', resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Ca) },
+        { key: 'Cp', title: 'CP', resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Cp) },
+        { key: 'Cpk', title: 'CPK', resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Cpk) },
 
       ],
       tdata: [] as ProductStatisticEntity[],
@@ -111,7 +114,7 @@ export default defineComponent({
       return (
         <div class={' w-full h-full'}>
           {/* @ts-ignore */}
-          <MyNTable {...tableCfg} data={tableCfg.tdata} />
+          <MyNTable class={'statistic-table'} {...tableCfg} data={tableCfg.tdata} />
         </div>
         // <div class={' w-screen h-screen absolute  flex flex-col z-10 bg-white overflow-hidden'}>
         //   <div class={"flex-shrink flex flex-col"}>
