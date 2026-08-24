@@ -34,10 +34,7 @@ export default defineComponent({
             nodeProps={(option: any) => {
               return {
                 // class: 'w-[17vw]',
-                style: {
-                  minWidth: '17vw',
-                  fontSize: '1.4rem',
-                }
+                style: 'min-width: 17vw; font-size: 1.4rem;'
               }
             }
             }

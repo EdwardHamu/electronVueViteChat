@@ -17,7 +17,7 @@ export default defineComponent({
             props.editFn && <NButton type="primary" size={'medium'} onClick={() => { props.editFn!() }} >编辑</NButton>
           }
           {
-            props.delFn && <NPopconfirm placement="right" title=""
+            props.delFn && <NPopconfirm placement="right"
               v-slots={{
                 default: () => {
                   return <div>确定删除?</div>

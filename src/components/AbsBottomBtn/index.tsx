@@ -42,7 +42,7 @@ export default defineComponent({
             <NButton class={'mr-3 h-16 w-[300px] shrink'} style={{ backgroundImage: `url(${btnActiveImg})`, backgroundSize: '100% 100%', color: '#534d62' }} strong={true} onClick={() => { props.otherFnGroup?.addFn() }} size={'large'}  >
               <span class={'text-2xl ml-2 '}>{t('config.add2')}</span>
             </NButton>,
-            <NPopconfirm placement="top" title=""
+            <NPopconfirm placement="top"
               v-slots={{
                 default: () => {
                   return <div>{t('config.confirmDelete')}</div>

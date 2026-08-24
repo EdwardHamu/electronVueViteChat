@@ -60,7 +60,7 @@ export const MyFormWrap = defineComponent({
       default: 140
     },
     labelAlign: {
-      type: String,
+      type: String as PropType<'left' | 'right'>,
       default: 'right'
     },
     fontSize: {
@@ -209,7 +209,7 @@ export const MyFormWrap = defineComponent({
       // typeof form[item.prop] === 'string' && (form[item.prop] = Number(form[item.prop]))
       return (
         <NFormItem label={item.label} path={item.prop}>
-          <NInputNumber size={'large'} min={item.min} max={item.max} v-model:value={form[item.prop]} placeholder="" clearable rows={item.row || 3} disabled={item.disabled} v-slots={{
+          <NInputNumber size={'large'} min={item.min} max={item.max} v-model:value={form[item.prop]} placeholder="" clearable disabled={item.disabled} v-slots={{
             suffix: typeof item.suffix === 'function' ? item.suffix : () => item.suffix
           }} />
         </NFormItem>

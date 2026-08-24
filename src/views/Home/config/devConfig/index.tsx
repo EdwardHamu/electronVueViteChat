@@ -109,7 +109,7 @@ export default defineComponent({
               确认删除吗?
             </NPopconfirm>
             {/* <NButton class={'my-large-btn mr-3'} renderIcon={() => <LargeBtnIcon><DeleteForeverFilled /></LargeBtnIcon>} type="primary" size={'large'} onClick={delDev}>删除设备</NButton> */}
-            <NButton class={'my-large-btn mr-3'} renderIcon={() => <LargeBtnIcon><CloseOutlined /></LargeBtnIcon>} type="" size={'large'} onClick={close}>关闭</NButton>
+            <NButton class={'my-large-btn mr-3'} renderIcon={() => <LargeBtnIcon><CloseOutlined /></LargeBtnIcon>} size={'large'} onClick={close}>关闭</NButton>
 
             {/* <NDivider titlePlacement="left" class={'large-label-size'}  >
               设备配置

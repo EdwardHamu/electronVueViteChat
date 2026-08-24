@@ -124,7 +124,7 @@ export default defineComponent({
     }
     const renderTimeColumnTitle = (label: string, key: 'StartTime' | 'EndTime') => {
       return (
-        <div class={'flex flex-col gap-1'}>
+        <div class={'flex flex-col gap-1'} onKeyup={handleFilterKeyup}>
           <span>{label}</span>
           <NDatePicker
             value={filterData[key]}
@@ -136,7 +136,6 @@ export default defineComponent({
               filterData[key] = value
               getTableData()
             }}
-            onKeyup={handleFilterKeyup}
           />
         </div>
       )

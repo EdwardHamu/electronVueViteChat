@@ -25,16 +25,16 @@ export default defineComponent({
     innerData.cleanSelectItem()
     const msg = useMessage()
     let allList = [] as (CategoryNodeEntity | CategoryDataEntity)[]
+    const treeNodeProps: NonNullable<TreeProps['nodeProps']> = ({ option }) => {
+      return {
+        class: classNames({ ' bg-[#f3f3f5] border border-solid border-blue-200 ': String(option.key) == innerData.selectKey[0] }),
+      }
+    }
     const treeCfg = reactive({
       data: [] as TreeProps['data'],
       showLine: true,
       selectedKeys: innerData.selectKey,
-      nodeProps: (info: { option: CategoryNodeEntity | CategoryDataEntity }) => {
-        let key = getEntityKeyAndName(info.option)
-        return {
-          class: classNames({ ' bg-[#f3f3f5] border border-solid border-blue-200 ': key == innerData.selectKey[0] }),
-        }
-      },
+      nodeProps: treeNodeProps,
       onUpdateSelectedKeys: (keys: string[]) => {
         let item = allList.find(e => e.GId == keys[0].split('*')[0])
         item && innerData.setSelectItem({ ...item })

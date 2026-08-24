@@ -119,7 +119,7 @@ export default defineComponent({
             curTabValue.value == 'realTime' && isMount.value && <Teleport to="#dataConfigRightBlock">
               <div class={'w-[10vw] h-12 z-20 absolute flex justify-end items-center top-1 right-0 pr-2'}>
                 <NButton size={'large'} class={'mr-2'} onClick={addRow} >新增</NButton>
-                <NPopconfirm placement="bottom" title=""
+                <NPopconfirm placement="bottom"
                   v-slots={{
                     default: () => {
                       return <div>确定删除?</div>

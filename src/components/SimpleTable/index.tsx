@@ -225,7 +225,7 @@ export default defineComponent({
                       )
                     }
                     if (col.btnType == 'danger') {
-                      res = <NPopconfirm placement="right" title=""
+                      res = <NPopconfirm placement="right"
                         v-slots={{
                           default: () => {
                             return <div>{t('config.confirmDelete')}</div>
@@ -251,15 +251,15 @@ export default defineComponent({
                       </NPopconfirm>
                     }
                     if (col.isCheckbox) {
-                      res = <NCheckbox v-model:checked={item[col.prop]} onClick={stopRowClick} size="large" ></NCheckbox>
+                      res = <span key={col.prop} onClick={stopRowClick}><NCheckbox v-model:checked={item[col.prop]} size="large" ></NCheckbox></span>
                     }
                     if (col.isSwitch) {
                       let text = col.mapFn && col.mapFn(col, item)
-                      res = <div key={col.prop} class={classNames(' shrink-0', { 'invisible ': item.isNewRow && i != 0 })} style={{
+                      res = <div key={col.prop} class={classNames(' shrink-0', { 'invisible ': item.isNewRow && i != 0 })} onClick={stopRowClick} style={{
                         flex: col.flex, ...styles.cell,
                         ...(item.GId == alldata.curRow?.GId ? styles.cellIsChoose : {})
                       }}>
-                        <NSwitch v-model:value={item[col.prop]} onClick={stopRowClick} onUpdate:value={() => { col.btnFn && col.btnFn(col, item) }} size="large" checkedValue={1} uncheckedValue={0} v-slots={{
+                        <NSwitch v-model:value={item[col.prop]} onUpdate:value={() => { col.btnFn && col.btnFn(col, item) }} size="large" checkedValue={1} uncheckedValue={0} v-slots={{
                           checked: () => { return <div >{text}</div> },
                           unchecked: () => { return <div class={'text-black'}>{text}</div> }
                         }}  ></NSwitch>
@@ -278,11 +278,11 @@ export default defineComponent({
 
                     if (col.isSelect) {
                       // let text = col.mapFn && col.mapFn(col, item)
-                      res = <div key={col.prop} class={classNames(' shrink-0', { 'invisible': item.isNewRow && i != 0 })} style={{
+                      res = <div key={col.prop} class={classNames(' shrink-0', { 'invisible': item.isNewRow && i != 0 })} onClick={stopRowClick} style={{
                         flex: col.flex, ...styles.cell, padding: '0', border: 'none',
                         ...(item.GId == alldata.curRow?.GId ? styles.cellIsChoose : {}),
                         width: col.fixWidth ? `${col.fixWidth}%` : '100%',
-                      }}> <NSelect style={{ height: '100%' }} onClick={stopRowClick} v-model:value={item[col.prop]} size="large" onUpdate:value={() => { col.btnFn && col.btnFn(col, item) }} options={col.selectOption} ></NSelect>
+                      }}> <NSelect style={{ height: '100%' }} v-model:value={item[col.prop]} size="large" onUpdate:value={() => { col.btnFn && col.btnFn(col, item) }} options={col.selectOption} ></NSelect>
                       </div>
                     }
 
@@ -336,7 +336,7 @@ export default defineComponent({
             }
 
             {
-              !!props.btnShowList[2] && <NPopconfirm placement="right" title=""
+              !!props.btnShowList[2] && <NPopconfirm placement="right"
                 v-slots={{
                   default: () => {
                     return <div>{t('config.confirmDelete')}</div>

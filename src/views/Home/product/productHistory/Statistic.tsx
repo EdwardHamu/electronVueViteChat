@@ -33,7 +33,7 @@ export default defineComponent({
         { key: 'Average', title: t('data.average'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Average) },
         { key: 'Max', title: t('data.max'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Max) },
         { key: 'Min', title: t('data.min'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Min) },
-        { key: 'StdDev', title: t('data.standardDeviation'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.StdDev) },
+        { key: 'StdDeviation', title: t('data.standardDeviation'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.StdDeviation) },
         { key: 'Ca', title: 'CA', resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Ca) },
         { key: 'Cp', title: 'CP', resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Cp) },
         { key: 'Cpk', title: 'CPK', resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Cpk) },

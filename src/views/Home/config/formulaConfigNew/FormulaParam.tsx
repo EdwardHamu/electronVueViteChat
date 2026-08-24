@@ -229,7 +229,7 @@ export default defineComponent({
 
               }
               return (
-                <NTabPane displayDirective="show:lazy" name={item.DataGroupId} tab={getTabDisplayName(item)} tabProps={{ style: { ...alldata.commonStyle, ...alldata.curTabValue == item.DataGroupId ? alldata.activeStyle : {} } }}>
+                <NTabPane displayDirective="show:lazy" name={item.DataGroupId || totalId} tab={getTabDisplayName(item)} tabProps={{ style: { ...alldata.commonStyle, ...alldata.curTabValue == item.DataGroupId ? alldata.activeStyle : {} } }}>
                   <div style={{ height: `calc(100vh - ${alldata.calcHeight}px)` }} class={'w-full h-full p-2 border border-gray-600 border-solid '}>
                     <div class={'w-full h-full py-6 pl-4 '}>
                       <MyFormWrap labelWidth={360} fontSize={32} labelAlign="left" inputStyle={{ marginLeft: 'auto', width: '450px', marginRight: '10px', textAlign: 'center' }} {...alldata.formCfg} form={alldata.formMap[totalId]} />

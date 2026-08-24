@@ -113,10 +113,7 @@ export default defineComponent({
           <NDropdown options={dataSourceList.value}
             nodeProps={(option: any) => {
               return {
-                style: {
-                  fontSize: '1.4rem',
-                  width: '12vw'
-                }
+                style: 'font-size: 1.4rem; width: 12vw;'
               }
             }}
             trigger="click" onSelect={handleMenuSelect} size={'large'} class={'text-lg'}  >

@@ -144,9 +144,7 @@ export default defineComponent({
     }
     const nodeProps = () => {
       return {
-        style: {
-          minWidth: '14vh'
-        }
+        style: 'min-width: 14vh;'
       }
     }
     const renderLabel: DropdownProps['renderLabel'] = (option) => {

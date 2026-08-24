@@ -389,10 +389,7 @@ export default defineComponent({
     }
     const nodeProps = () => {
       return {
-        style: {
-          minWidth: '14vh',
-          fontSize: '1.5rem'
-        }
+        style: 'min-width: 14vh; font-size: 1.5rem;'
       }
     }
     const loopGetCpk = () => {
