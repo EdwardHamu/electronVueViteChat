@@ -323,10 +323,13 @@ export default defineComponent({
           downValue = stand - down
         }
 
-        let list = res.map(e => {
-          let time = new Date(e.Intime).getTime()
-          return [time, e.Value * 1]
-        })
+        const list: [number, number][] = res
+          .map(e => {
+            const time = new Date(e.Intime).getTime()
+            return [time, e.Value * 1] as [number, number]
+          })
+          .filter(([time]) => Number.isFinite(time))
+          .sort(([leftTime], [rightTime]) => leftTime - rightTime)
         // console.log("🚀 ~ list ~ list:", list.length)
         let opt = {
           title: {
