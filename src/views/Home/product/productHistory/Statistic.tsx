@@ -24,19 +24,19 @@ export default defineComponent({
     }
     const tableCfg = reactive({
       columns: [
-        // { key: 'ProductNo', title: '产品编号', resizable: true },
-        { key: 'DataName', title: t('config.name'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 } },
-        { key: 'Unit', title: t('config.unit'), resizable: true, width: 80, ellipsis: { tooltip: true, lineClamp: 1 } },
-        { key: 'Standard', title: t('data.standard2'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 } },
-        { key: 'USL', title: t('data.limitHeight'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 } },
-        { key: 'LSL', title: t('data.limitLow'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 } },
-        { key: 'Average', title: t('data.average'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Average) },
-        { key: 'Max', title: t('data.max'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Max) },
-        { key: 'Min', title: t('data.min'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Min) },
-        { key: 'StdDeviation', title: t('data.standardDeviation'), resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.StdDeviation) },
-        { key: 'Ca', title: 'CA', resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Ca) },
-        { key: 'Cp', title: 'CP', resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Cp) },
-        { key: 'Cpk', title: 'CPK', resizable: true, ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Cpk) },
+        // { key: 'ProductNo', title: '产品编号' },
+        { key: 'DataName', title: t('config.name'), ellipsis: { tooltip: true, lineClamp: 1 } },
+        { key: 'Unit', title: t('config.unit'), width: '6%', ellipsis: { tooltip: true, lineClamp: 1 } },
+        { key: 'Standard', title: t('data.standard2'), ellipsis: { tooltip: true, lineClamp: 1 } },
+        { key: 'USL', title: t('data.limitHeight'), ellipsis: { tooltip: true, lineClamp: 1 } },
+        { key: 'LSL', title: t('data.limitLow'), ellipsis: { tooltip: true, lineClamp: 1 } },
+        { key: 'Average', title: t('data.average'), ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Average) },
+        { key: 'Max', title: t('data.max'), ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Max) },
+        { key: 'Min', title: t('data.min'), ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Min) },
+        { key: 'StdDeviation', title: t('data.standardDeviation'), ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.StdDeviation) },
+        { key: 'Ca', title: 'CA', ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Ca) },
+        { key: 'Cp', title: 'CP', ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Cp) },
+        { key: 'Cpk', title: 'CPK', ellipsis: { tooltip: true, lineClamp: 1 }, render: (row: ProductStatisticEntity) => formatFiveDecimals(row.Cpk) },
 
       ],
       tdata: [] as ProductStatisticEntity[],
@@ -47,6 +47,7 @@ export default defineComponent({
       },
       rowKey: (row: ProductStatisticEntity) => row.GId,
       virtualScroll: true,
+      tableLayout: 'fixed' as const,
       isSimpleStyle: true
 
     })
@@ -77,21 +78,17 @@ export default defineComponent({
     //   })
     //   return list
     // })
-    const getTableData = () => {
-      // if (!commonData.filterText) {
-      //   msg.warning('请输入编号')
-      //   return
-      // }
-      callBrige(callFnName.GetProductStatistics, innerData.curRow?.GId).then((res: ProductStatisticEntity[]) => {
-        console.log("🚀 ~ file: index.tsx:48 ~ callSpc ~ res:", res)
-        // if (res.length == 0) {
-        //   msg.warning('暂无数据')
-        // }
-        tableCfg.tdata = res
+    // The embedded panels stay mounted; clear old rows and ignore stale replies.
+    watch(() => innerData.curRow, (row, _previous, onCleanup) => {
+      let active = true
+      onCleanup(() => { active = false })
+      tableCfg.tdata = []
+      if (!row?.GId) return
+      callBrige(callFnName.GetProductStatistics, row.GId).then((res: ProductStatisticEntity[]) => {
+        if (active) tableCfg.tdata = res
+      }).catch(() => {
+        if (active) tableCfg.tdata = []
       })
-    }
-    watch(() => innerData.curRow, (val) => {
-      val && getTableData()
     }, { immediate: true })
 
     // 语言切换时更新 tableCfg 中的标题

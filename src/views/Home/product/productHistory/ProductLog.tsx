@@ -23,13 +23,13 @@ export default defineComponent({
     }
     const tableCfg = reactive({
       columns: [
-        { key: 'ProductNo', title: t('config.spoolNumber'), resizable: true },
-        { key: 'LogType', title: t('config.logType'), resizable: true },
-        { key: 'LogOption', title: t('config.logOption'), resizable: true },
-        { key: 'LogDetail', title: t('config.logDetail'), resizable: true },
-        { key: 'Length', title: t('config.currentLength'), resizable: true },
-        { key: 'Operator', title: t('config.operator'), resizable: true },
-        { key: 'CreateTime', title: t('config.createTime'), resizable: true },
+        { key: 'ProductNo', width: '13%', ellipsis: { tooltip: true }, title: t('config.spoolNumber') },
+        { key: 'LogType', width: '10%', ellipsis: { tooltip: true }, title: t('config.logType') },
+        { key: 'LogOption', width: '12%', ellipsis: { tooltip: true }, title: t('config.logOption') },
+        { key: 'LogDetail', width: '29%', ellipsis: { tooltip: true }, title: t('config.logDetail') },
+        { key: 'Length', width: '10%', ellipsis: { tooltip: true }, title: t('config.currentLength') },
+        { key: 'Operator', width: '10%', ellipsis: { tooltip: true }, title: t('config.operator') },
+        { key: 'CreateTime', width: '16%', ellipsis: { tooltip: true }, title: t('config.createTime') },
       ],
       tdata: [] as ProductLogEntity[],
       rowProps: (row: ProductLogEntity) => {
@@ -39,6 +39,7 @@ export default defineComponent({
       },
       rowKey: (row: ProductLogEntity) => row.GId,
       virtualScroll: true,
+      tableLayout: 'fixed' as const,
       isSimpleStyle: true
     })
     var sevenDaysAgo = new Date();
@@ -68,22 +69,18 @@ export default defineComponent({
     //   })
     //   return list
     // })
-    const getTableData = () => {
-      // if (!commonData.filterText) {
-      //   msg.warning('请输入编号')
-      //   return
-      // }
-      callBrige(callFnName.GetProductLogs, innerData.curRow?.GId).then((res: ProductLogEntity[]) => {
-        console.log("🚀 ~ file: index.tsx:48 ~ callSpc ~ res:", res)
-        // if (res.length == 0) {
-        //   msg.warning('暂无数据')
-        // }
-        tableCfg.tdata = res
+    // The embedded panels stay mounted; clear old rows and ignore stale replies.
+    watch(() => innerData.curRow, (row, _previous, onCleanup) => {
+      let active = true
+      onCleanup(() => { active = false })
+      tableCfg.tdata = []
+      if (!row?.GId) return
+      callBrige(callFnName.GetProductLogs, row.GId).then((res: ProductLogEntity[]) => {
+        if (active) tableCfg.tdata = res
+      }).catch(() => {
+        if (active) tableCfg.tdata = []
       })
-    }
-    watch(() => innerData.curRow, (val) => {
-      val && getTableData()
-    })
+    }, { immediate: true })
 
     // 语言切换时更新 tableCfg 中的标题
     watch(() => i18nStore.langChangeCount, () => {
@@ -103,7 +100,7 @@ export default defineComponent({
       return (
         <div class={' w-full h-full'}>
           {/* @ts-ignore */}
-          <MyNTable {...tableCfg} data={tableCfg.tdata} />
+          <MyNTable class={'product-log-table'} {...tableCfg} data={tableCfg.tdata} />
         </div>
         // <div class={' w-screen h-screen absolute  flex flex-col z-10 bg-white overflow-hidden'}>
         //   <div class={"flex-shrink flex flex-col"}>
@@ -117,7 +114,7 @@ export default defineComponent({
         //     </div>
         //     <div class={'flex-shrink'}>
         //       {/* @ts-ignore */}
-        //       <MyNTable {...tableCfg} data={tableCfg.tdata} />
+        //       <MyNTable class={'product-log-table'} {...tableCfg} data={tableCfg.tdata} />
         //     </div>
         //   </div>
 

@@ -194,21 +194,22 @@ body {
   }
 }
 
-.product-history-table {
+.product-history-table,
+.product-log-table {
   .n-data-table,
   .n-data-table .n-data-table-thead,
   .n-data-table .n-data-table-tr td,
   .n-data-table .n-input__input-el {
-    font-size: 14px;
+    font-size: 12px;
   }
 
   .n-data-table .n-data-table-th {
-    padding: 3px 4px;
+    padding: 2px 3px;
   }
 
   .n-data-table .n-data-table-tr td {
-    line-height: 18px;
-    padding: 2px 4px;
+    line-height: 16px;
+    padding: 1px 3px;
   }
 
   .n-data-table .n-data-table-tr {
@@ -218,6 +219,36 @@ body {
   .n-data-table .n-data-table-tr.is-selected > td:first-child::before {
     top: 2px;
     bottom: 2px !important;
+  }
+}
+
+// Fit only the embedded history-page tables; do not hide oversized tables.
+.product-history-page {
+  .n-data-table-table {
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  .n-data-table-th {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .n-date-picker,
+  .n-input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .n-input-wrapper {
+    min-width: 0;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+
+  .product-history-table .n-button {
+    font-size: 11px;
+    padding: 0 4px;
   }
 }
 

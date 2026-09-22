@@ -1,52 +1,30 @@
 import AbsBottomBtn from "@/components/AbsBottomBtn";
 import MyNTable from "@/components/MyNTable";
-import { useMain } from "@/store";
+import { useMediaQuery } from "@vueuse/core";
 import { useConfigStore } from "@/store/config";
-import { callSpc } from "@/utils/call";
 import { callBrige } from "@/utils/callm";
 import { callFnName } from "@/utils/enum";
 import { formatDate } from "@/utils/utils";
 import classNames from "classnames";
-import { NButton, NDatePicker, NDrawer, NDrawerContent, NInput, NSpace, NTabPane, NTabs, useMessage } from "naive-ui";
+import { NButton, NDatePicker, NInput, useMessage } from "naive-ui";
 import { computed, defineComponent, onMounted, reactive, watch } from "vue";
 import { useMyI18n } from "@/hooks/useMyI18n";
 import { ProductHistoryEntity } from "~/me";
 import { useProductHistoryInnerDataStore } from "./innerData";
-import activeImg from '@/assets/LineDspButton_inactive.png'
 import ProductLog from "./ProductLog";
 import Statistic from "./Statistic";
+import { loadProductHistoryTimeRange, saveProductHistoryTimeRange } from "./timeRangeStorage";
 
 export default defineComponent({
   name: 'ProductHistory',
   setup(props, ctx) {
     const configStore = useConfigStore()
     const { t, i18nStore } = useMyI18n()
-    const store = useMain()
+    const isLandscape = useMediaQuery('(orientation: landscape)')
     const innerData = useProductHistoryInnerDataStore()
     const msg = useMessage()
-    const alldata = reactive({
-      curTabValue: 'product',
-      defaultTab: 'product',
-      commonStyle: {
-        maxWidth: configStore.commonTabWidthObj.maxWidth, fontSize: '20px', minWidth: configStore.commonTabWidthObj.minWidth, borderTop: '1px solid #58595a', borderRight: '1px solid #58595a', borderLeft: '1px solid #58595a', borderBottom: '1px solid #58595a',
-        flexGrow: 1, background: '#fff', borderRadius: '12px 12px 0 0',
-      },
-      activeStyle: {
-        background: `#f5f6f6`,
-        backgroundSize: 'cover',
-        borderBottom: "0",
-        color: '#000',
-        zIndex: 6
-      },
-      showLog: false
-    })
-
     const cancel = () => {
       configStore.setProductHistoryShow(false)
-    }
-    const jumpLog = (row: ProductHistoryEntity) => {
-      innerData.setCurRow(row)
-      alldata.showLog = true
     }
     const copyPath = (path?: string) => {
       if (!path) return
@@ -55,7 +33,7 @@ export default defineComponent({
     }
     const renderCopyCell = (path?: string) => {
       return (
-        <span class={'cursor-pointer'} onClick={() => copyPath(path)}>{path}</span>
+        <span class={'block min-w-0 truncate cursor-pointer'} title={path} onClick={() => copyPath(path)}>{path}</span>
       )
     }
     const openExportFile = (path: string) => {
@@ -68,7 +46,7 @@ export default defineComponent({
     const renderExportFileCell = (row: ProductHistoryEntity) => {
       const directory = getParentDirectoryParentPath(row.ExcelPath) || getParentDirectoryParentPath(row.PdfPath)
       return (
-        <div class={'flex items-center gap-2 min-w-0'}>
+        <div class={'flex items-center gap-1 min-w-0'}>
           <NButton size="tiny" type="primary" disabled={!row.ExcelPath} onClick={(event) => {
             event.stopPropagation()
             openExportFile(row.ExcelPath)
@@ -77,18 +55,18 @@ export default defineComponent({
             event.stopPropagation()
             openExportFile(row.PdfPath)
           }}>PDF</NButton>
-          <span class={'min-w-0 truncate'} title={directory}>({directory})</span>
+          <span class={'w-full min-w-0 truncate'} title={directory}>({directory})</span>
         </div>
       )
     }
-    const defaultStartTime = new Date()
-    defaultStartTime.setDate(defaultStartTime.getDate() - 3)
     const filterData = reactive({
       ProductNo: '',
       PN: '',
-      StartTime: defaultStartTime.getTime(),
-      EndTime: Date.now(),
+      ...loadProductHistoryTimeRange(),
     })
+    watch(() => [filterData.StartTime, filterData.EndTime], () => {
+      saveProductHistoryTimeRange(filterData)
+    }, { flush: 'sync' })
     const rowClick = (row: ProductHistoryEntity) => {
       innerData.setCurRowKey([row.GId!])
       innerData.setCurRow(row)
@@ -114,7 +92,7 @@ export default defineComponent({
         getTableData()
       }
     }
-    const renderTextColumnTitle = (label: string, key: 'ProductNo' | 'PN') => {
+    const renderTextColumnTitle = (label: string, key: 'ProductNo' | 'PN') => () => {
       return (
         <div class={'flex flex-col gap-1'}>
           <span>{label}</span>
@@ -122,7 +100,8 @@ export default defineComponent({
         </div>
       )
     }
-    const renderTimeColumnTitle = (label: string, key: 'StartTime' | 'EndTime') => {
+    // Render in the table header's reactive effect rather than caching initial VNodes.
+    const renderTimeColumnTitle = (label: string, key: 'StartTime' | 'EndTime') => () => {
       return (
         <div class={'flex flex-col gap-1'} onKeyup={handleFilterKeyup}>
           <span>{label}</span>
@@ -142,12 +121,12 @@ export default defineComponent({
     }
     tableCfg = reactive({
       columns: [
-        { key: 'ProductNo', title: renderTextColumnTitle(t('config.spoolNumber'), 'ProductNo'), resizable: true, align: 'center', render: (row: ProductHistoryEntity) => renderCopyCell(row.ProductNo) },
-        { key: 'PN', title: renderTextColumnTitle(t('config.wireModel'), 'PN'), resizable: true, render: (row: ProductHistoryEntity) => renderCopyCell(row.PN) },
-        { key: 'StartTime', title: renderTimeColumnTitle(t('config.startTime'), 'StartTime'), resizable: true, },
-        { key: 'EndTime', title: renderTimeColumnTitle(t('config.endTime'), 'EndTime'), resizable: true, },
-        { key: 'Operator', title: t('config.operator'), resizable: true, width: 100 },
-        { key: 'ExportFiles', title: t('config.exportFiles'), resizable: true, ellipsis: { tooltip: true }, render: (row: ProductHistoryEntity) => renderExportFileCell(row) },
+        { key: 'ProductNo', width: '15%', title: renderTextColumnTitle(t('config.spoolNumber'), 'ProductNo'), align: 'center', render: (row: ProductHistoryEntity) => renderCopyCell(row.ProductNo) },
+        { key: 'PN', width: '13%', title: renderTextColumnTitle(t('config.wireModel'), 'PN'), render: (row: ProductHistoryEntity) => renderCopyCell(row.PN) },
+        { key: 'StartTime', width: '20%', ellipsis: { tooltip: true }, title: renderTimeColumnTitle(t('config.startTime'), 'StartTime'), },
+        { key: 'EndTime', width: '20%', ellipsis: { tooltip: true }, title: renderTimeColumnTitle(t('config.endTime'), 'EndTime'), },
+        { key: 'Operator', title: t('config.operator'), width: '10%', ellipsis: { tooltip: true } },
+        { key: 'ExportFiles', width: '22%', title: t('config.exportFiles'), ellipsis: { tooltip: true }, render: (row: ProductHistoryEntity) => renderExportFileCell(row) },
       ],
       tdata: [] as ProductHistoryEntity[],
       rowProps: (row: ProductHistoryEntity) => {
@@ -160,6 +139,7 @@ export default defineComponent({
       },
       rowKey: (row: ProductHistoryEntity) => row.GId,
       virtualScroll: true,
+      tableLayout: 'fixed' as const,
       isSimpleStyle: true
     })
     const ftdata = computed(() => {
@@ -171,11 +151,6 @@ export default defineComponent({
         })
       })
     })
-
-    const handleTabChange = (value: string) => {
-      // curTabValue.value = value
-      alldata.curTabValue = value
-    }
 
     // 语言切换时更新 tableCfg 中的标题
     watch(() => i18nStore.langChangeCount, () => {
@@ -195,53 +170,41 @@ export default defineComponent({
 
     return () => {
       return (
-        <div class={' w-screen h-screen absolute  flex flex-col z-10 bg-[#f5f6f6] overflow-hidden'}>
-          {/* <NTabs value={alldata.curTabValue} type="card" animated size="large" barWidth={1148} pane-class={'shrink-0 h-full'} class={'config-tab h-full w-full'} onUpdateValue={handleTabChange} defaultValue={alldata.defaultTab} >
-            <NTabPane displayDirective="show:lazy" name={"product"} tab={t('config.productHistory')} tabProps={{ style: { ...alldata.commonStyle, ...alldata.curTabValue == 'product' ? alldata.activeStyle : {} } }}>
-              
-            </NTabPane>
-
-          </NTabs> */}
-          <div class={' h-full shrink '}>
-            {/* <SysConfig /> */}
-            <div class={classNames('flex-shrink flex h-full w-full', { 'flex-col': !store.isLandscape })}>
-              <div class={classNames("flex flex-col min-w-0", { 'w-1/2': store.isLandscape, 'w-full h-1/2': !store.isLandscape })}>
-                <div class={'p-3 flex justify-end items-center'}>
-                  <NSpace>
-                    <NButton secondary strong={true} type="primary" size={'medium'} class={'  shrink mr-2 '} style={{ backgroundImage: `url(${activeImg})`, backgroundSize: '100% 100%', color: '#534d62' }} onClick={() => {
-                      if (!innerData.curRow) {
-                        msg.warning(t('config.pleaseSelectOneRow'))
-                        return
-                      }
-                      alldata.showLog = true
-                    }}>{t('config.productLog')}</NButton>
-                  </NSpace>
-                </div>
-                <div class={'flex-1 min-h-0'}>
+        <div class={'product-history-page w-screen h-screen absolute flex flex-col z-10 bg-[#f5f6f6] overflow-hidden'}>
+          <div class={'flex-1 min-h-0 min-w-0 overflow-auto'}>
+            <div class={'product-history-layout grid h-full w-full'} style={{
+              gridTemplateColumns: isLandscape.value ? 'minmax(0, 9fr) minmax(0, 11fr)' : 'minmax(0, 1fr)',
+              gridTemplateRows: isLandscape.value ? 'repeat(2, minmax(0, 1fr))' : 'minmax(0, 4fr) repeat(2, minmax(0, 3fr))',
+              minHeight: isLandscape.value ? '420px' : '720px',
+            }}>
+              <section class={'product-history-list flex flex-col min-h-0 min-w-0 overflow-hidden'} style={{ gridRow: isLandscape.value ? 'span 2' : 'auto' }}>
+                <div class={'px-3 py-2 text-sm shrink-0'}>{t('config.productHistory')}</div>
+                <div class={'flex-1 min-h-0 min-w-0 overflow-hidden'}>
                   {/* @ts-ignore */}
                   <MyNTable class={'product-history-table'} {...tableCfg} data={ftdata.value} />
                 </div>
-              </div>
-
-              <div class={classNames('flex flex-col min-w-0 border-0 border-solid border-gray-200', { 'w-1/2 border-l': store.isLandscape, 'w-full h-1/2 border-t': !store.isLandscape })}>
-                <div class={'p-3 flex items-center'}>{t('config.statisticalData')}</div>
-                <div class={'flex-1 min-h-0'}>
+              </section>
+              <section class={classNames('product-history-statistic flex flex-col min-h-0 min-w-0 overflow-hidden border-0 border-solid border-gray-200', { 'border-l': isLandscape.value, 'border-t': !isLandscape.value })}>
+                <div class={'px-3 py-2 text-sm shrink-0 flex flex-wrap items-center gap-2'}>
+                  <span>{t('config.statisticalData')}</span>
+                  <span class={'text-sm text-gray-500 break-all'}>{innerData.curRow?.ProductNo || (!innerData.curRow ? t('config.pleaseSelectOneRow') : '')}</span>
+                </div>
+                <div class={'flex-1 min-h-0 min-w-0 overflow-hidden'}>
                   <Statistic />
                 </div>
-              </div>
-
-
+              </section>
+              <section class={classNames('product-history-log flex flex-col min-h-0 min-w-0 overflow-hidden border-0 border-t border-solid border-gray-200', { 'border-l': isLandscape.value })}>
+                <div class={'px-3 py-2 text-sm shrink-0 flex flex-wrap items-center gap-2'}>
+                  <span>{t('config.productLog')}</span>
+                  <span class={'text-sm text-gray-500 break-all'}>{innerData.curRow?.ProductNo || (!innerData.curRow ? t('config.pleaseSelectOneRow') : '')}</span>
+                </div>
+                <div class={'flex-1 min-h-0 min-w-0 overflow-hidden'}>
+                  <ProductLog />
+                </div>
+              </section>
             </div>
           </div>
-
-
-
           <AbsBottomBtn cancelFn={cancel} showApply={false} />
-          <NDrawer v-model:show={alldata.showLog} placement="right" width="80%" >
-            <NDrawerContent title={t('config.productLog')} closable>
-              <ProductLog />
-            </NDrawerContent>
-          </NDrawer>
         </div>
       )
     }

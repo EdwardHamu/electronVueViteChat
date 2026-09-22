@@ -2,6 +2,6 @@
 
 - 本项目测试不需要执行 lint 检查, 也不需要执行build检查
 
-- 本项目依附于一个c#项目,前端通过webview2启动
+- 本项目已经不是electron项目, 而是依附于一个c#项目,前端通过webview2启动
 
 - 本项目的测试方法文档在 ./docs/webview2-testing.md中
