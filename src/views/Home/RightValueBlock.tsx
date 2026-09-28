@@ -298,8 +298,8 @@ export const ValueRow = defineComponent({
         <NDropdown options={dataSourceList.value}
           nodeProps={(option: any) => {
             return {
-                style: 'font-size: 1.4rem; width: 12vw;'
-              }
+              style: 'font-size: 1.4rem; width: 12vw;'
+            }
           }}
           trigger="click" onSelect={handleMenuSelect} size={'large'} class={'text-2xl'}  >
           <img class={'ml-auto h-[32px] relative top-[2px] cursor-pointer'} src={addBtn}></img>
