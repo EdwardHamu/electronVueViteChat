@@ -355,7 +355,7 @@
     "zoomIn": "Phóng to",
     "zoomOut": "Thu nhỏ",
     "resetView": "Đặt lại khung nhìn",
-    "zoomHint": "Con lăn: thu phóng · nhấn giữ vùng trống rồi kéo: di chuyển",
+    "zoomHint": "Con lăn: thu phóng · giữ phím Space và kéo chuột: di chuyển",
     "paletteHintShort": "Chạm / kéo",
     "paletteHintPortrait": "Chạm: đặt vào chỗ trống; nhấn giữ và kéo xuống canvas: đặt tại vị trí thả",
     "transformExample": {

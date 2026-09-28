@@ -156,11 +156,22 @@ export default defineComponent({
             {itemOptions.value.length === 0 && <div class={'text-xs text-orange-500 mt-1'}>{tt('scada.panel.noOptions')}</div>}
           </Section>
           <Section title={tt('scada.panel.geometry')}>
-            <div class={'grid grid-cols-2 gap-x-2'}>
-              <Row label="X"><NInputNumber size="small" value={w.x} step={1} onUpdateValue={(v: number | null) => setRect('x', v)} /></Row>
-              <Row label="Y"><NInputNumber size="small" value={w.y} step={1} onUpdateValue={(v: number | null) => setRect('y', v)} /></Row>
-              <Row label="W"><NInputNumber size="small" value={w.w} step={1} min={def?.minSize?.w || 20} onUpdateValue={(v: number | null) => setRect('w', v)} /></Row>
-              <Row label="H"><NInputNumber size="small" value={w.h} step={1} min={def?.minSize?.h || 20} onUpdateValue={(v: number | null) => setRect('h', v)} /></Row>
+            {/* 两列紧凑排布：标签只占 1 个字符宽、不显示 +/- 按钮，否则 300px 侧栏里每格只剩 40px，数字显示不出来 */}
+            <div class={'grid grid-cols-2 gap-x-3 gap-y-1.5 py-1'}>
+              {(['x', 'y', 'w', 'h'] as const).map(k => (
+                <div key={k} class={'flex items-center gap-1.5'}>
+                  <span class={'w-3.5 shrink-0 text-xs text-gray-600 uppercase'}>{k}</span>
+                  <NInputNumber
+                    class={'flex-1 min-w-0'}
+                    size="small"
+                    value={w[k]}
+                    step={1}
+                    min={k === 'w' ? def?.minSize?.w || 20 : k === 'h' ? def?.minSize?.h || 20 : undefined}
+                    showButton={false}
+                    onUpdateValue={(v: number | null) => setRect(k, v)}
+                  />
+                </div>
+              ))}
             </div>
           </Section>
           {def?.propSchema && def.propSchema.length > 0 && (

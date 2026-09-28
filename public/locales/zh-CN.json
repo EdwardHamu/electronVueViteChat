@@ -355,7 +355,7 @@
     "zoomIn": "放大",
     "zoomOut": "缩小",
     "resetView": "复位视图",
-    "zoomHint": "滚轮缩放 · 长按空白处拖动平移",
+    "zoomHint": "滚轮缩放 · 按住空格 + 拖动鼠标平移",
     "paletteHintShort": "点按 / 拖入",
     "paletteHintPortrait": "点按：自动放到空位；按住向下拖到画布：放到松手位置",
     "transformExample": {

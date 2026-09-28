@@ -355,7 +355,7 @@
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "resetView": "Reset view",
-    "zoomHint": "Wheel: zoom · long-press a blank area and drag: pan",
+    "zoomHint": "Wheel: zoom · hold Space and drag: pan",
     "paletteHintShort": "Tap / drag",
     "paletteHintPortrait": "Tap: place in a free spot; press and drag down onto the canvas: place where released",
     "transformExample": {

@@ -7,7 +7,7 @@
  *
  * 覆盖：组件 / 数据源注册表、产品分类数据源加载去重与按需轮询、编辑模式、组件库点按添加、
  *       拖动 / 缩放的网格吸附与最小尺寸、各示例组件渲染、数据处理函数（数字 / 对象 / 文本 / 出错 / 三种写法 / 持久状态）、
- *       画布视图缩放（滚轮 / 键盘 / 双指）与长按平移、竖屏上下布局、Delete 删除、保存到 localStorage、取消丢弃草稿、卸载后停止轮询。
+ *       画布视图缩放（滚轮 / 键盘 / 双指）与空格 + 拖动 / 中键平移、位置尺寸输入框、竖屏上下布局、Delete 删除、保存到 localStorage、取消丢弃草稿、卸载后停止轮询。
  * 说明：@/store、@/store/config 与 @/utils/callm 被 stubs/ 里的桩替换（真实模块会把 echarts 等整套依赖拉进来）。
  */
 import { build } from 'esbuild'
@@ -32,10 +32,10 @@ import { useConfigStore } from '@/store/config'
 import { useMain } from '@/store'
 import { getDataSource, dataSourceList } from '@/views/Home/scada/dataSource'
 import { widgetDefinitions } from '@/views/Home/scada/registry'
-import { canvasView, zoomCanvas, resetCanvasView, LONG_PRESS_MS } from '@/views/Home/scada/Canvas'
+import { canvasView, zoomCanvas, resetCanvasView } from '@/views/Home/scada/Canvas'
 import { compileTransform, runTransform, mergeTransformResult, transformErrors, transformDebug } from '@/views/Home/scada/transform'
 export { createApp, nextTick, createPinia, i18n, Scada, useScadaStore, useConfigStore, useMain, getDataSource, dataSourceList, widgetDefinitions }
-export { canvasView, zoomCanvas, resetCanvasView, LONG_PRESS_MS, compileTransform, runTransform, mergeTransformResult, transformErrors, transformDebug }
+export { canvasView, zoomCanvas, resetCanvasView, compileTransform, runTransform, mergeTransformResult, transformErrors, transformDebug }
 `)
 const stubs = {
   '@/store': path.join(here, 'stubs', 'store.ts'),
@@ -92,7 +92,7 @@ globalThis.chrome = window.chrome
 
 const m = await import(pathToFileURL(bundle).href)
 const { createApp, nextTick, createPinia, i18n, Scada, useScadaStore, useConfigStore, useMain, getDataSource, dataSourceList, widgetDefinitions } = m
-const { canvasView, zoomCanvas, resetCanvasView, LONG_PRESS_MS, compileTransform, runTransform, mergeTransformResult, transformErrors, transformDebug } = m
+const { canvasView, zoomCanvas, resetCanvasView, compileTransform, runTransform, mergeTransformResult, transformErrors, transformDebug } = m
 i18n.global.setLocaleMessage('zh-CN', JSON.parse(fs.readFileSync(path.join(repo, 'public/locales/zh-CN.json'), 'utf8')))
 i18n.global.locale.value = 'zh-CN'
 
@@ -241,23 +241,46 @@ window.dispatchEvent(new KeyboardEvent('keydown', { key: '+' })); zoomCanvas(1.5
 check('键盘 + / 工具栏缩放', () => { assert.ok(Math.abs(canvasView.zoom - 1.8) < 1e-9); assert.ok(root.textContent.includes('180%')) })
 resetCanvasView(); await nextTick()
 check('复位视图', () => { assert.equal(canvasView.zoom, 1); assert.equal(canvasView.panX, 0) })
+// 先点一下画布：容器获得焦点，之后的空格才被当作平移修饰键
+container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 5, clientY: 5, pointerId: 8, button: 0 }))
+container.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 5, clientY: 5, pointerId: 8, button: 0 }))
+check('点击画布容器后容器获得焦点', () => assert.equal(document.activeElement, container))
+const space = type => window.dispatchEvent(new KeyboardEvent(type, { code: 'Space', key: ' ', bubbles: true, cancelable: true }))
+space('keydown'); await nextTick()
+check('按下空格：进入平移修饰状态（光标 grab）', () => { assert.equal(canvasView.spaceDown, true); assert.equal(container.style.cursor, 'grab') })
 container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 200, clientY: 200, pointerId: 9, button: 0 }))
-container.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 203, clientY: 202, pointerId: 9 }))
-await sleep(LONG_PRESS_MS + 80)
-container.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 263, clientY: 232, pointerId: 9 })); await nextTick()
-check('长按空白处后拖动 → 平移', () => { assert.equal(canvasView.panning, true); assert.equal(canvasView.panX, 60); assert.equal(canvasView.panY, 30) })
-container.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 263, clientY: 232, pointerId: 9 })); await nextTick()
+container.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 260, clientY: 230, pointerId: 9 })); await nextTick()
+check('空格 + 拖动鼠标 → 平移', () => { assert.equal(canvasView.panning, true); assert.equal(canvasView.panX, 60); assert.equal(canvasView.panY, 30) })
+container.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 260, clientY: 230, pointerId: 9 })); await nextTick()
 check('松开后结束平移并保留位置', () => { assert.equal(canvasView.panning, false); assert.equal(canvasView.panX, 60) })
+const wrapperS = [...root.querySelectorAll('div')].find(d => d.style.cursor === 'grab' && d.className === 'absolute')
+const wS = scada.draft.widgets.find(e => e.id === w.id); const xS = wS.x
+wrapperS.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 0, clientY: 0, pointerId: 12, button: 0 }))
+wrapperS.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 10, clientY: 0, pointerId: 12 }))
+container.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 10, clientY: 0, pointerId: 12 }))
+container.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 10, clientY: 0, pointerId: 12 })); await nextTick()
+check('按住空格时在组件上拖动 → 平移画布而不是移动组件，也不取消选中', () => {
+  assert.equal(wS.x, xS); assert.equal(canvasView.panX, 70); assert.equal(scada.selectedId, w.id)
+})
+space('keyup'); await nextTick()
 container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 0, clientY: 0, pointerId: 10, button: 0 }))
 container.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 100, clientY: 100, pointerId: 10 }))
-await sleep(LONG_PRESS_MS + 80)
-container.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 150, clientY: 150, pointerId: 10 }))
-container.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 150, clientY: 150, pointerId: 10 })); await nextTick()
-check('未长按就拖动 → 不平移', () => { assert.equal(canvasView.panX, 60); assert.equal(canvasView.panY, 30) })
+container.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 100, clientY: 100, pointerId: 10 })); await nextTick()
+check('松开空格后普通拖动空白处 → 不平移', () => { assert.equal(canvasView.spaceDown, false); assert.equal(canvasView.panX, 70); assert.equal(canvasView.panY, 30) })
+const dummyBtn = document.createElement('button'); document.body.appendChild(dummyBtn); dummyBtn.focus()
+space('keydown'); await nextTick()
+check('焦点在按钮上时空格不作为平移修饰键', () => assert.equal(canvasView.spaceDown, false))
+dummyBtn.remove(); container.focus()
+canvasView.panX = 60; canvasView.panY = 30
 container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 0, clientY: 0, pointerId: 11, button: 1 }))
 container.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: -10, clientY: -20, pointerId: 11 }))
 container.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: -10, clientY: -20, pointerId: 11 })); await nextTick()
 check('鼠标中键立即平移', () => { assert.equal(canvasView.panX, 50); assert.equal(canvasView.panY, 10) })
+check('位置 / 尺寸输入框：四个无按钮的 NInputNumber 显示当前值', () => {
+  const geo = [...root.querySelectorAll('.n-input-number')].filter(el => !el.querySelector('.n-input-number-suffix, .n-button'))
+  const vals = geo.map(el => el.querySelector('input').value)
+  assert.ok(vals.includes(String(wS.x)) && vals.includes(String(wS.y)) && vals.includes(String(wS.w)) && vals.includes(String(wS.h)), JSON.stringify(vals))
+})
 container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 100, pointerId: 21, pointerType: 'touch' }))
 container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 200, clientY: 100, pointerId: 22, pointerType: 'touch' }))
 container.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 300, clientY: 100, pointerId: 22, pointerType: 'touch' }))

@@ -355,7 +355,7 @@
     "zoomIn": "Acercar",
     "zoomOut": "Alejar",
     "resetView": "Restablecer vista",
-    "zoomHint": "Rueda: zoom · mantener pulsado en zona vacía y arrastrar: desplazar",
+    "zoomHint": "Rueda: zoom · mantener Espacio y arrastrar: desplazar",
     "paletteHintShort": "Tocar / arrastrar",
     "paletteHintPortrait": "Tocar: colocar en un hueco libre; mantener pulsado y arrastrar hacia el lienzo: colocar donde se suelte",
     "transformExample": {

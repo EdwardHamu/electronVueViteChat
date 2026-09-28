@@ -3,7 +3,7 @@
  * 编辑模式下：
  *  - Pointer Events 拖动 / 右下角缩放组件（鼠标、触摸通用），按网格吸附；
  *  - 滚轮（或双指捏合）以指针位置为中心缩放视图，键盘 + / - / 0 同样可用；
- *  - 长按空白处（LONG_PRESS_MS）后拖动、或按住鼠标中键拖动，平移视图；
+ *  - 按住空格键拖动鼠标（画布任意位置，包括组件上方）、或按住鼠标中键拖动，平移视图；触摸屏双指同时可缩放 / 平移；
  *  - 退出编辑（保存 / 取消）视图自动复位为"适配容器"。
  * 每个组件由 WidgetHost 承载：解析数据绑定 → 经过组件的数据处理函数（transform.ts）→ 维护历史值 → 渲染注册表里的组件。
  */
@@ -18,10 +18,6 @@ import { tt } from './widgets/common'
 
 export const ZOOM_MIN = 0.25
 export const ZOOM_MAX = 6
-/** 长按多久进入平移（ms） */
-export const LONG_PRESS_MS = 400
-/** 长按期间允许的抖动（px），超过则视为普通拖动、不进入平移 */
-const LONG_PRESS_SLOP = 8
 /** 平移时画布至少保留在视口内的像素 */
 const PAN_MARGIN = 60
 
@@ -34,8 +30,10 @@ export const canvasView = reactive({
   zoom: 1,
   panX: 0,
   panY: 0,
-  /** 正在长按拖动平移 */
-  panning: false
+  /** 正在拖动平移 */
+  panning: false,
+  /** 空格键按住中（平移修饰键），供光标样式使用 */
+  spaceDown: false
 })
 
 let zoomHandler: ((factor: number, cx?: number, cy?: number) => void) | null = null
@@ -151,13 +149,11 @@ interface DragState {
   rect: WidgetRect
 }
 
-/** 空白处按下后的状态：先计时，长按成立后变成平移 */
+/** 平移拖动状态（空格 + 左键 / 中键） */
 interface PressState {
   pointerId: number
   startX: number
   startY: number
-  timer: ReturnType<typeof setTimeout> | null
-  panning: boolean
   panX0: number
   panY0: number
 }
@@ -259,26 +255,12 @@ export default defineComponent({
     }
 
     const clearPress = () => {
-      if (press && press.timer) clearTimeout(press.timer)
       press = null
       canvasView.panning = false
     }
-    const beginPan = () => {
-      if (!press) return
-      const cur = pointers.get(press.pointerId)
-      if (cur) {
-        press.startX = cur.x
-        press.startY = cur.y
-      }
-      press.panning = true
-      press.panX0 = canvasView.panX
-      press.panY0 = canvasView.panY
+    const beginPan = (e: PointerEvent) => {
+      press = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, panX0: canvasView.panX, panY0: canvasView.panY }
       canvasView.panning = true
-      try {
-        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15)
-      } catch {
-        /* ignore */
-      }
     }
     const capturePointer = (el: HTMLElement | undefined, pointerId: number) => {
       if (!el || !el.setPointerCapture) return
@@ -296,14 +278,18 @@ export default defineComponent({
         /* ignore */
       }
     }
-    /** 空白处（画布或画布外的灰色区域）按下：单指开始长按计时 / 中键立即平移 / 第二指进入捏合缩放 */
+    /**
+     * 容器按下（画布、画布外的灰色区域，以及按住空格时的组件上方）：
+     * 空格 + 左键 / 中键 → 立即平移；第二指 → 捏合缩放；其余情况只记录指针（供捏合识别）
+     */
     const onContainerPointerDown = (e: PointerEvent) => {
       if (!scada.editing || drag) return
       if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1) return
-      // 中键要阻止浏览器的自动滚动；左键 / 触摸不 preventDefault，这样点空白处仍会让属性面板里的输入框失焦
-      if (e.button === 1) e.preventDefault()
+      // 让容器拿到焦点：属性面板里的输入框失焦，之后按空格才会被当作平移修饰键而不是输入
+      const el = containerRef.value
+      if (el && el.focus) el.focus({ preventScroll: true })
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
-      capturePointer(containerRef.value, e.pointerId)
+      capturePointer(el, e.pointerId)
       if (pointers.size >= 2) {
         clearPress()
         const entries = Array.from(pointers.entries())
@@ -312,15 +298,13 @@ export default defineComponent({
         pinch = { a: ida, b: idb, dist: distance(pa, pb), midX: (pa.x + pb.x) / 2, midY: (pa.y + pb.y) / 2 }
         return
       }
-      press = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, timer: null, panning: false, panX0: 0, panY0: 0 }
-      if (e.pointerType === 'mouse' && e.button === 1) {
-        beginPan()
-        return
+      const byMiddle = e.pointerType === 'mouse' && e.button === 1
+      const bySpace = canvasView.spaceDown && (e.pointerType !== 'mouse' || e.button === 0)
+      if (byMiddle || bySpace) {
+        // 中键要阻止浏览器的自动滚动；空格平移时阻止选中文字
+        e.preventDefault()
+        beginPan(e)
       }
-      const id = e.pointerId
-      press.timer = setTimeout(() => {
-        if (press && press.pointerId === id && !press.panning) beginPan()
-      }, LONG_PRESS_MS)
     }
     const onContainerPointerMove = (e: PointerEvent) => {
       const p = pointers.get(e.pointerId)
@@ -346,14 +330,9 @@ export default defineComponent({
         return
       }
       if (!press || press.pointerId !== e.pointerId) return
-      if (press.panning) {
-        canvasView.panX = press.panX0 + (e.clientX - press.startX)
-        canvasView.panY = press.panY0 + (e.clientY - press.startY)
-        clampPan()
-      } else if (Math.abs(e.clientX - press.startX) > LONG_PRESS_SLOP || Math.abs(e.clientY - press.startY) > LONG_PRESS_SLOP) {
-        // 长按成立前就移动了：当作普通拖动，不平移
-        clearPress()
-      }
+      canvasView.panX = press.panX0 + (e.clientX - press.startX)
+      canvasView.panY = press.panY0 + (e.clientY - press.startY)
+      clampPan()
     }
     const onContainerPointerUp = (e: PointerEvent) => {
       if (!pointers.has(e.pointerId)) return
@@ -366,6 +345,7 @@ export default defineComponent({
       pointers.clear()
       pinch = null
       clearPress()
+      canvasView.spaceDown = false
     }
 
     watch(
@@ -386,6 +366,8 @@ export default defineComponent({
       }
       canvasView.el = canvasRef.value || null
       window.addEventListener('keydown', onKeyDown)
+      window.addEventListener('keyup', onKeyUp)
+      window.addEventListener('blur', onWindowBlur)
       // 滚轮需要 preventDefault，必须以非 passive 方式注册
       containerRef.value?.addEventListener('wheel', onWheel, { passive: false })
       zoomHandler = zoomAt
@@ -394,6 +376,8 @@ export default defineComponent({
       if (ro) ro.disconnect()
       window.removeEventListener('resize', measure)
       window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', onWindowBlur)
       containerRef.value?.removeEventListener('wheel', onWheel)
       if (zoomHandler === zoomAt) zoomHandler = null
       resetGestures()
@@ -404,11 +388,20 @@ export default defineComponent({
       canvasView.el = el || null
     })
 
+    const isSpace = (e: KeyboardEvent) => e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar'
     const onKeyDown = (e: KeyboardEvent) => {
       if (!scada.editing) return
       const target = e.target as HTMLElement | null
       const tag = target?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return
+      if (isSpace(e)) {
+        // 焦点在按钮 / 下拉等控件上时让控件自己处理空格；只有焦点在页面空白（body）或画布容器内才当作平移修饰键
+        const active = typeof document !== 'undefined' ? document.activeElement : null
+        if (active && active !== document.body && !(containerRef.value && containerRef.value.contains(active))) return
+        canvasView.spaceDown = true
+        e.preventDefault() // 防止页面滚动
+        return
+      }
       if (e.key === '+' || e.key === '=') {
         zoomAt(1.2)
         e.preventDefault()
@@ -430,12 +423,21 @@ export default defineComponent({
         e.preventDefault()
       }
     }
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (isSpace(e)) canvasView.spaceDown = false
+    }
+    /** 切到别的窗口时收不到 keyup，这里兜底复位 */
+    const onWindowBlur = () => {
+      canvasView.spaceDown = false
+    }
 
     // ---------------------------------------------------------------- 组件拖动 / 缩放
     const onWidgetPointerDown = (e: PointerEvent, w: WidgetInstance, mode: DragState['mode']) => {
       if (!scada.editing) return
       if (e.pointerType === 'mouse' && e.button !== 0) return
       if (press || pinch) return
+      // 按住空格时不拖组件，事件冒泡到容器去平移
+      if (canvasView.spaceDown) return
       e.stopPropagation()
       e.preventDefault()
       scada.select(w.id)
@@ -465,7 +467,7 @@ export default defineComponent({
       if (drag && e.pointerId === drag.pointerId) drag = null
     }
     const onCanvasPointerDown = () => {
-      if (scada.editing) scada.select(null)
+      if (scada.editing && !canvasView.spaceDown) scada.select(null)
     }
 
     return () => {
@@ -481,11 +483,12 @@ export default defineComponent({
       return (
         <div
           ref={containerRef}
-          class={'relative w-full h-full overflow-hidden select-none'}
+          class={'relative w-full h-full overflow-hidden select-none outline-none'}
+          tabindex={-1}
           style={{
             background: editing ? '#d9dde3' : 'transparent',
             touchAction: editing ? 'none' : 'auto',
-            cursor: canvasView.panning ? 'grabbing' : 'default'
+            cursor: canvasView.panning ? 'grabbing' : canvasView.spaceDown ? 'grab' : 'default'
           }}
           onPointerdown={onContainerPointerDown}
           onPointermove={onContainerPointerMove}
@@ -493,7 +496,7 @@ export default defineComponent({
           onPointercancel={onContainerPointerUp}
           onLostpointercapture={onContainerPointerUp}
           onContextmenu={(e: MouseEvent) => {
-            if (editing) e.preventDefault()
+            if (canvasView.panning) e.preventDefault()
           }}
         >
           <div
@@ -521,7 +524,7 @@ export default defineComponent({
                   style={{
                     left: w.x + 'px', top: w.y + 'px', width: w.w + 'px', height: w.h + 'px',
                     touchAction: editing ? 'none' : 'auto',
-                    cursor: editing ? 'move' : 'default',
+                    cursor: editing ? (canvasView.spaceDown ? 'grab' : 'move') : 'default',
                     outline: selected ? '2px solid #2563eb' : editing ? '1px dashed rgba(37,99,235,.35)' : 'none',
                     outlineOffset: '1px'
                   }}
@@ -539,7 +542,7 @@ export default defineComponent({
                       style={{
                         right: '-9px', bottom: '-9px',
                         width: Math.max(16, 18 / s) + 'px', height: Math.max(16, 18 / s) + 'px',
-                        cursor: 'nwse-resize', touchAction: 'none'
+                        cursor: canvasView.spaceDown ? 'grab' : 'nwse-resize', touchAction: 'none'
                       }}
                       onPointerdown={(e: PointerEvent) => onWidgetPointerDown(e, w, 'resize')}
                     />
