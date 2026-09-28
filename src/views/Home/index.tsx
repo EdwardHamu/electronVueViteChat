@@ -207,8 +207,8 @@ export default defineComponent({
             store.isLandscape ? <div class={'h-full flex overflow-hidden'}>
               <div class={'w-3/4'}>
                 {/* 装饰条：z-0 使其位于所有 tab 之下（未选中 tab 是 position:relative 且在 DOM 中靠后，选中 tab 为 z-6）；
-                    top 56 + 高 14 = 70，比 tab 底边（约 65）低 5px，在所有 tab 下方露出一条平整黑边，tab 之间的空隙也会露出 */}
-                <div class={"w-full h-[14px] bg-[#39393b] absolute top-[56px] z-0"}></div>
+                    top 54 + 高 14 = 68，比 tab 底边（约 65）低 3px，在所有 tab 下方露出一条平整黑边，tab 之间的空隙也会露出 */}
+                <div class={"w-full h-[14px] bg-[#39393b] absolute top-[54px] z-0"}></div>
 
 
                 <NTabs type="card" animated size="large" barWidth={1148} pane-class={'shrink-0 h-full'} class={'home-tab h-full w-full'} onUpdateValue={handleTabChange} defaultValue={'curcev'} >
@@ -272,15 +272,15 @@ export default defineComponent({
             </div> :
               <div class={'h-full flex overflow-hidden flex-col'}>
                 <div class={'h-1/3 relative'}>
-                  <div class={"w-full h-[14px] bg-[#39393b] absolute top-[56px] z-0"}></div>
+                  <div class={"w-full h-[14px] bg-[#39393b] absolute top-[54px] z-0"}></div>
 
 
                   <RightValueBlock />
                 </div>
                 <div class={'h-2/3 relative'}>
                   {/* 装饰条：容器必须 relative，否则会以视口定位跑到屏幕顶部盖住上方区块的 tab；
-                      z-0 使其位于所有 tab 之下（选中/未选中都盖住它）；top 56 + 高 14 = 70，比 tab 底边（约 65）低 5px，在 tab 下方露出一条平整黑边 */}
-                  <div class={"w-full h-[14px] bg-[#39393b] absolute top-[56px] z-0"}></div>
+                      z-0 使其位于所有 tab 之下（选中/未选中都盖住它）；top 54 + 高 14 = 68，比 tab 底边（约 65）低 3px，在 tab 下方露出一条平整黑边 */}
+                  <div class={"w-full h-[14px] bg-[#39393b] absolute top-[54px] z-0"}></div>
                   <NTabs type="card" animated size="large" barWidth={1148} pane-class={'shrink-0 h-full'} class={'home-tab h-full w-full'} onUpdateValue={handleTabChange} defaultValue={'curcev'} >
                     <NTabPane displayDirective="if" name="curcev" tab={t('menu.realTimeData')} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'curcev' ? activeStyle : {} } }}>
                       <div class={' h-full'}>
