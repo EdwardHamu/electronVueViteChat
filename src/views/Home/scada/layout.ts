@@ -36,7 +36,7 @@ const normalizeWidget = (raw: any, index: number): WidgetInstance | null => {
   if (!raw || typeof raw !== 'object') return null
   if (typeof raw.type !== 'string' || !raw.type) return null
   const id = typeof raw.id === 'string' && raw.id ? raw.id : `w_${Date.now().toString(36)}_${index}`
-  return {
+  const widget: WidgetInstance = {
     id,
     type: raw.type,
     title: typeof raw.title === 'string' ? raw.title : '',
@@ -47,6 +47,8 @@ const normalizeWidget = (raw: any, index: number): WidgetInstance | null => {
     h: Math.max(10, num(raw.h, 60)),
     props: raw.props && typeof raw.props === 'object' ? { ...raw.props } : {}
   }
+  if (typeof raw.transform === 'string' && raw.transform.trim()) widget.transform = raw.transform
+  return widget
 }
 
 /**

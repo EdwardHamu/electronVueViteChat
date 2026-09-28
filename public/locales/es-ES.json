@@ -352,6 +352,20 @@
     "emptyHint": "Aún no hay componentes configurados",
     "emptyHintEdit": "Pulse \"Editar\" arriba a la derecha, arrastre componentes desde la biblioteca y vincule una fuente de datos",
     "paletteHint": "Toque: se coloca en un hueco libre; mantenga y arrastre al lienzo: se coloca donde suelte",
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar",
+    "resetView": "Restablecer vista",
+    "zoomHint": "Rueda: zoom · mantener pulsado en zona vacía y arrastrar: desplazar",
+    "paletteHintShort": "Tocar / arrastrar",
+    "paletteHintPortrait": "Tocar: colocar en un hueco libre; mantener pulsado y arrastrar hacia el lienzo: colocar donde se suelte",
+    "transformExample": {
+      "scale": "Escalar (×1000)",
+      "round": "Redondear a 2 decimales",
+      "text": "Texto según el valor",
+      "limits": "Escalar valor y tolerancias",
+      "average": "Media móvil (10)",
+      "status": "Estado de alarma personalizado"
+    },
     "source": {
       "product": "Datos de la categoría de producto",
       "sim": "Señales simuladas"
@@ -379,7 +393,7 @@
       "statusLamp": "Lámpara de estado",
       "statusLampDesc": "Indicador coloreado según el estado de tolerancia",
       "textLabel": "Etiqueta de texto",
-      "textLabelDesc": "Texto estático, sin vínculo de datos",
+      "textLabelDesc": "Texto estático; al vincular datos muestra el valor o la salida de la función",
       "unbound": "Sin vincular",
       "noData": "Sin datos",
       "textPlaceholder": "Introduzca el texto en el panel de propiedades",
@@ -414,6 +428,15 @@
       "radius": "Radio de esquina"
     },
     "panel": {
+      "transform": "Función de procesado (JS)",
+      "transformPlaceholder": "p. ej. return value * 1000\nVacío = sin procesar",
+      "transformExample": "Insertar ejemplo",
+      "transformClear": "Borrar",
+      "transformError": "Error de la función",
+      "transformInput": "Entrada",
+      "transformOutput": "Salida",
+      "transformHint": "Parámetros: value (valor actual), point (punto de datos original), ctx (history / state / widget).\nDevuelve: número → nuevo valor; cadena → texto a mostrar; objeto → sobrescribe value / text / unit / status / standard / upper / lower (si cambian las tolerancias se reevalúa el estado); undefined → sin cambios.",
+      "optional": " (opcional)",
       "widget": "Componente",
       "title": "Título",
       "titlePlaceholder": "Vacío = nombre del dato",

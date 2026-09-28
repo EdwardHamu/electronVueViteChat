@@ -352,6 +352,20 @@
     "emptyHint": "尚未配置组态组件",
     "emptyHintEdit": "点击右上角“编辑”，从组件库拖入组件并绑定数据源",
     "paletteHint": "点按：自动放到空位；按住拖到画布：放到松手位置",
+    "zoomIn": "放大",
+    "zoomOut": "缩小",
+    "resetView": "复位视图",
+    "zoomHint": "滚轮缩放 · 长按空白处拖动平移",
+    "paletteHintShort": "点按 / 拖入",
+    "paletteHintPortrait": "点按：自动放到空位；按住向下拖到画布：放到松手位置",
+    "transformExample": {
+      "scale": "倍率换算 (×1000)",
+      "round": "四舍五入到 2 位",
+      "text": "按数值显示文字",
+      "limits": "数值和公差一起换算",
+      "average": "滑动平均 (10 点)",
+      "status": "自定义报警状态"
+    },
     "source": {
       "product": "产品分类数据",
       "sim": "模拟信号"
@@ -379,7 +393,7 @@
       "statusLamp": "状态灯",
       "statusLampDesc": "按公差状态变色的指示灯",
       "textLabel": "文本标签",
-      "textLabelDesc": "静态文字，不绑定数据",
+      "textLabelDesc": "静态文字；绑定数据后显示数值或处理函数输出",
       "unbound": "未绑定数据",
       "noData": "暂无数据",
       "textPlaceholder": "在属性面板输入文字",
@@ -414,6 +428,15 @@
       "radius": "圆角"
     },
     "panel": {
+      "transform": "数据处理函数 (JS)",
+      "transformPlaceholder": "例如：return value * 1000\n留空则不处理",
+      "transformExample": "插入示例",
+      "transformClear": "清除",
+      "transformError": "函数错误",
+      "transformInput": "输入",
+      "transformOutput": "输出",
+      "transformHint": "参数：value 当前值、point 原始数据点、ctx（history 历史值 / state 持久状态 / widget）。\n返回：数字 → 新值；字符串 → 显示文本；对象 → 覆盖 value / text / unit / status / standard / upper / lower（改了公差会重新判定状态）；undefined → 不改动。",
+      "optional": "（可选）",
       "widget": "组件",
       "title": "标题",
       "titlePlaceholder": "留空则显示数据项名称",

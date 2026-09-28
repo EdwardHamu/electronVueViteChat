@@ -1,16 +1,24 @@
 /**
- * 示例组件：文本标签——不绑定数据的纯装饰组件（标题、区域说明等）
+ * 示例组件：文本标签——默认不绑定数据的纯装饰组件（标题、区域说明等）；
+ * 绑定数据后显示数据值 / 处理函数输出的文本（可用处理函数拼出 "外径 1.523 mm" 这类动态文字）。
  */
 import { computed, defineComponent } from 'vue'
 import type { WidgetDefinition } from '../types'
-import { autoFontSize, tt, widgetProps } from './common'
+import { autoFontSize, pointText, tt, widgetProps } from './common'
 
 const TextLabel = defineComponent({
   name: 'ScadaTextLabel',
   props: widgetProps,
   setup(props) {
     const p = computed(() => props.widget.props)
-    const text = computed(() => (p.value.text as string) || props.widget.title || '')
+    const text = computed(() => {
+      if (props.widget.binding) {
+        const point = props.point
+        if (point && (point.value !== null || point.text)) return pointText(point, p.value.decimals) + (p.value.showUnit && point.unit ? ' ' + point.unit : '')
+        return (p.value.text as string) || props.widget.title || '--'
+      }
+      return (p.value.text as string) || props.widget.title || ''
+    })
     const fontSize = computed(() => {
       if (p.value.fontSize > 0) return p.value.fontSize
       return autoFontSize(props.widget.w - 12, props.widget.h * 0.7, Math.max(1, text.value.length), 1)
@@ -43,9 +51,11 @@ export const textLabelDefinition: WidgetDefinition = {
   defaultSize: { w: 240, h: 50 },
   minSize: { w: 30, h: 20 },
   needsBinding: false,
-  defaultProps: () => ({ text: '', fontSize: 0, align: 'center', bold: true, border: false, radius: 0, bg: '', fg: '#1f2937' }),
+  defaultProps: () => ({ text: '', fontSize: 0, align: 'center', bold: true, border: false, radius: 0, bg: '', fg: '#1f2937', decimals: null, showUnit: true }),
   propSchema: [
     { key: 'text', label: () => tt('scada.prop.text'), type: 'text' },
+    { key: 'decimals', label: () => tt('scada.prop.decimals'), type: 'number', min: 0, max: 8, step: 1, placeholder: 'auto' },
+    { key: 'showUnit', label: () => tt('scada.prop.showUnit'), type: 'boolean' },
     { key: 'fontSize', label: () => tt('scada.prop.fontSize'), type: 'number', min: 0, max: 300, step: 1, placeholder: '0 = auto' },
     {
       key: 'align', label: () => tt('scada.prop.align'), type: 'select',

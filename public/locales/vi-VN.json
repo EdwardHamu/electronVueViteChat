@@ -352,6 +352,20 @@
     "emptyHint": "Chưa cấu hình thành phần nào",
     "emptyHintEdit": "Nhấn \"Chỉnh sửa\" ở góc trên bên phải, kéo thành phần từ thư viện và gắn nguồn dữ liệu",
     "paletteHint": "Chạm: tự đặt vào chỗ trống; nhấn giữ và kéo vào canvas: đặt tại vị trí thả",
+    "zoomIn": "Phóng to",
+    "zoomOut": "Thu nhỏ",
+    "resetView": "Đặt lại khung nhìn",
+    "zoomHint": "Con lăn: thu phóng · nhấn giữ vùng trống rồi kéo: di chuyển",
+    "paletteHintShort": "Chạm / kéo",
+    "paletteHintPortrait": "Chạm: đặt vào chỗ trống; nhấn giữ và kéo xuống canvas: đặt tại vị trí thả",
+    "transformExample": {
+      "scale": "Nhân hệ số (×1000)",
+      "round": "Làm tròn 2 chữ số",
+      "text": "Hiển thị chữ theo giá trị",
+      "limits": "Quy đổi giá trị cùng dung sai",
+      "average": "Trung bình trượt (10)",
+      "status": "Trạng thái báo động tùy chỉnh"
+    },
     "source": {
       "product": "Dữ liệu phân loại sản phẩm",
       "sim": "Tín hiệu mô phỏng"
@@ -379,7 +393,7 @@
       "statusLamp": "Đèn trạng thái",
       "statusLampDesc": "Đèn báo đổi màu theo trạng thái dung sai",
       "textLabel": "Nhãn văn bản",
-      "textLabelDesc": "Văn bản tĩnh, không gắn dữ liệu",
+      "textLabelDesc": "Chữ tĩnh; khi gắn dữ liệu sẽ hiển thị giá trị hoặc kết quả hàm xử lý",
       "unbound": "Chưa gắn dữ liệu",
       "noData": "Không có dữ liệu",
       "textPlaceholder": "Nhập văn bản trong bảng thuộc tính",
@@ -414,6 +428,15 @@
       "radius": "Bo góc"
     },
     "panel": {
+      "transform": "Hàm xử lý dữ liệu (JS)",
+      "transformPlaceholder": "VD: return value * 1000\nĐể trống nếu không xử lý",
+      "transformExample": "Chèn ví dụ",
+      "transformClear": "Xóa",
+      "transformError": "Lỗi hàm",
+      "transformInput": "Đầu vào",
+      "transformOutput": "Đầu ra",
+      "transformHint": "Tham số: value (giá trị hiện tại), point (điểm dữ liệu gốc), ctx (history / state / widget).\nTrả về: số → giá trị mới; chuỗi → chữ hiển thị; đối tượng → ghi đè value / text / unit / status / standard / upper / lower (đổi dung sai sẽ đánh giá lại trạng thái); undefined → giữ nguyên.",
+      "optional": " (tùy chọn)",
       "widget": "Thành phần",
       "title": "Tiêu đề",
       "titlePlaceholder": "Để trống sẽ hiển thị tên mục dữ liệu",

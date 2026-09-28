@@ -88,6 +88,8 @@ export interface WidgetInstance extends WidgetRect {
   type: string
   title?: string
   binding?: DataBinding | null
+  /** 数据处理函数（JS 源码，见 transform.ts）；空则不处理 */
+  transform?: string
   /** 组件自定义属性，结构由 WidgetDefinition.propSchema 描述 */
   props: Record<string, any>
 }
@@ -122,7 +124,7 @@ export interface WidgetDefinition {
   icon?: Component
   defaultSize: { w: number; h: number }
   minSize?: { w: number; h: number }
-  /** 是否需要绑定数据（纯装饰组件如文本标签为 false） */
+  /** 是否需要绑定数据；false 表示绑定可选（如文本标签：不绑定显示静态文字，绑定后显示数据 / 处理函数的输出） */
   needsBinding: boolean
   /** >0 时宿主保留最近 N 个数值传给组件（迷你趋势用） */
   keepHistory?: number

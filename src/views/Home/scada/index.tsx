@@ -1,5 +1,7 @@
 /**
- * 数据组态展示页入口：工具栏 + （编辑模式：组件库 | 画布 | 属性面板）/（展示模式：画布）
+ * 数据组态展示页入口：工具栏 + 画布，编辑模式再加上组件库与属性面板：
+ *  - 横屏：组件库 | 画布 | 属性面板（左右三栏）
+ *  - 竖屏：组件库（横向一条）/ 画布 / 属性面板（上下三行，属性面板分两栏）
  *
  * 目录说明：
  *  - types.ts            公共类型（数据源 / 组件 / 布局）
@@ -8,9 +10,10 @@
  *  - store.ts            布局 / 草稿 / 选中状态；storage.ts 持久化抽象（当前 localStorage）
  *  - Canvas.tsx          等比缩放画布 + 拖动 / 缩放；Palette.tsx 组件库；PropertyPanel.tsx 属性面板
  */
-import { NButton, NPopconfirm, NTag } from 'naive-ui'
+import { NButton, NButtonGroup, NPopconfirm, NTag } from 'naive-ui'
 import { computed, defineComponent, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import Canvas from './Canvas'
+import { useMain } from '@/store'
+import Canvas, { canvasView, resetCanvasView, zoomCanvas } from './Canvas'
 import { refreshAllDataSources, startAllDataSources, stopAllDataSources } from './dataSource'
 import Palette from './Palette'
 import PropertyPanel from './PropertyPanel'
@@ -22,6 +25,9 @@ export default defineComponent({
   name: 'ScadaPage',
   setup() {
     const scada = useScadaStore()
+    const store = useMain()
+    /** 竖屏：组件库 / 属性面板改为画布上下排布 */
+    const portrait = computed(() => !store.isLandscape)
     const rootRef = ref<HTMLElement>()
     const bodyRef = ref<HTMLElement>()
     /** 画布可视区域（不含工具栏）的实际尺寸，供新建布局 / "适配当前屏幕" 使用 */
@@ -81,6 +87,12 @@ export default defineComponent({
               <span class={'text-xs text-gray-500'}>{l.canvas.width}×{l.canvas.height}</span>
               <NButton size="small" secondary type={scada.paletteShow ? 'primary' : 'default'} onClick={() => (scada.paletteShow = !scada.paletteShow)}>{tt('scada.palette')}</NButton>
               <NButton size="small" secondary type={scada.propsShow ? 'primary' : 'default'} onClick={() => (scada.propsShow = !scada.propsShow)}>{tt('scada.properties')}</NButton>
+              <NButtonGroup size="small">
+                <NButton onClick={() => zoomCanvas(1 / 1.2)}>－</NButton>
+                <NButton class={'min-w-[56px]'} onClick={() => resetCanvasView()}>{Math.round(canvasView.zoom * 100)}%</NButton>
+                <NButton onClick={() => zoomCanvas(1.2)}>＋</NButton>
+              </NButtonGroup>
+              {!portrait.value && <span class={'text-xs text-gray-400 hidden xl:inline'}>{tt('scada.zoomHint')}</span>}
               <div class={'flex-1'} />
               {scada.dirty ? (
                 <NPopconfirm onPositiveClick={() => scada.cancelEdit()} positiveText={tt('scada.confirm')} negativeText={tt('scada.cancel')}>
@@ -107,25 +119,41 @@ export default defineComponent({
       )
     }
 
-    return () => (
-      <div ref={rootRef} class={'w-full h-full flex flex-col overflow-hidden bg-white'}>
-        {renderToolbar()}
-        <div ref={bodyRef} class={'flex-1 min-h-0 flex overflow-hidden'}>
-          {scada.editing && scada.paletteShow && (
-            <div class={'w-[190px] shrink-0 border-0 border-r border-solid border-gray-300 overflow-hidden'}>
-              <Palette />
+    return () => {
+      const editing = scada.editing
+      const isPortrait = portrait.value
+      return (
+        <div ref={rootRef} class={'w-full h-full flex flex-col overflow-hidden bg-white'}>
+          {renderToolbar()}
+          <div ref={bodyRef} class={['flex-1 min-h-0 flex overflow-hidden', isPortrait ? 'flex-col' : 'flex-row']}>
+            {editing && scada.paletteShow && (
+              isPortrait ? (
+                <div class={'h-[92px] shrink-0 border-0 border-b border-solid border-gray-300 overflow-hidden'}>
+                  <Palette direction="horizontal" />
+                </div>
+              ) : (
+                <div class={'w-[190px] shrink-0 border-0 border-r border-solid border-gray-300 overflow-hidden'}>
+                  <Palette direction="vertical" />
+                </div>
+              )
+            )}
+            <div class={'flex-1 min-w-0 min-h-0 relative'}>
+              <Canvas />
             </div>
-          )}
-          <div class={'flex-1 min-w-0 relative'}>
-            <Canvas />
+            {editing && scada.propsShow && (
+              isPortrait ? (
+                <div class={'h-[36%] min-h-[200px] shrink-0 border-0 border-t border-solid border-gray-300 overflow-hidden'}>
+                  <PropertyPanel screenSize={screenSize} columns={2} />
+                </div>
+              ) : (
+                <div class={'w-[300px] shrink-0 border-0 border-l border-solid border-gray-300 overflow-hidden'}>
+                  <PropertyPanel screenSize={screenSize} columns={1} />
+                </div>
+              )
+            )}
           </div>
-          {scada.editing && scada.propsShow && (
-            <div class={'w-[300px] shrink-0 border-0 border-l border-solid border-gray-300 overflow-hidden'}>
-              <PropertyPanel screenSize={screenSize} />
-            </div>
-          )}
         </div>
-      </div>
-    )
+      )
+    }
   }
 })

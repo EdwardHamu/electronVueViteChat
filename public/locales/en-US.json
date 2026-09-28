@@ -352,6 +352,20 @@
     "emptyHint": "No widgets configured yet",
     "emptyHintEdit": "Tap \"Edit\" at the top right, drag widgets from the library and bind a data source",
     "paletteHint": "Tap: auto-place in a free spot; press and drag onto the canvas: place where released",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "resetView": "Reset view",
+    "zoomHint": "Wheel: zoom · long-press a blank area and drag: pan",
+    "paletteHintShort": "Tap / drag",
+    "paletteHintPortrait": "Tap: place in a free spot; press and drag down onto the canvas: place where released",
+    "transformExample": {
+      "scale": "Scale (×1000)",
+      "round": "Round to 2 decimals",
+      "text": "Text by value",
+      "limits": "Scale value with limits",
+      "average": "Moving average (10)",
+      "status": "Custom alarm status"
+    },
     "source": {
       "product": "Product Category Data",
       "sim": "Simulated Signals"
@@ -379,7 +393,7 @@
       "statusLamp": "Status Lamp",
       "statusLampDesc": "Indicator colored by tolerance status",
       "textLabel": "Text Label",
-      "textLabelDesc": "Static text, no data binding",
+      "textLabelDesc": "Static text; shows the value or transform output when bound",
       "unbound": "Unbound",
       "noData": "No data",
       "textPlaceholder": "Enter text in the property panel",
@@ -414,6 +428,15 @@
       "radius": "Corner Radius"
     },
     "panel": {
+      "transform": "Data transform (JS)",
+      "transformPlaceholder": "e.g. return value * 1000\nLeave empty to pass data through",
+      "transformExample": "Insert example",
+      "transformClear": "Clear",
+      "transformError": "Function error",
+      "transformInput": "Input",
+      "transformOutput": "Output",
+      "transformHint": "Args: value (current value), point (raw data point), ctx (history / state / widget).\nReturn: number → new value; string → display text; object → overrides value / text / unit / status / standard / upper / lower (status is re-evaluated when limits change); undefined → unchanged.",
+      "optional": " (optional)",
       "widget": "Widget",
       "title": "Title",
       "titlePlaceholder": "Leave empty to show the data item name",

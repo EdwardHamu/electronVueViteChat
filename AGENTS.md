@@ -13,3 +13,4 @@
 - 首页「数据组态」标签页在 `src/views/Home/scada/`（README.md 有结构说明）。数据源 / 组件都走注册表，新增时不要改画布代码；文案在 `public/locales/*.json` 的 `menu.scada` 与顶层 `scada` 块。注意：这 4 个语言包里存在重复 key（如 `eccentricity`、`ellipse`），用 `json.load` → `json.dump` 重写会悄悄改掉原值，只能做文本插入。
 
 - 真实依赖版本以 `pnpm-lock.yaml`（2026-08）为准：vue 3.5.41、naive-ui 2.45.1、vue-i18n 11.4.8、typescript 4.9.5；`package-lock.json` / `yarn.lock` 是 2023 年的旧文件，不要据此判断版本。无宿主的冒烟测试见 `scripts/scada-smoke/run.mjs`（esbuild + jsdom，桩掉 `@/store/config` 与 `@/utils/callm`，否则会把 echarts 等整套依赖拉进来）。
+- 数据组态页数据处理函数（`src/views/Home/scada/transform.ts`）：`WidgetHost` 里的 `processed` 计算属性不能依赖历史值数组（历史值用普通数组 + `shallowRef` 快照），否则每次 push 都会再跑一遍用户函数，滑动平均之类的有状态函数会重复计数。画布视图状态 `canvasView.zoom/panX/panY` 只在编辑模式生效、退出编辑复位；滚轮监听必须 `{ passive: false }` 手动注册才能 `preventDefault`。竖屏时组件库条带用 `touch-action: pan-x`（横滑滚动条带、下拉到画布放置），横屏侧栏仍是 `none`。冒烟测试 `scripts/scada-smoke/run.mjs` 额外把 `@/store` 桩掉（真实模块会拉进 `@vueuse/core`），目前 35 步。
