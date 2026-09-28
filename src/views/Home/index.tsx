@@ -269,8 +269,10 @@ export default defineComponent({
 
                   <RightValueBlock />
                 </div>
-                <div class={'h-2/3'}>
-                  <div class={"w-full h-[14px] bg-[#39393b] absolute top-[51px] z-[8]"}></div>
+                <div class={'h-2/3 relative'}>
+                  {/* 装饰条：容器必须 relative，否则会以视口定位跑到屏幕顶部盖住上方区块的 tab；
+                      z-5 与横屏一致——低于选中 tab 的 z-6（不遮挡选中 tab），高于未选中 tab，只在其文字下方露出一段黑色 */}
+                  <div class={"w-full h-[14px] bg-[#39393b] absolute top-[51px] z-[5]"}></div>
                   <NTabs type="card" animated size="large" barWidth={1148} pane-class={'shrink-0 h-full'} class={'home-tab h-full w-full'} onUpdateValue={handleTabChange} defaultValue={'curcev'} >
                     <NTabPane displayDirective="if" name="curcev" tab={t('menu.realTimeData')} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'curcev' ? activeStyle : {} } }}>
                       <div class={' h-full'}>
