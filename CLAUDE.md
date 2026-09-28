@@ -10,4 +10,4 @@
 
 - 横竖屏/分辨率的坑：`store.isLandscape` 只在启动时由 `listenLandscape()` 按 innerHeight > innerWidth 判定一次；`store.isLowRes` 由 `isLowResolution()`（screen.width 或 innerWidth <= 1440）决定，因此竖屏（宽 ≤ 1440）几乎必然同时命中 `isLowRes` 分支——调竖屏字号时要改的是 isLowRes 那一支。
 
-- 首页黑色装饰条（`bg-[#39393b] absolute top-[51px]`）依赖父容器 `relative`；竖屏下方区块曾漏掉 relative，导致该条以视口定位跑到屏幕顶部并盖住上方区块的 tab。tab 底边约在 65px（nav padding 8 + tab 12+30+12 + 底边 3），装饰条 51+14 正好到 65：它靠 z-5 盖住未选中 tab 文字下方那一段、并低于选中 tab 的 z-6 来形成"露出黑边"的效果，不是真的伸出 tab 之下。
+- 首页黑色装饰条（`bg-[#39393b] absolute top-[51px]`）依赖父容器 `relative`；竖屏下方区块曾漏掉 relative，导致该条以视口定位跑到屏幕顶部并盖住上方区块的 tab。tab 底边约在 65px（nav padding 8 + tab 12+30+12 + 底边 3），装饰条 51+14 正好到 65：它用 z-0 排在所有 tab 之下（未选中 tab 是 position:relative、z-index auto 且在 DOM 中靠后，选中 tab 为 z-6，都会盖住它），只在 tab 之间和右侧空隙露出；不要用负 z-index，否则会被 nav 的 PanelHead 背景图盖住而完全看不见。历史上曾是 z-5（只有选中 tab 能盖住它），已按需求改掉。

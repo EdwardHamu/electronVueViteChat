@@ -205,7 +205,8 @@ export default defineComponent({
           {
             store.isLandscape ? <div class={'h-full flex overflow-hidden'}>
               <div class={'w-3/4'}>
-                <div class={"w-full h-[14px] bg-[#39393b] absolute top-[51px] z-[5]"}></div>
+                {/* 装饰条：z-0 使其位于所有 tab 之下（未选中 tab 是 position:relative 且在 DOM 中靠后，选中 tab 为 z-6），只在 tab 之间/右侧的空隙露出 */}
+                <div class={"w-full h-[14px] bg-[#39393b] absolute top-[51px] z-0"}></div>
 
 
                 <NTabs type="card" animated size="large" barWidth={1148} pane-class={'shrink-0 h-full'} class={'home-tab h-full w-full'} onUpdateValue={handleTabChange} defaultValue={'curcev'} >
@@ -264,15 +265,15 @@ export default defineComponent({
             </div> :
               <div class={'h-full flex overflow-hidden flex-col'}>
                 <div class={'h-1/3 relative'}>
-                  <div class={"w-full h-[14px] bg-[#39393b] absolute top-[51px] z-[5]"}></div>
+                  <div class={"w-full h-[14px] bg-[#39393b] absolute top-[51px] z-0"}></div>
 
 
                   <RightValueBlock />
                 </div>
                 <div class={'h-2/3 relative'}>
                   {/* 装饰条：容器必须 relative，否则会以视口定位跑到屏幕顶部盖住上方区块的 tab；
-                      z-5 与横屏一致——低于选中 tab 的 z-6（不遮挡选中 tab），高于未选中 tab，只在其文字下方露出一段黑色 */}
-                  <div class={"w-full h-[14px] bg-[#39393b] absolute top-[51px] z-[5]"}></div>
+                      z-0 使其位于所有 tab 之下（选中/未选中都盖住它），只在 tab 之间/右侧的空隙露出 */}
+                  <div class={"w-full h-[14px] bg-[#39393b] absolute top-[51px] z-0"}></div>
                   <NTabs type="card" animated size="large" barWidth={1148} pane-class={'shrink-0 h-full'} class={'home-tab h-full w-full'} onUpdateValue={handleTabChange} defaultValue={'curcev'} >
                     <NTabPane displayDirective="if" name="curcev" tab={t('menu.realTimeData')} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'curcev' ? activeStyle : {} } }}>
                       <div class={' h-full'}>
