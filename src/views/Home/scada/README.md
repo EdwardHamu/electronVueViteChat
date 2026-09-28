@@ -18,7 +18,8 @@
 | `layout.ts` | 默认值与反序列化校验 / 版本迁移；`geometry.ts` 吸附、越界、缩放等纯函数 |
 | `Canvas.tsx` | 等比缩放画布、`WidgetHost`（绑定 → 处理函数 → 历史值 → 组件）、Pointer Events 拖动 / 缩放组件、Delete 删除；编辑模式的视图缩放（滚轮 / 双指 / 键盘 + - 0）与长按平移 |
 | `Palette.tsx` | 组件库（点按放到空位；按住拖到画布上松手放置）；`direction` = vertical（横屏侧栏）/ horizontal（竖屏顶部横向条带） |
-| `PropertyPanel.tsx` | 属性面板（标题、数据绑定、数据处理函数、位置尺寸、按 `propSchema` 生成的组件属性、层级 / 复制 / 删除；未选中时编辑画布）；`columns=2` 时分两栏 |
+| `PropertyPanel.tsx` | 属性面板（标题、数据绑定、位置尺寸、按 `propSchema` 生成的组件属性、层级 / 复制 / 删除；未选中时编辑画布）；`columns=2` 时分两栏；底部按钮打开数据处理函数弹窗 |
+| `TransformDialog.tsx` | 数据处理函数编辑弹窗：本地草稿 + 用当前数据实时预览输出 / 错误，「确定」才写回组件，语法错误不可确定 |
 | `index.tsx` | 页面入口 + 工具栏（含缩放按钮）；横屏三栏 / 竖屏三行布局切换 |
 
 ## 数据流
@@ -35,12 +36,12 @@ DataSourceProvider.read(key) ──► DataPoint ──► 数据处理函数（
 
 ## 数据处理函数
 
-每个组件实例都可以在属性面板「数据处理函数 (JS)」里写一段代码，宿主在把 `DataPoint` 交给组件之前先执行它（组件本身不用做任何事）。代码随布局保存在 `WidgetInstance.transform`。
+每个组件实例都可以写一段代码（选中组件 → 属性面板底部「数据处理函数 (JS)」按钮 → 弹窗编辑，按钮上会标出「已启用 / 函数错误」），宿主在把 `DataPoint` 交给组件之前先执行它（组件本身不用做任何事）。代码随布局保存在 `WidgetInstance.transform`。
 
 - 写法：完整函数 `(value, point, ctx) => …`、函数体 `if (…) return …; return …`、或单个表达式 `value * 1000`（按此顺序识别）。
 - 参数：`value` 当前值（无数据为 `null`）、`point` 原始数据点（未绑定为 `undefined`）、`ctx = { widget, history, state, prev, now }`——`state` 是该组件专属的持久对象（代码改变时清空，可做滑动平均），`history` 为宿主保留的最近 N 个显示值。
 - 返回值：`undefined` 不改动；`null` 清空数值；数字 → 新 `value`（状态 / 公差不变）；字符串 / 布尔 → 显示文本；对象 → 合并 `value / text / name / unit / precision / standard / upper / lower / status / time`，改了公差但没给 `status` 时按新公差重新判定状态。不支持异步函数和数组返回值。
-- 出错（语法或运行时）时保持原始数据点不变，错误和最近一次输入 / 输出显示在属性面板里（`transformErrors` / `transformDebug`）。
+- 出错（语法或运行时）时保持原始数据点不变；弹窗里用当前数据实时预览草稿的输入 / 输出 / 错误（预览有独立的 `ctx.state`），画布实例的最近一次结果在 `transformErrors` / `transformDebug` 里。
 - 文本标签的绑定是可选的：绑定后显示数值或处理函数拼出的文字（如 `return '外径 ' + value.toFixed(2) + ' mm'`）。
 - 代码用 `new Function` 执行，只在本机 WebView 内、由现场人员配置，不做沙箱隔离。
 

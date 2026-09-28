@@ -1,15 +1,16 @@
 /**
- * 属性面板：选中组件时编辑标题 / 数据绑定 / 数据处理函数（JS）/ 位置尺寸 / 组件自定义属性（按 propSchema 通用渲染）；
+ * 属性面板：选中组件时编辑标题 / 数据绑定 / 位置尺寸 / 组件自定义属性（按 propSchema 通用渲染）；
  * 未选中时编辑画布本身（尺寸、背景、网格）。columns = 2 时（竖屏放在画布下方）各区块分两栏排布。
+ * 数据处理函数（JS）通过面板底部的按钮打开 TransformDialog 弹窗编辑。
  */
 import { NButton, NColorPicker, NInput, NInputNumber, NPopconfirm, NSelect, NSwitch } from 'naive-ui'
 import { computed, defineComponent, ref, watch, type PropType } from 'vue'
 import { dataSourceList, getDataSource } from './dataSource'
-import { formatValue } from './geometry'
 import { getWidgetDefinition } from './registry'
 import { useScadaStore } from './store'
-import { TRANSFORM_EXAMPLES, transformDebug, transformErrors } from './transform'
-import type { DataPoint, PropField, WidgetInstance } from './types'
+import { transformErrors } from './transform'
+import TransformDialog from './TransformDialog'
+import type { PropField, WidgetInstance } from './types'
 import { tt } from './widgets/common'
 
 const Row = (props: { label: string }, { slots }: { slots: any }) => (
@@ -26,16 +27,6 @@ const Section = (props: { title: string }, { slots }: { slots: any }) => (
   </div>
 )
 
-/** 调试行里简要显示一个数据点 */
-const describePoint = (p?: DataPoint) => {
-  if (!p) return '—'
-  const main = p.value === null ? (p.text !== undefined ? JSON.stringify(p.text) : 'null') : formatValue(p.value, p.precision)
-  const parts = [main + (p.unit ? ' ' + p.unit : '')]
-  parts.push(tt('scada.status.' + p.status))
-  if (p.upper !== undefined || p.lower !== undefined) parts.push(`${formatValue(p.lower, p.precision)} ~ ${formatValue(p.upper, p.precision)}`)
-  return parts.join(' · ')
-}
-
 export default defineComponent({
   name: 'ScadaPropertyPanel',
   props: {
@@ -48,7 +39,14 @@ export default defineComponent({
     const scada = useScadaStore()
     const selected = computed(() => scada.selected)
     const definition = computed(() => (selected.value ? getWidgetDefinition(selected.value.type) : undefined))
-    const exampleOptions = computed(() => TRANSFORM_EXAMPLES.map(e => ({ label: tt('scada.transformExample.' + e.key), value: e.key })))
+    const transformShow = ref(false)
+    // 选中项变化 / 退出编辑时关掉弹窗，避免弹窗里的草稿写到别的组件上
+    watch(
+      () => `${selected.value?.id || ''}|${scada.editing}`,
+      () => {
+        transformShow.value = false
+      }
+    )
 
     const sourceOptions = computed(() => dataSourceList().map(p => ({ label: p.label(), value: p.id })))
     const sourceId = ref<string>(dataSourceList()[0]?.id || '')
@@ -114,59 +112,6 @@ export default defineComponent({
       }
     }
 
-    /** 数据处理函数区块：代码 + 示例 + 最近一次输入 / 输出 / 错误 */
-    const renderTransform = (w: WidgetInstance) => {
-      const code = w.transform || ''
-      const error = transformErrors[w.id]
-      const debug = transformDebug[w.id]
-      return (
-        <Section title={tt('scada.panel.transform')}>
-          <NInput
-            type="textarea"
-            size="small"
-            class={'scada-code'}
-            value={code}
-            placeholder={tt('scada.panel.transformPlaceholder')}
-            autosize={{ minRows: 3, maxRows: 10 }}
-            inputProps={{ spellcheck: false, autocapitalize: 'off', autocorrect: 'off' } as any}
-            style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '12px' }}
-            onUpdateValue={(v: string) => scada.updateWidget(w.id, { transform: v })}
-          />
-          <div class={'flex items-center gap-2 mt-1'}>
-            <NSelect
-              class={'w-[170px]'}
-              size="small"
-              value={null}
-              placeholder={tt('scada.panel.transformExample')}
-              options={exampleOptions.value}
-              onUpdateValue={(k: string) => {
-                const ex = TRANSFORM_EXAMPLES.find(e => e.key === k)
-                if (ex) scada.updateWidget(w.id, { transform: ex.code })
-              }}
-            />
-            {code && (
-              <NButton size="small" quaternary onClick={() => scada.updateWidget(w.id, { transform: '' })}>
-                {tt('scada.panel.transformClear')}
-              </NButton>
-            )}
-          </div>
-          {code.trim() && (
-            <div class={'mt-1 text-xs leading-5 break-all'}>
-              {error ? (
-                <div class={'text-red-600'}>{tt('scada.panel.transformError')}: {error}</div>
-              ) : (
-                <>
-                  <div class={'text-gray-500'}>{tt('scada.panel.transformInput')}: {describePoint(debug?.input)}</div>
-                  <div class={'text-gray-700'}>{tt('scada.panel.transformOutput')}: {describePoint(debug?.output)}</div>
-                </>
-              )}
-            </div>
-          )}
-          <div class={'mt-1 text-xs text-gray-500 leading-4 whitespace-pre-line'}>{tt('scada.panel.transformHint')}</div>
-        </Section>
-      )
-    }
-
     const renderWidgetPanel = (w: WidgetInstance) => {
       const def = definition.value
       const optionalBinding = def?.needsBinding === false
@@ -210,7 +155,6 @@ export default defineComponent({
             </Row>
             {itemOptions.value.length === 0 && <div class={'text-xs text-orange-500 mt-1'}>{tt('scada.panel.noOptions')}</div>}
           </Section>
-          {renderTransform(w)}
           <Section title={tt('scada.panel.geometry')}>
             <div class={'grid grid-cols-2 gap-x-2'}>
               <Row label="X"><NInputNumber size="small" value={w.x} step={1} onUpdateValue={(v: number | null) => setRect('x', v)} /></Row>
@@ -284,13 +228,29 @@ export default defineComponent({
       )
     }
 
+    /** 底部：打开数据处理函数弹窗的按钮，按钮上标出已启用 / 出错 */
+    const renderFooter = (w: WidgetInstance) => {
+      const code = (w.transform || '').trim()
+      const error = transformErrors[w.id]
+      const suffix = code ? ` · ${error ? tt('scada.panel.transformError') : tt('scada.panel.transformEnabled')}` : ''
+      return (
+        <div class={'shrink-0 px-3 py-2 border-0 border-t border-solid border-gray-200 bg-white'}>
+          <NButton class={'w-full'} size="small" secondary type={error ? 'error' : code ? 'primary' : 'default'} onClick={() => (transformShow.value = true)}>
+            {tt('scada.panel.transform')}{suffix}
+          </NButton>
+        </div>
+      )
+    }
+
     return () => (
       <div class={'h-full flex flex-col bg-white'}>
         <div class={'px-3 py-2 text-sm font-bold border-0 border-b border-solid border-gray-200 shrink-0'}>{tt('scada.properties')}</div>
-        <div class={'flex-1 overflow-y-auto'}>
+        <div class={'flex-1 min-h-0 overflow-y-auto'}>
           {/* 多栏时把 columns 放在内层：外层高度固定 + 多栏会横向溢出，内层高度自适应才能按内容均分两栏 */}
           <div class={props.columns >= 2 ? 'columns-2 gap-0' : ''}>{selected.value ? renderWidgetPanel(selected.value) : renderCanvasPanel()}</div>
         </div>
+        {selected.value && renderFooter(selected.value)}
+        <TransformDialog show={transformShow.value} widget={selected.value} onClose={() => (transformShow.value = false)} />
       </div>
     )
   }

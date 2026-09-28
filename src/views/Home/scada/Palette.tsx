@@ -101,16 +101,17 @@ export default defineComponent({
       </div>
     )
 
+    // 注意：Teleport 的唯一子节点不能是布尔值（`{show && <div/>}` 为 false 时 h() 会把它渲染成文字 "false"），要用三元返回 null
     const renderGhost = () => (
       <Teleport to="body">
-        {ghost.show && (
+        {ghost.show ? (
           <div
             class={'fixed z-[9999] pointer-events-none px-3 py-2 rounded-md bg-blue-600 text-white text-sm shadow-lg opacity-90'}
             style={{ left: ghost.x + 'px', top: ghost.y + 'px', transform: 'translate(-50%, -50%)' }}
           >
             {ghost.label}
           </div>
-        )}
+        ) : null}
       </Teleport>
     )
 

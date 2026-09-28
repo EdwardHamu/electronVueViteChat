@@ -67,7 +67,7 @@ await build({
 // ---------------- jsdom 环境 ----------------
 const dom = new JSDOM('<!doctype html><html><body><div id="app"></div></body></html>', { pretendToBeVisual: true, url: 'http://localhost/' })
 const { window } = dom
-for (const k of ['window', 'document', 'navigator', 'HTMLElement', 'Element', 'Node', 'SVGElement', 'getComputedStyle', 'localStorage', 'Event', 'MouseEvent', 'KeyboardEvent', 'WheelEvent', 'requestAnimationFrame', 'cancelAnimationFrame', 'CSS', 'MutationObserver', 'Text', 'Comment', 'DocumentFragment', 'HTMLInputElement']) {
+for (const k of ['window', 'document', 'navigator', 'HTMLElement', 'Element', 'Node', 'SVGElement', 'getComputedStyle', 'localStorage', 'Event', 'InputEvent', 'MouseEvent', 'KeyboardEvent', 'WheelEvent', 'requestAnimationFrame', 'cancelAnimationFrame', 'CSS', 'MutationObserver', 'Text', 'Comment', 'DocumentFragment', 'HTMLInputElement']) {
   if (window[k] !== undefined) globalThis[k] = window[k]
 }
 globalThis.ResizeObserver = class { observe() {} disconnect() {} unobserve() {} }
@@ -186,10 +186,30 @@ check('处理函数：三种写法 / 返回类型合并（纯函数）', () => {
   const st = ctx(); const avg = compileTransform('const b = ctx.state.b || (ctx.state.b = []); b.push(value); return b.reduce((a, c) => a + c, 0) / b.length')
   runTransform(avg, { value: 1, status: 'none' }, st); assert.equal(runTransform(avg, { value: 3, status: 'none' }, st).point.value, 2)
 })
-scada.select(w.id); scada.updateWidget(w.id, { transform: 'return value * 1000' }); await nextTick()
-check('组件处理函数：数字 → 新值（属性面板显示输入 / 输出）', () => {
-  assert.ok(root.textContent.includes('输出: 1523.000'), root.textContent.slice(-600))
-  assert.ok(root.textContent.includes('1523.000'), root.textContent.slice(0, 200)); assert.equal(transformErrors[w.id], undefined)
+scada.select(w.id); await nextTick()
+const transformBtn = () => [...root.querySelectorAll('button')].find(b => b.textContent.trim().startsWith('数据处理函数'))
+const inModal = sel => document.body.querySelector(`.n-modal-container ${sel}`)
+transformBtn().click(); await nextTick(); await sleep(50)
+check('属性面板底部按钮打开处理函数弹窗（面板内不再有代码区）', () => {
+  assert.ok(!root.textContent.includes('插入示例')); assert.ok(document.body.textContent.includes('插入示例'))
+  assert.ok(document.body.textContent.includes('输入代码后')); assert.ok(inModal('textarea'))
+})
+check('body 里没有多余的 "false" 文本节点（Teleport 唯一子节点不能是布尔值）', () => {
+  assert.ok(![...document.body.childNodes].some(n => n.nodeType === 3 && n.textContent.trim() === 'false'))
+})
+const ta = inModal('textarea')
+ta.value = 'return value * 1000'; ta.dispatchEvent(new Event('input', { bubbles: true })); await nextTick()
+check('弹窗内用当前数据实时预览草稿输出，未确定前不写回组件', () => {
+  assert.ok(document.body.textContent.includes('输出: 1523.000'), document.body.textContent.slice(-800)); assert.equal(w.transform || '', '')
+})
+ta.value = 'return ('; ta.dispatchEvent(new Event('input', { bubbles: true })); await nextTick()
+const okBtn = () => [...document.body.querySelectorAll('.n-modal-container button')].find(b => b.textContent.trim() === '确定')
+check('语法错误时显示错误且不能确定', () => { assert.ok(document.body.textContent.includes('函数错误: SyntaxError')); assert.ok(okBtn().disabled) })
+ta.value = 'return value * 1000'; ta.dispatchEvent(new Event('input', { bubbles: true })); await nextTick()
+okBtn().click(); await nextTick(); await sleep(50)
+check('确定后写回组件、画布生效、按钮标记已启用', () => {
+  assert.equal(w.transform, 'return value * 1000'); assert.ok(root.textContent.includes('1523.000'), root.textContent.slice(0, 200))
+  assert.ok(transformBtn().textContent.includes('已启用')); assert.equal(transformErrors[w.id], undefined)
   assert.equal(transformDebug[w.id].input.value, 1.523); assert.equal(transformDebug[w.id].output.value, 1523); assert.equal(transformDebug[w.id].output.status, 'ok')
 })
 scada.updateWidget(w.id, { transform: "return { value: value * 1000, upper: point.upper * 1000, lower: point.lower * 1000, unit: 'μm' }" }); await nextTick()
@@ -202,11 +222,11 @@ check('组件处理函数：公差变化后状态重判为超上限', () => asse
 scada.updateWidget(w.id, { transform: "value > 1 ? '合格' : '不合格'" }); await nextTick()
 check('组件处理函数：字符串 → 显示文本', () => { assert.ok(root.textContent.includes('合格')); assert.equal(transformDebug[w.id].output.value, null) })
 scada.updateWidget(w.id, { transform: 'return foo.bar' }); await nextTick()
-check('组件处理函数：出错时保持原值并反馈错误', () => {
-  assert.ok(root.textContent.includes('1.523')); assert.match(transformErrors[w.id], /ReferenceError/); assert.ok(root.textContent.includes('函数错误'))
+check('组件处理函数：出错时保持原值并在底部按钮上反馈错误', () => {
+  assert.ok(root.textContent.includes('1.523')); assert.match(transformErrors[w.id], /ReferenceError/); assert.ok(transformBtn().textContent.includes('函数错误'))
 })
 scada.updateWidget(w.id, { transform: '' }); await nextTick()
-check('清空处理函数后错误消失', () => assert.equal(transformErrors[w.id], undefined))
+check('清空处理函数后错误消失', () => { assert.equal(transformErrors[w.id], undefined); assert.ok(!transformBtn().textContent.includes('函数错误')) })
 const label = scada.draft.widgets.find(e => e.type === 'textLabel')
 scada.setBinding(label.id, { source: 'product', key: 'd_od' }); scada.updateWidget(label.id, { transform: "return '外径 ' + value.toFixed(2) + ' mm'" }); await sleep(250); await nextTick()
 check('文本标签绑定数据 + 处理函数拼动态文字', () => assert.ok(root.textContent.includes('外径 1.52 mm'), root.textContent.slice(0, 300)))
