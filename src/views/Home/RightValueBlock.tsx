@@ -215,17 +215,17 @@ export const ValueRow = defineComponent({
       let res = alldata.stand[curStandIdx.value].title + ' : ' + val.toFixed(props.data?.Precision || 3)
       return res
     })
-    // 竖屏时 Value 字体比横屏大 10px（低分辨率 36px -> 46px，普通分辨率 4.3rem -> 4.3rem + 10px），横屏保持原样
+    // 竖屏时 Value 字体比横屏大 20px（低分辨率 36px -> 56px，普通分辨率 4.3rem -> 4.3rem + 20px），横屏保持原样
     const valueFontClass = () => {
       if (!store.isLandscape) {
-        return store.isLowRes ? 'text-[46px]' : 'text-[calc(4.3rem_+_10px)]'
+        return store.isLowRes ? 'text-[56px]' : 'text-[calc(4.3rem_+_20px)]'
       }
       return store.isLowRes ? 'text-4xl' : 'text-[4.3rem]'
     }
-    // 竖屏时 Value 下方偏差/标准值栏字体放大 1.4 倍（12px -> 16.8px，16px -> 22.4px），横屏保持原样
+    // 竖屏时 Value 下方偏差/标准值栏字体放大（12px -> 20px，16px -> 26px），横屏保持原样
     const standFontClass = () => {
       if (!store.isLandscape) {
-        return store.isLowRes ? 'text-[1.05rem]' : 'text-[1.4rem]'
+        return store.isLowRes ? 'text-[20px]' : 'text-[26px]'
       }
       return store.isLowRes ? 'text-xs' : 'text-base'
     }
