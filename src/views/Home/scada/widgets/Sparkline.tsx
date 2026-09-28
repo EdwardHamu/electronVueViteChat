@@ -4,7 +4,7 @@
 import { computed, defineComponent } from 'vue'
 import { formatValue } from '../geometry'
 import type { WidgetDefinition } from '../types'
-import { displayName, pointText, statusColor, tt, widgetProps } from './common'
+import { displayName, pointText, STATUS_COLORS, statusColor, tt, widgetProps } from './common'
 
 const PAD_X = 6
 const HEADER = 24
@@ -63,10 +63,10 @@ const Sparkline = defineComponent({
           )}
           <svg class={'flex-1 min-h-0 w-full'} viewBox={`0 0 ${g.w} ${g.h}`} preserveAspectRatio="none">
             {p.value.showLimits && point?.upper !== undefined && (
-              <line x1={PAD_X} x2={g.w - PAD_X} y1={g.yOf(point.upper)} y2={g.yOf(point.upper)} stroke="#ef4444" stroke-width="1" stroke-dasharray="4 3" />
+              <line x1={PAD_X} x2={g.w - PAD_X} y1={g.yOf(point.upper)} y2={g.yOf(point.upper)} stroke={STATUS_COLORS.high} stroke-width="1" stroke-dasharray="4 3" />
             )}
             {p.value.showLimits && point?.lower !== undefined && (
-              <line x1={PAD_X} x2={g.w - PAD_X} y1={g.yOf(point.lower)} y2={g.yOf(point.lower)} stroke="#3b82f6" stroke-width="1" stroke-dasharray="4 3" />
+              <line x1={PAD_X} x2={g.w - PAD_X} y1={g.yOf(point.lower)} y2={g.yOf(point.lower)} stroke={STATUS_COLORS.low} stroke-width="1" stroke-dasharray="4 3" />
             )}
             {p.value.showLimits && point?.standard !== undefined && (
               <line x1={PAD_X} x2={g.w - PAD_X} y1={g.yOf(point.standard)} y2={g.yOf(point.standard)} stroke="#9ca3af" stroke-width="1" stroke-dasharray="2 3" />
