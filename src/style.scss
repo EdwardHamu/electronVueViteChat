@@ -60,6 +60,22 @@ body {
     padding-top: 0.5rem;
     /* padding-bottom: 4px; */
   }
+  // 去掉 n-tabs-nav-scroll-wrapper 底部那条 1px 浅色线（naive-ui card 型 tab 的 --n-tab-border-color）。
+  // 这条线不在 scroll-wrapper 自身上，而是由其内部 tab 之间的 .n-tabs-tab-pad、右侧填充 .n-tabs-pad、
+  // 滚动留白 .n-tabs-scroll-padding 以及 prefix/suffix 的 border-bottom 拼出来的（tab 自身的 1px 边框已在 tabProps 里 border:none）。
+  // naive-ui 原规则是 .n-tabs .n-tabs-nav.n-tabs-nav--top.n-tabs-nav--card-type .n-tabs-tab-pad（5 个类），
+  // 这里多带一个 .home-tab 把优先级压过它；no-bg 的配置页 tab 自己画 2px #ccc 底线，不在此列。
+  &.n-tabs:not(.no-bg) .n-tabs-nav.n-tabs-nav--top.n-tabs-nav--card-type {
+    .n-tabs-nav-scroll-wrapper,
+    .n-tabs-nav-scroll-content,
+    .n-tabs-tab-pad,
+    .n-tabs-pad,
+    .n-tabs-scroll-padding,
+    .n-tabs-nav__prefix,
+    .n-tabs-nav__suffix {
+      border-bottom: none;
+    }
+  }
   &.no-bg {
     .n-tabs-nav--card-type.n-tabs-nav--top.n-tabs-nav {
       background-image: none;
