@@ -6,11 +6,14 @@ import i18n from '@/i18n'
 import { formatValue } from '../geometry'
 import type { DataPoint, PointStatus, WidgetInstance } from '../types'
 
-/** 状态配色；low 用的是 RightValueBlock 里超差的橙色（text-[#ff8d3f]），与首页右侧数值块保持一致 */
+/**
+ * 状态配色。high / low 与首页右侧数值块（RightValueBlock）一致：
+ * 超上限 = 橙色 text-[#ff8d3f]（'up'），低于下限 = 红色 text-[#ff0000]（'dowm'）
+ */
 export const STATUS_COLORS: Record<PointStatus, string> = {
   ok: '#22c55e',
-  high: '#ef4444',
-  low: '#ff8d3f',
+  high: '#ff8d3f',
+  low: '#ff0000',
   offline: '#9ca3af',
   none: '#64748b'
 }
