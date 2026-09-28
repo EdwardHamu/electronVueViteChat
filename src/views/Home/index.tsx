@@ -29,6 +29,7 @@ import { useFormulaStore } from "@/store/formula";
 import FormulaConfigNew from "./config/formulaConfigNew";
 import { noKeyBoardInputClass } from "./config/sysConfig/enum";
 import Ecc from "./ecc";
+import Scada from "./scada";
 import { useI18n } from "vue-i18n";
 import { usei18nStore } from "@/store/i18n";
 // import { useSvc } from "./svc";
@@ -226,6 +227,11 @@ export default defineComponent({
                       <Statistical />
                     </div>
                   </NTabPane>
+                  <NTabPane displayDirective="if" name="scada" tab={t('menu.scada')} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'scada' ? activeStyle : {} } }}>
+                    <div class={'h-full'}>
+                      <Scada />
+                    </div>
+                  </NTabPane>
                   {/* <NTabPane displayDirective="if" name="eccPic" tab={t('menu.deviationMeter')} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'eccPic' ? activeStyle : {} } }}>
                     <div class={'h-full'}>
                       <Ecc />
@@ -289,6 +295,11 @@ export default defineComponent({
                     <NTabPane displayDirective="if" name="summary" tab={t('menu.statisticsChart')} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'summary' ? activeStyle : {} } }}>
                       <div class={'h-full'}>
                         <Statistical />
+                      </div>
+                    </NTabPane>
+                    <NTabPane displayDirective="if" name="scada" tab={t('menu.scada')} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'scada' ? activeStyle : {} } }}>
+                      <div class={'h-full'}>
+                        <Scada />
                       </div>
                     </NTabPane>
                     {/* <NTabPane displayDirective="if" name="eccPic" tab="偏心仪" tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'eccPic' ? activeStyle : {} } }}>
