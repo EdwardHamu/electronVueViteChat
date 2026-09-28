@@ -215,6 +215,20 @@ export const ValueRow = defineComponent({
       let res = alldata.stand[curStandIdx.value].title + ' : ' + val.toFixed(props.data?.Precision || 3)
       return res
     })
+    // 竖屏时 Value 字体比横屏大 10px（低分辨率 36px -> 46px，普通分辨率 4.3rem -> 4.3rem + 10px），横屏保持原样
+    const valueFontClass = () => {
+      if (!store.isLandscape) {
+        return store.isLowRes ? 'text-[46px]' : 'text-[calc(4.3rem_+_10px)]'
+      }
+      return store.isLowRes ? 'text-4xl' : 'text-[4.3rem]'
+    }
+    // 竖屏时 Value 下方偏差/标准值栏字体放大 1.4 倍（12px -> 16.8px，16px -> 22.4px），横屏保持原样
+    const standFontClass = () => {
+      if (!store.isLandscape) {
+        return store.isLowRes ? 'text-[1.05rem]' : 'text-[1.4rem]'
+      }
+      return store.isLowRes ? 'text-xs' : 'text-base'
+    }
 
     const loopGetVal = () => {
       // console.log("🪵 [RightValueBlock.tsx:207] ~计时器设置 ",);
@@ -335,7 +349,7 @@ export const ValueRow = defineComponent({
                   'text-[#ff0000]': !valueIsOk.value?.ok && valueIsOk.value?.msg == 'dowm',
                   'text-[#ff8d3f]': !valueIsOk.value?.ok && valueIsOk.value?.msg == 'up'
                 },
-                { 'text-4xl': store.isLowRes, ' text-[4.3rem]': !store.isLowRes })}
+                valueFontClass())}
               >{props.data?.value?.toFixed ? props.data?.value?.toFixed(props.data?.Precision || 4) : "" || ''}</span>
             </div>
             <div class={'h-full pl-2 min-w-[50px] flex flex-col justify-end text-lg font-semibold text-[#5e5452]'}  >
@@ -346,9 +360,9 @@ export const ValueRow = defineComponent({
             <div class={'h-full w-1/6 flex cursor-pointer btn-bg'} onClick={standLeft} ><img class={'m-auto h-1/2'} src={lefticon}></img></div>
             <div class={'h-full w-full shrink btn-bg mx-2 flex items-center justify-center'}>
               {
-                props.data?.value ? <span class={` font-semibold ${store.isLowRes ? ' text-xs' : 'text-base '}`}>{standVal.value
+                props.data?.value ? <span class={` font-semibold ${standFontClass()}`}>{standVal.value
                 }</span> :
-                  props.data?.label ? zero.toFixed(props.data?.Precision || 4) : ''
+                  props.data?.label ? <span class={store.isLandscape ? '' : standFontClass()}>{zero.toFixed(props.data?.Precision || 4)}</span> : ''
               }
 
               {/* {

@@ -68,6 +68,14 @@ body {
   }
 }
 
+// 竖屏上下分栏时给 NTabs 加上：内容区（pane-wrapper）作为 flex 子项撑满导航以下的剩余高度，
+// 这样 pane 内部可以直接用 h-full，而不必像横屏那样依赖 calc(100vh - xx px)
+.portrait-fill-tab {
+  .n-tabs-pane-wrapper {
+    height: 100%;
+  }
+}
+
 .config-tab {
   .n-tabs-nav-scroll-wrapper {
     overflow: visible;

@@ -1,4 +1,5 @@
 import { formListItem, MyFormWrap } from "@/components/MyFormWrap/MyFormWrap";
+import { useMain } from "@/store";
 import { useConfigStore } from "@/store/config";
 import { useFormulaStore } from "@/store/formula";
 import { callBrige } from "@/utils/callm";
@@ -9,12 +10,14 @@ import { computed, defineComponent, Transition, ref, watch, reactive } from "vue
 import { useMyI18n } from "@/hooks/useMyI18n";
 import { DataGroupEntity, DeviceGroupEntity, FormulaConfigEntity, FormulaParamEntity, GroupConfigEntity, ModbusAdressRow } from "~/me";
 import { DeviceClassEnum } from "../devConfigNew/enum";
+import classNames from "classnames";
 
 export default defineComponent({
   name: 'FormulaParam',
   setup(props, ctx) {
     const formulaStore = useFormulaStore()
     const configstore = useConfigStore()
+    const store = useMain()
     const { t, i18nStore } = useMyI18n()
     const curFormulaConfigRow = computed(() => formulaStore.curFormulaConfigRow)
     const alldata = reactive({
@@ -22,7 +25,8 @@ export default defineComponent({
       defaultTab: 'formula',
       calcHeight: 0,
       commonStyle: {
-        maxWidth: '12vw', fontSize: '20px', minWidth: '120px', borderTop: '1px solid #58595a', borderRight: '1px solid #58595a', borderLeft: '1px solid #58595a', borderBottom: '1px solid #58595a',
+        // 竖屏宽度有限，12vw 太窄（≈130px）会截断参数名，放宽到 25vw
+        maxWidth: store.isLandscape ? '12vw' : '25vw', fontSize: '20px', minWidth: '120px', borderTop: '1px solid #58595a', borderRight: '1px solid #58595a', borderLeft: '1px solid #58595a', borderBottom: '1px solid #58595a',
         flexGrow: 1, background: '#fff', borderRadius: '12px 12px 0 0'
       },
       activeStyle: {
@@ -209,7 +213,7 @@ export default defineComponent({
 
     return () => {
       return (
-        <NTabs value={alldata.curTabValue} type="card" animated size="large" barWidth={1148} pane-class={'shrink-0 h-full'} class={'config-tab h-full w-full  formula-param-tab my-formula-tab '} onUpdateValue={handleTabChange} defaultValue={alldata.defaultTab} >
+        <NTabs value={alldata.curTabValue} type="card" animated size="large" barWidth={1148} pane-class={'shrink-0 h-full'} class={classNames('config-tab h-full w-full  formula-param-tab my-formula-tab ', { 'portrait-fill-tab': !store.isLandscape })} onUpdateValue={handleTabChange} defaultValue={alldata.defaultTab} >
           {
             curDeviceGroupRow.value &&
             // pararmListWidthAdress.value.map(item => {
@@ -230,7 +234,8 @@ export default defineComponent({
               }
               return (
                 <NTabPane displayDirective="show:lazy" name={item.DataGroupId || totalId} tab={getTabDisplayName(item)} tabProps={{ style: { ...alldata.commonStyle, ...alldata.curTabValue == item.DataGroupId ? alldata.activeStyle : {} } }}>
-                  <div style={{ height: `calc(100vh - ${alldata.calcHeight}px)` }} class={'w-full h-full p-2 border border-gray-600 border-solid '}>
+                  {/* 横屏沿用 100vh - 导航高度 的计算值；竖屏上下分栏时由 portrait-fill-tab 撑满剩余高度 */}
+                  <div style={store.isLandscape ? { height: `calc(100vh - ${alldata.calcHeight}px)` } : undefined} class={'w-full h-full p-2 border border-gray-600 border-solid '}>
                     <div class={'w-full h-full py-6 pl-4 '}>
                       <MyFormWrap labelWidth={360} fontSize={32} labelAlign="left" inputStyle={{ marginLeft: 'auto', width: '450px', marginRight: '10px', textAlign: 'center' }} {...alldata.formCfg} form={alldata.formMap[totalId]} />
                     </div>

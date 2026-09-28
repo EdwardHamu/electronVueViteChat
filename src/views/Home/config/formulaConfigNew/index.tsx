@@ -13,6 +13,7 @@ import { FormulaConfigEntity, FormulaParamEntity } from "~/me";
 import { callBrige } from "@/utils/callm";
 import { callFnName } from "@/utils/enum";
 import DeviceGroupList from "./DeviceGroupList";
+import classNames from "classnames";
 
 export default defineComponent({
   name: 'formulaConfig',
@@ -157,12 +158,14 @@ export default defineComponent({
       //               </div>
       return (
         <div class={' bg-white w-screen h-screen absolute  flex flex-col z-10  overflow-hidden'}>
-          <div class={'flex  '} style={{ height: 'calc(100% - 80px)' }}>
-            <div class={'flex-1 p-2 h-full'}>
+          {/* 横屏：左右分栏（配方 + 设备组 | 参数）；竖屏：上下分栏，各占一半高度 */}
+          <div class={classNames('flex', { 'flex-col': !store.isLandscape })} style={{ height: 'calc(100% - 80px)' }}>
+            <div class={classNames('p-2', { 'flex-1 h-full': store.isLandscape, 'h-1/2 min-h-0 pb-1': !store.isLandscape })}>
               <div class={'h-full bg-[#f5f6f6]'}>
-                <NTabs value={alldata.curTabValue} type="card" animated size="large" barWidth={1148} paneClass={'shrink-0 h-full'} class={'config-tab h-full w-full my-formula-tab '} onUpdateValue={handleTabChange} defaultValue={alldata.defaultTab} >
+                <NTabs value={alldata.curTabValue} type="card" animated size="large" barWidth={1148} paneClass={'shrink-0 h-full'} class={classNames('config-tab h-full w-full my-formula-tab ', { 'portrait-fill-tab': !store.isLandscape })} onUpdateValue={handleTabChange} defaultValue={alldata.defaultTab} >
                   <NTabPane displayDirective="show:lazy" name={"formula"} tab={t('menu.recipe')} tabProps={{ style: { ...alldata.commonStyle, ...alldata.curTabValue == 'formula' ? alldata.activeStyle : {}, } }}>
-                    <div style={{ height: 'calc(100vh - 160px)' }} class={'w-full h-full p-2 border border-gray-600 border-solid flex flex-nowrap justify-around'}>
+                    {/* 横屏沿用 100vh 固定高度；竖屏由 portrait-fill-tab 撑满剩余高度，用 h-full 即可 */}
+                    <div style={store.isLandscape ? { height: 'calc(100vh - 160px)' } : undefined} class={'w-full h-full p-2 border border-gray-600 border-solid flex flex-nowrap justify-around'}>
                       <div class={'h-full w-[58%] '}>
                         <FormulaList />
 
@@ -181,8 +184,8 @@ export default defineComponent({
               </div>
             </div>
 
-            <div class={'flex-1'}>
-              <div class={'flex-1 p-2 h-full'}>
+            <div class={classNames({ 'flex-1': store.isLandscape, 'h-1/2 min-h-0': !store.isLandscape })}>
+              <div class={classNames('p-2 h-full', { 'flex-1': store.isLandscape, 'pt-1': !store.isLandscape })}>
                 <div class={'h-full bg-[#f5f6f6]'}>
                   <FormulaParam />
                 </div>
