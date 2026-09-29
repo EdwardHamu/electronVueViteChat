@@ -5,6 +5,7 @@ import { computed, defineComponent } from 'vue'
 import { formatValue } from '../geometry'
 import type { WidgetDefinition } from '../types'
 import { displayName, pointText, statusColor, tt, widgetProps } from './common'
+import { icons } from './icons'
 
 const CX = 50
 const CY = 50
@@ -111,6 +112,8 @@ export const gaugeDefinition: WidgetDefinition = {
   type: 'gauge',
   label: () => tt('scada.widget.gauge'),
   description: () => tt('scada.widget.gaugeDesc'),
+  icon: icons.gauge,
+  category: 'data',
   defaultSize: { w: 200, h: 180 },
   minSize: { w: 90, h: 90 },
   needsBinding: true,

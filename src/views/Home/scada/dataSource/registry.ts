@@ -2,7 +2,7 @@
  * 数据源注册表。组件通过 DataBinding.source 找到 provider，再用 key 读值。
  */
 import { computed, onBeforeUnmount, shallowReactive, watch } from 'vue'
-import type { DataBinding, DataPoint, DataSourceProvider } from '../types'
+import type { DataBinding, DataPoint, DataSourceProvider, WriteValue } from '../types'
 
 const providers = shallowReactive<DataSourceProvider[]>([])
 
@@ -29,6 +29,22 @@ export const dataSourceList = () => providers as readonly DataSourceProvider[]
 export const startAllDataSources = () => providers.forEach(p => p.start && p.start())
 export const stopAllDataSources = () => providers.forEach(p => p.stop && p.stop())
 export const refreshAllDataSources = () => Promise.all(providers.map(p => Promise.resolve(p.refresh && p.refresh()).catch(() => undefined)))
+
+/** 绑定是否可写（数据源实现了 write，且该数据项允许写） */
+export const canWrite = (binding: DataBinding | null | undefined) => {
+  if (!binding) return false
+  const provider = getDataSource(binding.source)
+  if (!provider || !provider.write) return false
+  return provider.writable ? provider.writable(binding.key) : true
+}
+
+/** 向绑定写值；不可写时返回 false（控制组件据此提示） */
+export const writeBinding = async (binding: DataBinding | null | undefined, value: WriteValue) => {
+  if (!binding || !canWrite(binding)) return false
+  const provider = getDataSource(binding.source)!
+  await provider.write!(binding.key, value)
+  return true
+}
 
 /**
  * 在组件内使用：根据绑定读取数据点，并在绑定变化 / 卸载时维护订阅。

@@ -14,7 +14,7 @@
  *  - store.ts            布局 / 草稿 / 选中状态；storage.ts 持久化抽象（当前 localStorage）
  *  - Canvas.tsx          等比缩放画布 + 拖动 / 缩放；Palette.tsx 组件库；PropertyPanel.tsx 属性面板
  */
-import { NButton, NButtonGroup, NDropdown, NPopconfirm, NTag, type DropdownOption } from 'naive-ui'
+import { NButton, NButtonGroup, NDropdown, NModal, NPopconfirm, NTag, type DropdownOption } from 'naive-ui'
 import { computed, defineComponent, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useMain } from '@/store'
 import Canvas, { canvasView, resetCanvasView, zoomCanvas } from './Canvas'
@@ -42,6 +42,8 @@ export default defineComponent({
     const refreshing = ref(false)
     /** 展示模式右键菜单 */
     const menu = reactive({ show: false, x: 0, y: 0 })
+    /** 操作说明弹窗（原先顶栏里的提示文字） */
+    const helpShow = ref(false)
 
     const measure = () => {
       const el = rootRef.value
@@ -116,6 +118,25 @@ export default defineComponent({
       else if (key === 'refresh') onRefresh()
     }
 
+    const HELP_SECTIONS = ['palette', 'canvas', 'widget', 'display', 'control']
+    /** 操作说明弹窗：分组列出组件库 / 画布 / 组件 / 展示模式 / 控制组件的操作方式 */
+    const renderHelp = () => (
+      <NModal show={helpShow.value} preset="card" title={tt('scada.help.title')} style={{ width: 'min(560px, 94vw)' }} closable maskClosable onUpdateShow={(v: boolean) => (helpShow.value = v)}>
+        <div class={'flex flex-col gap-3'} data-scada-help-content>
+          {HELP_SECTIONS.map(k => (
+            <div key={k}>
+              <div class={'text-sm font-bold text-gray-700 mb-1'}>{tt(`scada.help.${k}`)}</div>
+              <ul class={'m-0 pl-5 text-xs text-gray-600 leading-5'}>
+                {tt(`scada.help.${k}Text`).split('\n').map((line, i) => (
+                  <li key={i}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </NModal>
+    )
+
     /** 编辑模式的顶部工具栏；展示模式不渲染顶栏，画布占满整页 */
     const renderToolbar = () => {
       const l = scada.current
@@ -130,7 +151,9 @@ export default defineComponent({
             <NButton class={'min-w-[56px]'} onClick={() => resetCanvasView()}>{Math.round(canvasView.zoom * 100)}%</NButton>
             <NButton onClick={() => zoomCanvas(1.2)}>＋</NButton>
           </NButtonGroup>
-          {!portrait.value && <span class={'text-xs text-gray-400 hidden xl:inline'}>{tt('scada.zoomHint')}</span>}
+          <NButton size="small" quaternary circle data-scada-help onClick={() => (helpShow.value = true)}>
+            <span class={'font-bold'}>?</span>
+          </NButton>
           <div class={'flex-1'} />
           {scada.dirty ? (
             <NPopconfirm onPositiveClick={() => scada.cancelEdit()} positiveText={tt('scada.confirm')} negativeText={tt('scada.cancel')}>
@@ -153,6 +176,7 @@ export default defineComponent({
       return (
         <div ref={rootRef} class={'w-full h-full flex flex-col overflow-hidden bg-white'} onContextmenu={onContextMenu}>
           {editing && renderToolbar()}
+          {editing ? renderHelp() : null}
           {!editing && (
             <NDropdown
               placement="bottom-start"
@@ -172,7 +196,7 @@ export default defineComponent({
                   <Palette direction="horizontal" />
                 </div>
               ) : (
-                <div class={'w-[190px] shrink-0 border-0 border-r border-solid border-gray-300 overflow-hidden'}>
+                <div class={'w-[200px] shrink-0 border-0 border-r border-solid border-gray-300 overflow-hidden'}>
                   <Palette direction="vertical" />
                 </div>
               )

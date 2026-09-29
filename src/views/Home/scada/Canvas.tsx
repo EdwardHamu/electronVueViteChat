@@ -550,6 +550,8 @@ export default defineComponent({
                 <div
                   key={w.id}
                   class={'absolute'}
+                  data-widget-id={w.id}
+                  data-widget-type={w.type}
                   style={{
                     left: w.x + 'px', top: w.y + 'px', width: w.w + 'px', height: w.h + 'px',
                     touchAction: editing ? 'none' : 'auto',

@@ -5,6 +5,7 @@
 import { computed, defineComponent } from 'vue'
 import type { WidgetDefinition } from '../types'
 import { autoFontSize, pointText, tt, widgetProps } from './common'
+import { icons } from './icons'
 
 const TextLabel = defineComponent({
   name: 'ScadaTextLabel',
@@ -48,6 +49,8 @@ export const textLabelDefinition: WidgetDefinition = {
   type: 'textLabel',
   label: () => tt('scada.widget.textLabel'),
   description: () => tt('scada.widget.textLabelDesc'),
+  icon: icons.textLabel,
+  category: 'shape',
   defaultSize: { w: 240, h: 50 },
   minSize: { w: 30, h: 20 },
   needsBinding: false,

@@ -7,7 +7,8 @@
  *
  * 覆盖：组件 / 数据源注册表、产品分类数据源加载去重与按需轮询、编辑模式、组件库点按添加、
  *       拖动 / 缩放的网格吸附与最小尺寸、各示例组件渲染、数据处理函数（数字 / 对象 / 文本 / 出错 / 三种写法 / 持久状态）、
- *       画布视图缩放（滚轮 / 键盘 / 双指）与空格 + 拖动 / 中键平移、位置尺寸输入框、竖屏上下布局、Delete 删除、保存到 localStorage、取消丢弃草稿、卸载后停止轮询。
+ *       画布视图缩放（滚轮 / 键盘 / 双指）与空格 + 拖动 / 中键平移、位置尺寸输入框、竖屏上下布局、Delete 删除、保存到 localStorage、取消丢弃草稿、卸载后停止轮询、
+ *       工具箱式组件库（分类折叠 / 网格列表切换 / NScrollbar）、操作说明弹窗、全部图素 / 控制组件渲染、内部变量数据源写入（位按钮 / IO 域步进 / 复选框 / 字按钮 / 只读提示）、表格、多行文本与图片字段。
  * 说明：@/store、@/store/config 与 @/utils/callm 被 stubs/ 里的桩替换（真实模块会把 echarts 等整套依赖拉进来）。
  */
 import { build } from 'esbuild'
@@ -116,9 +117,13 @@ await nextTick(); await sleep(50)
 let step = 0
 const check = (name, fn) => { step++; fn(); console.log(`  ✓ ${step}. ${name}`) }
 
-check('注册表', () => {
-  assert.deepEqual(widgetDefinitions().map(d => d.type), ['valueCard', 'gauge', 'sparkline', 'statusLamp', 'textLabel'])
-  assert.deepEqual(dataSourceList().map(p => p.id), ['product', 'sim'])
+const SHAPES = ['line', 'polyline', 'arc', 'rect', 'circle', 'ellipse', 'sector', 'segment', 'polygon', 'textLabel', 'image', 'pipe']
+const CONTROLS = ['numericIO', 'stringIO', 'datetime', 'button', 'bitButton', 'wordButton', 'bitStatus', 'wordStatus', 'textList', 'textSwitch', 'radio', 'checkbox', 'table']
+const DATA = ['valueCard', 'gauge', 'sparkline', 'statusLamp']
+check('注册表：三类共 29 个组件，全部带图标与分类', () => {
+  assert.deepEqual(widgetDefinitions().map(d => d.type), [...SHAPES, ...CONTROLS, ...DATA])
+  widgetDefinitions().forEach(d => { assert.equal(typeof d.icon, 'function', d.type); assert.ok(['shape', 'control', 'data'].includes(d.category), d.type) })
+  assert.deepEqual(dataSourceList().map(p => p.id), ['product', 'sim', 'local'])
 })
 const buttons = () => [...root.querySelectorAll('button')]
 const main = useMain(pinia)
@@ -153,7 +158,7 @@ check('右键菜单“编辑”进入编辑模式，顶栏出现', () => {
 })
 const cmEdit = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 30, clientY: 40 }); root.firstElementChild.dispatchEvent(cmEdit); await nextTick()
 check('编辑模式下右键不弹菜单（保留默认行为）', () => { assert.ok(!cmEdit.defaultPrevented); assert.equal(menuItems().length, 0) })
-const item = [...root.querySelectorAll('div')].find(d => d.textContent.trim().startsWith('数值卡片') && d.style.touchAction === 'none')
+const item = root.querySelector('[data-palette-item="valueCard"]')
 item.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 10, clientY: 10, pointerId: 7 }))
 item.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 11, clientY: 11, pointerId: 7 }))
 await nextTick()
@@ -409,13 +414,14 @@ check('竖屏：组件库在上（横向条带）、属性面板在下（两栏�
   const first = body.children[0], last = body.children[body.children.length - 1]
   assert.ok(first.textContent.includes('组件库') && first.className.includes('h-[92px]'))
   assert.ok(last.textContent.includes('属性') && last.querySelector('.columns-2'))
-  const pitem = [...root.querySelectorAll('div')].find(d => d.textContent.trim().startsWith('数值卡片') && d.style.touchAction === 'pan-x')
-  assert.ok(pitem, 'palette item should allow pan-x in portrait')
+  const pitem = root.querySelector('[data-palette-item="valueCard"]')
+  assert.equal(pitem && pitem.style.touchAction, 'pan-x', 'palette strip item should allow pan-x in portrait')
+  assert.ok(first.querySelector('.n-scrollbar'), 'portrait strip should use NScrollbar (overlay rail)')
 })
 main.isLandscape = true; await nextTick()
 check('横屏：恢复左右三栏', () => {
   const body = canvasView.el.parentElement.parentElement.parentElement
-  assert.ok(body.className.includes('flex-row')); assert.ok(body.children[0].className.includes('w-[190px]')); assert.ok(!root.querySelector('.columns-2'))
+  assert.ok(body.className.includes('flex-row')); assert.ok(body.children[0].className.includes('w-[200px]')); assert.ok(!root.querySelector('.columns-2'))
 })
 
 scada.select(null); window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete' })); await nextTick()
@@ -433,6 +439,125 @@ check('保存到 localStorage（含处理函数）；退出编辑视图复位', 
 })
 scada.startEdit(); scada.addWidget('textLabel'); scada.cancelEdit()
 check('取消编辑丢弃草稿', () => assert.equal(scada.layout.widgets.length, 4))
+
+// ---------------- 任务 40：工具箱式组件库 / 悬浮滚动条 / 操作说明弹窗 / 新组件 / 内部变量写入 / 表格 / 图片与多行字段 ----------------
+const warns = []
+window.$message.warning = t => { warns.push(t); console.log('  $message.warning:', t) }
+scada.startEdit(); await nextTick()
+const bodyRow = () => canvasView.el.parentElement.parentElement.parentElement
+const paletteCol = () => bodyRow().children[0]
+const propsCol = () => bodyRow().children[bodyRow().children.length - 1]
+const inPalette = sel => [...paletteCol().querySelectorAll(sel)]
+check('组件库：按“基础图素 / 控制与显示 / 数据看板”分组的小图标网格，共 29 项；容器为 NScrollbar 悬浮轨道；顶栏无说明文字', () => {
+  assert.deepEqual(inPalette('[data-palette-group]').map(g => g.dataset.paletteGroup), ['shape', 'control', 'data'])
+  assert.equal(inPalette('[data-palette-item]').length, 29); assert.equal(inPalette('[data-palette-item] svg').length, 29)
+  assert.equal(inPalette('[data-palette-group="shape"] [data-palette-item]').length, 12)
+  assert.equal(inPalette('[data-palette-group="control"] [data-palette-item]').length, 13)
+  const hdr = paletteCol().querySelector('[data-palette-category="shape"]'); assert.ok(hdr.textContent.includes('基础图素') && hdr.textContent.includes('12'))
+  assert.ok(paletteCol().querySelector('.n-scrollbar')); assert.ok(!paletteCol().querySelector('.overflow-y-auto'))
+  assert.ok(propsCol().querySelector('.n-scrollbar'), 'property panel should use NScrollbar too')
+  assert.ok(paletteCol().querySelector('[data-palette-view="grid"]').className.includes('bg-blue-100'))
+  assert.ok(paletteCol().querySelector('[data-palette-item="line"]').className.includes('flex-col'))
+  assert.ok(!root.textContent.includes('滚轮缩放') && !root.textContent.includes('放到画布')); assert.ok(root.querySelector('[data-scada-help]'))
+})
+paletteCol().querySelector('[data-palette-category="shape"]').click(); await nextTick()
+check('点击分类标题折叠该组', () => { assert.equal(inPalette('[data-palette-group="shape"] [data-palette-item]').length, 0); assert.equal(inPalette('[data-palette-item]').length, 17) })
+paletteCol().querySelector('[data-palette-category="shape"]').click(); await nextTick()
+check('再次点击展开', () => assert.equal(inPalette('[data-palette-item]').length, 29))
+paletteCol().querySelector('[data-palette-view="list"]').click(); await nextTick()
+check('切换为列表视图（图标 + 名称 + 说明）并记住选择', () => {
+  assert.equal(localStorage.getItem('scadaPaletteView'), 'list')
+  const li = paletteCol().querySelector('[data-palette-item="line"]')
+  assert.ok(!li.className.includes('flex-col')); assert.ok(li.textContent.includes('直线') && li.textContent.includes('可设线宽'))
+  assert.ok(paletteCol().querySelector('[data-palette-view="list"]').className.includes('bg-blue-100'))
+})
+paletteCol().querySelector('[data-palette-view="grid"]').click(); await nextTick()
+check('切回网格视图', () => { assert.equal(localStorage.getItem('scadaPaletteView'), 'grid'); assert.ok(paletteCol().querySelector('[data-palette-item="line"]').className.includes('flex-col')) })
+
+root.querySelector('[data-scada-help]').click(); await nextTick(); await sleep(30)
+check('顶栏“?”按钮打开操作说明弹窗：5 节（组件库 / 画布 / 组件 / 展示模式 / 控制组件），含缩放 / 平移 / 微调说明', () => {
+  const c = document.body.querySelector('.n-modal-container [data-scada-help-content]'); assert.ok(c)
+  assert.equal(c.children.length, 5); assert.ok(c.querySelectorAll('li').length >= 10)
+  for (const kw of ['滚轮', '空格', '方向键', '右键', '内部变量']) assert.ok(c.textContent.includes(kw), kw)
+  assert.ok(document.body.querySelector('.n-modal-container').textContent.includes('操作说明'))
+})
+document.body.querySelector('.n-modal-container .n-card-header__close').click(); await nextTick(); await sleep(60)
+check('关闭操作说明弹窗', () => assert.ok(!document.body.querySelector('[data-scada-help-content]')))
+
+const keepIds = new Set(scada.draft.widgets.map(e => e.id))
+const NEW_TYPES = [...SHAPES, ...CONTROLS].filter(t => t !== 'textLabel')
+for (const type of NEW_TYPES) scada.addWidget(type)
+await nextTick()
+const byType = t => scada.draft.widgets.find(e => e.type === t && !keepIds.has(e.id))
+const hostOf = t => canvasView.el.querySelector(`[data-widget-id="${byType(t).id}"]`)
+check('新增 24 个组件全部渲染：图形为 SVG，控制组件各有标记，图片显示占位提示，日期时间域走时', () => {
+  assert.equal(scada.draft.widgets.length, 4 + NEW_TYPES.length); assert.ok(!root.textContent.includes('未知组件')); assert.ok(!root.textContent.includes('false'), 'literal false in: ' + [...canvasView.el.querySelectorAll('[data-widget-type]')].filter(h => h.textContent.includes('false')).map(h => h.dataset.widgetType + '=' + h.innerHTML.slice(0, 300)).join(' | '))
+  for (const t of ['line', 'polyline', 'arc', 'rect', 'circle', 'ellipse', 'sector', 'segment', 'polygon', 'pipe']) assert.ok(hostOf(t).querySelector('svg'), t)
+  assert.ok(hostOf('polygon').querySelector('svg polygon')); assert.ok(hostOf('circle').querySelector('svg circle, svg ellipse')); assert.ok(hostOf('rect').querySelector('svg rect'))
+  assert.equal(canvasView.el.querySelectorAll('[data-io-field]').length, 2)
+  for (const sel of ['[data-scada-button]', '[data-scada-bit-button]', '[data-scada-word-button]', '[data-scada-text-list]', '[data-scada-text-switch]', '[data-scada-radio]', '[data-scada-checkbox]', '[data-scada-table]']) assert.ok(canvasView.el.querySelector(sel), sel)
+  assert.ok(hostOf('image').textContent.includes('在属性面板设置图片'))
+  assert.match(hostOf('datetime').textContent, /\d{2}:\d{2}:\d{2}/)
+})
+// 内部变量数据源：可写、响应式、持久化
+const local = getDataSource('local')
+check('内部变量数据源：16 个变量，可写；产品分类 / 模拟数据源只读', () => {
+  assert.equal(local.options().length, 16); assert.equal(local.writable('var1'), true); assert.equal(local.read('var1').status, 'offline')
+  assert.ok(!product.write); assert.ok(!getDataSource('sim').write)
+})
+scada.setBinding(byType('bitButton').id, { source: 'local', key: 'var1' })
+scada.setBinding(byType('numericIO').id, { source: 'local', key: 'var1' })
+scada.setBinding(byType('bitStatus').id, { source: 'local', key: 'var1' })
+scada.setBinding(byType('checkbox').id, { source: 'local', key: 'var2' })
+scada.setBinding(byType('wordButton').id, { source: 'local', key: 'var3' }); scada.setWidgetProp(byType('wordButton').id, 'value', 42)
+scada.setBinding(byType('button').id, { source: 'product', key: 'd_od' })
+scada.setWidgetProp(byType('table').id, 'source', 'local'); scada.setWidgetProp(byType('table').id, 'maxRows', 3)
+await nextTick()
+hostOf('bitButton').querySelector('[data-scada-bit-button]').click(); await nextTick()
+check('编辑模式下点击位按钮不写值', () => assert.equal(local.read('var1').value, null))
+// 属性面板：多行文本字段与图片字段
+scada.select(byType('textList').id); await nextTick()
+const itemsTa = propsCol().querySelector('textarea')
+check('文本列表：属性面板用多行文本框编辑选项（占位文字说明格式；组件空列表时也显示该说明）', () => { assert.ok(itemsTa); assert.ok(itemsTa.placeholder.includes('一行一个')); assert.ok(hostOf('textList').textContent.includes('一行一个')) })
+itemsTa.value = '0=停止|#9ca3af\n1=运行|#22c55e\n2=报警|#ff0000'; itemsTa.dispatchEvent(new Event('input', { bubbles: true })); await nextTick()
+check('修改选项后组件按行渲染三项（带颜色）', () => {
+  assert.equal(byType('textList').props.items, '0=停止|#9ca3af\n1=运行|#22c55e\n2=报警|#ff0000')
+  const txt = hostOf('textList').textContent; assert.ok(txt.includes('停止') && txt.includes('运行') && txt.includes('报警'))
+})
+scada.select(byType('image').id); await nextTick()
+check('图片：属性面板有地址输入 + “选择图片”按钮', () => {
+  assert.ok(buttons().some(b => b.textContent.trim().includes('选择图片'))); assert.ok(propsCol().querySelector('input'))
+})
+const urlInput = [...propsCol().querySelectorAll('input')].find(i => (i.placeholder || '').includes('http') || (i.placeholder || '').includes('data:'))
+urlInput.value = 'https://example.com/a.png'; urlInput.dispatchEvent(new Event('input', { bubbles: true })); await nextTick()
+check('输入图片地址后渲染 <img>', () => { assert.equal(byType('image').props.src, 'https://example.com/a.png'); const img = hostOf('image').querySelector('img'); assert.ok(img); assert.equal(img.getAttribute('src'), 'https://example.com/a.png') })
+// 保存后进入展示模式，控制组件可操作
+await scada.save(); await nextTick()
+const hostL = t => canvasView.el.querySelector(`[data-widget-type="${t}"]`)
+hostL('bitButton').querySelector('[data-scada-bit-button]').click(); await nextTick()
+check('展示模式点击位按钮：内部变量置 1，绑定同一变量的数值 IO 域 / 位状态同步刷新并持久化', () => {
+  assert.equal(local.read('var1').value, 1); assert.equal(local.read('var1').status, 'none')
+  assert.ok(hostL('numericIO').textContent.includes('1.00'), hostL('numericIO').textContent)
+  assert.equal(JSON.parse(localStorage.getItem('scadaLocalVars')).var1.value, 1)
+})
+hostL('bitButton').querySelector('[data-scada-bit-button]').click(); await nextTick()
+check('再次点击切回 0', () => assert.equal(local.read('var1').value, 0))
+hostL('numericIO').querySelector('[data-io-field]').lastElementChild.click(); await nextTick(); await sleep(10)
+hostL('numericIO').querySelector('[data-io-field]').lastElementChild.click(); await nextTick(); await sleep(10)
+check('数值 IO 域“＋”步进两次 → 2', () => assert.equal(local.read('var1').value, 2))
+hostL('checkbox').querySelector('[data-scada-checkbox]').click(); await nextTick(); await sleep(10)
+hostL('wordButton').querySelector('[data-scada-word-button]').click(); await nextTick(); await sleep(10)
+check('复选框写开关量、字按钮写设定值', () => { assert.equal(local.read('var2').value, 1); assert.equal(local.read('var3').value, 42) })
+const warnsBefore = warns.length
+hostL('button').querySelector('[data-scada-button]').click(); await nextTick(); await sleep(10)
+check('绑定只读数据源（产品分类）的按钮：提示不可写', () => { assert.equal(warns.length, warnsBefore + 1); assert.ok(warns[warns.length - 1].includes('只读') || warns[warns.length - 1].includes('不可写'), warns[warns.length - 1]) })
+check('表格：列出内部变量前 3 行（含刚写入的值）', () => {
+  const rows = [...hostL('table').querySelectorAll('tbody tr')]; assert.equal(rows.length, 3)
+  assert.ok(rows[0].textContent.includes('变量 1') && rows[0].textContent.includes('2.00'), rows[0].textContent)
+})
+// 恢复到 4 个组件的版面，继续后面的用例
+scada.startEdit(); scada.draft.widgets = scada.draft.widgets.filter(e => keepIds.has(e.id)); await scada.save(); await nextTick()
+check('清理：恢复 4 个组件并退出编辑', () => { assert.equal(scada.layout.widgets.length, 4); assert.ok(!scada.editing) })
 await contextMenu(100, 100)
 const beforeRefresh = calls.groups
 menuItem('刷新数据源').click(); await nextTick(); await sleep(50)

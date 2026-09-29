@@ -2,7 +2,7 @@
 
 首页新增的「数据组态」标签页：编辑模式下从组件库把组件拖到画布上、绑定数据源、保存；展示模式按保存的布局实时显示数据。
 
-展示模式**没有顶栏**，画布占满整个标签页；在页面任意位置**右键（触摸屏长按）**弹出菜单：`编辑` 进入编辑模式、`刷新数据源` 重新拉取数据项目录。编辑模式才显示顶部工具栏（编辑标记、画布尺寸、组件库 / 属性开关、缩放、取消 / 保存）。本页挂载期间会把 `useMain().globalKeyBoardBlocked` 置为 `true`，`listenAllInputFocus` 因此不再弹出应用内虚拟键盘（离开标签页恢复）。
+展示模式**没有顶栏**，画布占满整个标签页；在页面任意位置**右键（触摸屏长按）**弹出菜单：`编辑` 进入编辑模式、`刷新数据源` 重新拉取数据项目录。编辑模式才显示顶部工具栏（编辑标记、画布尺寸、组件库 / 属性开关、缩放、`?` 操作说明弹窗、取消 / 保存）——操作提示不再以文字占用顶栏，全部放在 `?` 打开的 `NModal` 里（文案 `scada.help.*`，每节按 `\n` 分行）。本页挂载期间会把 `useMain().globalKeyBoardBlocked` 置为 `true`，`listenAllInputFocus` 因此不再弹出应用内虚拟键盘（离开标签页恢复）。
 
 ## 目录
 
@@ -12,19 +12,20 @@
 | `dataSource/registry.ts` | 数据源注册表 + `useDataPoint()` 组合式函数（组件内按绑定读值、自动订阅 / 退订） |
 | `dataSource/productSource.ts` | **产品分类数据源**：`GetDeviceGroups(CurrentGroupId)` → `GetShowDataGroups` / `GetChartDataGroups` 列出数据项；`GetRealtimeData(GId)` 按 `sysConfig.ColloctInterval` 轮询（只轮询被绑定的 GId）；标准值 / 公差取自当前配方 `curEnableFormulaParamList` |
 | `dataSource/simSource.ts` | 模拟信号数据源：无宿主时调试用，也是"第二个数据源"的实现范例 |
+| `dataSource/localSource.ts` | **内部变量数据源**（`local`，`var1` ~ `var16`）：目前唯一实现了 `write()` 的数据源，按钮 / 开关 / IO 域写进来的值立即被绑定同一变量的组件读到，并持久化到 localStorage `scadaLocalVars` |
 | `transform.ts` | 组件级**数据处理函数**：编译 / 执行用户写的 JS（三种写法、返回值合并规则、错误反馈），示例片段 `TRANSFORM_EXAMPLES` |
 | `registry.ts` | 组件注册表 |
-| `widgets/` | 内置示例组件：数值卡片、仪表盘、迷你趋势、状态灯、文本标签；`common.ts` 为共用工具 |
+| `widgets/` | 内置组件，分三类（`WidgetDefinition.category`）：`shape` 基础图素（`shapes.tsx` 直线 / 折线 / 弧线 / 矩形 / 圆形 / 椭圆 / 扇形 / 弓形 / 多边形 / 管道，`TextLabel.tsx` 文本，`Image.tsx` 图片）、`control` 控制与显示（`controls.tsx` 数值 IO 域 / 字符 IO 域 / 日期时间域 / 按钮 / 位按钮 / 字按钮 / 位状态显示 / 字状态显示 / 文本列表 / 文本开关 / 单选框 / 复选框，`Table.tsx` 表格）、`data` 数据看板（数值卡片 / 仪表盘 / 迷你趋势 / 状态灯）。`icons.tsx` 是组件库用的 24×24 线条图标；`common.ts` / `controlCommon.ts`（`useControl` 写入封装、选项列表解析、共享秒表）为共用工具 |
 | `store.ts` | Pinia store：已保存布局 `layout`、编辑草稿 `draft`、选中项、增删改 / 层级 / 画布设置 |
 | `storage.ts` | 持久化抽象 `LayoutStorage`，默认 localStorage（key `scadaLayout`） |
 | `layout.ts` | 默认值与反序列化校验 / 版本迁移；`geometry.ts` 吸附、越界、缩放等纯函数 |
 | `Canvas.tsx` | 等比缩放画布、`WidgetHost`（绑定 → 处理函数 → 历史值 → 组件）、Pointer Events 拖动 / 缩放组件、Delete 删除、方向键微调（1px，Shift 按网格）；编辑模式的视图缩放（滚轮 / 双指 / 键盘 + - 0）与平移（空格 + 拖动 / 中键拖动 / 双指） |
-| `Palette.tsx` | 组件库（点按放到空位；按住拖到画布上松手放置）；`direction` = vertical（横屏侧栏）/ horizontal（竖屏顶部横向条带） |
-| `PropertyPanel.tsx` | 属性面板（标题、数据绑定、位置尺寸、按 `propSchema` 生成的组件属性、层级 / 复制 / 删除；未选中时编辑画布）；`columns=2` 时分两栏；底部按钮打开数据处理函数弹窗 |
+| `Palette.tsx` | 组件库，HMI 工具箱样式：按三个分类分组（点分类标题折叠 / 展开），每项是小图标 + 名称，横屏可在**网格**（3 列）/ **列表**（图标 + 名称 + 说明）间切换（记在 localStorage `scadaPaletteView`）；点按放到空位、按住拖到画布上松手放置；`direction` = vertical（横屏侧栏 200px）/ horizontal（竖屏顶部横向条带，分类做成竖排标签）。滚动容器是 naive-ui `NScrollbar`（悬浮式滚动条，不占内容宽度） |
+| `PropertyPanel.tsx` | 属性面板（标题、数据绑定、位置尺寸、按 `propSchema` 生成的组件属性、层级 / 复制 / 删除；未选中时编辑画布）；`columns=2` 时分两栏；底部按钮打开数据处理函数弹窗；同样用 `NScrollbar` 悬浮滚动。字段类型 text / textarea / number / color / boolean / select / image（图片 = 地址输入 + 「选择图片文件」按钮，文件读成 data URL 存进布局，超过 `IMAGE_MAX_BYTES`（300 KB）拒绝） |
 | `ColorField.tsx` | 颜色字段（组件颜色属性、画布背景）：一行色块按钮，点开在下方行内展开面板——第一界面是**预设颜色表**，按钮切换到 HSV **调色盘**（SV 面板 + 色相条 + hex 输入）；两处都能「加入预设」，「管理」模式点色块移除、可恢复默认；`clearable` 时提供「清除」（空值 = 组件默认色）。不用 naive-ui 的 NColorPicker 弹层（嵌在滚动面板 / 弹层里会被 click-outside 关掉） |
 | `color.ts` / `colorPresets.ts` | hex ↔ HSV 等纯函数；预设颜色表（所有颜色字段共用，最多 64 个，localStorage key `scadaColorPresets`，损坏 / 清空时回落到默认 24 色） |
 | `TransformDialog.tsx` | 数据处理函数编辑弹窗：本地草稿 + 用当前数据实时预览输出 / 错误，「确定」才写回组件，语法错误不可确定 |
-| `index.tsx` | 页面入口：展示模式右键菜单（`NDropdown` trigger=manual）、编辑模式工具栏（含缩放按钮）；横屏三栏 / 竖屏三行布局切换；挂载期间屏蔽虚拟键盘 |
+| `index.tsx` | 页面入口：展示模式右键菜单（`NDropdown` trigger=manual）、编辑模式工具栏（含缩放按钮、`?` 操作说明弹窗）；横屏三栏 / 竖屏三行布局切换；挂载期间屏蔽虚拟键盘 |
 
 ## 数据流
 
@@ -37,6 +38,16 @@ DataSourceProvider.read(key) ──► DataPoint ──► 数据处理函数（
 ```
 
 `DataPoint` 统一携带 `value / unit / precision / standard / upper / lower / status`，组件据此显示数值、画公差带、按状态变色（ok / high / low / offline / none）。
+
+## 控制组件与写入
+
+控制类组件（按钮 / 位按钮 / 字按钮 / 文本列表 / 文本开关 / 单选框 / 复选框 / 可编辑的 IO 域）通过 `writeBinding(binding, value)` 往绑定的数据项写值，前提是 `canWrite(binding)`：数据源实现了 `DataSourceProvider.write()`，且 `writable(key)`（可按数据项细分）为真。组件统一用 `controlCommon.ts` 的 `useControl()`：编辑模式不响应；未绑定 / 数据源只读时 `$message.warning` 提示；写失败 `$message.error`。
+
+- 目前**只有内部变量数据源可写**：宿主 `JsBridge` 没有向仪器 / PLC 写值的方法（只有开始 / 停止 / 清空 / 轴采集等命令），产品分类与模拟数据源都是只读。后端提供写接口后，给 `productSource` 加 `write()` 即可，控制组件不用改。
+- 按钮的「动作」除了写值 / 取反，还可以调宿主命令：开始 / 停止 / 清空 / 轴采集（优先走首页注册的 `window.frontFn.startCollect / stopCollect`，没有时直接 `callBrige`）。
+- 数值 IO 域：本页屏蔽了应用内虚拟键盘，所以数值输入除了点值进入行内编辑（Enter 提交 / Esc 取消），还带 `－ ＋` 步进按钮（`step / min / max`），触摸屏也能改值；字符 IO 域同样行内编辑。
+- 文本列表 / 单选框 / 字状态显示的选项写在多行文本里，一行一项：`值=文字|颜色`、`值=文字` 或只写 `文字`（值为行号）。
+- 表格不绑定单个数据项，而是列出所选数据源的全部数据项（名称 / 当前值 / 单位 / 状态 / 更新时间），并只订阅表里出现的项。
 
 ## 数据处理函数
 
@@ -52,7 +63,7 @@ DataSourceProvider.read(key) ──► DataPoint ──► 数据处理函数（
 ## 新增一个组件
 
 1. 在 `widgets/` 写一个接收 `widgetProps`（`widget`、`point`、`editing`、`history`）的 `defineComponent`——收到的 `point` 已经过数据处理函数，组件不用关心；
-2. 导出一个 `WidgetDefinition`：`type`、`label()`、`defaultSize`、`needsBinding`、`defaultProps()`、`propSchema`（属性面板自动渲染 text / number / color / boolean / select）、`component`，需要历史值时设 `keepHistory`；
+2. 导出一个 `WidgetDefinition`：`type`、`label()`、`description()`、`icon()`（`icons.tsx` 风格的 24×24 SVG，`currentColor`）、`category`（shape / control / data，决定在组件库里的分组）、`defaultSize`、`needsBinding`、`defaultProps()`、`propSchema`（属性面板自动渲染 text / textarea / number / color / boolean / select / image；`placeholder` 可传函数以便渲染时再取 i18n）、`component`，需要历史值时设 `keepHistory`；
 3. 在 `widgets/index.ts` 里 `registerWidget()`；
 4. 在 `public/locales/*.json` 的 `scada.widget` / `scada.prop` 下补文案。
 
@@ -60,7 +71,7 @@ DataSourceProvider.read(key) ──► DataPoint ──► 数据处理函数（
 
 ## 新增一个数据源
 
-实现 `DataSourceProvider`（`id`、`label()`、`options()`、`read(key)`，可选 `start / stop / refresh / subscribe`），在 `dataSource/index.ts` 里 `registerDataSource()` 即可出现在属性面板的「数据源」下拉里。
+实现 `DataSourceProvider`（`id`、`label()`、`options()`、`read(key)`，可选 `start / stop / refresh / subscribe`，可写的数据源再实现 `write(key, value)` / `writable(key)`），在 `dataSource/index.ts` 里 `registerDataSource()` 即可出现在属性面板的「数据源」下拉里。
 `read()` 必须从 `reactive` / `ref` 状态读取，组件才会自动刷新；轮询型数据源可用 `subscribe` 做按需请求（参考 `productSource.ts`）。
 
 ## 更换存储
@@ -77,9 +88,10 @@ DataSourceProvider.read(key) ──► DataPoint ──► 数据处理函数（
 
 ## 横竖屏布局
 
-- 横屏：组件库（190px）| 画布 | 属性面板（300px）。
-- 竖屏（`useMain().isLandscape === false`）：组件库改为画布上方 92px 的横向条带（可横向滚动，条带内 `touch-action: pan-x`，向下拖到画布放置），属性面板放在画布下方（高 36%，区块两栏排布）。
+- 横屏：组件库（200px）| 画布 | 属性面板（300px）。
+- 竖屏（`useMain().isLandscape === false`）：组件库改为画布上方 92px 的横向条带（`NScrollbar xScrollable`，鼠标滚轮也横向滚动，条带内 `touch-action: pan-x`，向下拖到画布放置），属性面板放在画布下方（高 36%，区块两栏排布）。
+- 两个侧栏的滚动条都是 `NScrollbar` 的悬浮轨道（`overflow: overlay` 在新 Chromium / WebView2 里已被移除，不能靠它）。
 
 ## 测试
 
-无需 WebView2 宿主：`npm i --no-save esbuild@0.21 jsdom@22 && node scripts/scada-smoke/run.mjs`（见脚本头部说明）。
+无需 WebView2 宿主：`npm i --no-save esbuild@0.21 jsdom@22 && node scripts/scada-smoke/run.mjs`（见脚本头部说明，目前 87 步）。

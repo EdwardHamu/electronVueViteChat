@@ -5,6 +5,7 @@ import { computed, defineComponent } from 'vue'
 import { formatValue } from '../geometry'
 import type { WidgetDefinition } from '../types'
 import { autoFontSize, displayName, pointText, statusColor, tt, widgetProps } from './common'
+import { icons } from './icons'
 
 const ValueCard = defineComponent({
   name: 'ScadaValueCard',
@@ -52,6 +53,8 @@ export const valueCardDefinition: WidgetDefinition = {
   type: 'valueCard',
   label: () => tt('scada.widget.valueCard'),
   description: () => tt('scada.widget.valueCardDesc'),
+  icon: icons.valueCard,
+  category: 'data',
   defaultSize: { w: 220, h: 120 },
   minSize: { w: 80, h: 50 },
   needsBinding: true,

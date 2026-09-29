@@ -4,6 +4,7 @@
 import { computed, defineComponent } from 'vue'
 import type { PointStatus, WidgetDefinition } from '../types'
 import { displayName, pointText, statusColor, tt, widgetProps } from './common'
+import { icons } from './icons'
 
 const StatusLamp = defineComponent({
   name: 'ScadaStatusLamp',
@@ -54,6 +55,8 @@ export const statusLampDefinition: WidgetDefinition = {
   type: 'statusLamp',
   label: () => tt('scada.widget.statusLamp'),
   description: () => tt('scada.widget.statusLampDesc'),
+  icon: icons.statusLamp,
+  category: 'data',
   defaultSize: { w: 200, h: 80 },
   minSize: { w: 60, h: 40 },
   needsBinding: true,

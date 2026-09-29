@@ -6,7 +6,7 @@
  *  2. 组件层（WidgetDefinition / WidgetInstance）——通过 registry 注册，新增组件不需要改画布代码
  *  3. 布局层（ScadaLayout）——可序列化，落地到 storage.ts 抽象出的存储
  */
-import type { Component } from 'vue'
+import type { Component, VNodeChild } from 'vue'
 
 // ---------------------------------------------------------------- 数据源
 
@@ -70,7 +70,16 @@ export interface DataSourceProvider {
    * 轮询型数据源可据此只请求被用到的数据项。
    */
   subscribe?: (key: string) => () => void
+  /**
+   * 写入（按钮 / 开关 / IO 域等控制类组件用）。不实现 = 只读数据源，控制类组件绑定后显示为只读。
+   * writable 可按数据项细分（如部分寄存器只读）。
+   */
+  write?: (key: string, value: WriteValue) => Promise<void> | void
+  writable?: (key: string) => boolean
 }
+
+/** 控制类组件写入的值 */
+export type WriteValue = number | string | boolean
 
 // ---------------------------------------------------------------- 组件
 
@@ -94,7 +103,8 @@ export interface WidgetInstance extends WidgetRect {
   props: Record<string, any>
 }
 
-export type PropFieldType = 'text' | 'number' | 'color' | 'boolean' | 'select'
+/** textarea：多行文本（选项列表等）；image：图片地址 + 选择本地文件（存为 data URL） */
+export type PropFieldType = 'text' | 'textarea' | 'number' | 'color' | 'boolean' | 'select' | 'image'
 
 /** 属性面板的声明式字段描述，通用编辑器据此渲染 */
 export interface PropField {
@@ -104,7 +114,8 @@ export interface PropField {
   min?: number
   max?: number
   step?: number
-  placeholder?: string
+  /** 占位文字；传函数可延迟到渲染时取 i18n（模块加载时语言包可能还没就绪） */
+  placeholder?: string | (() => string)
   options?: () => { label: string; value: any }[]
 }
 
@@ -117,11 +128,16 @@ export interface WidgetRenderProps {
   history?: number[]
 }
 
+/** 组件库分类：shape 基础图素 / control 控制与显示 / data 数据看板 */
+export type WidgetCategory = 'shape' | 'control' | 'data'
+
 export interface WidgetDefinition {
   type: string
   label: () => string
   description?: () => string
-  icon?: Component
+  /** 组件库里的小图标（24×24 viewBox 的 SVG 渲染函数），缺省显示首字 */
+  icon?: () => VNodeChild
+  category?: WidgetCategory
   defaultSize: { w: number; h: number }
   minSize?: { w: number; h: number }
   /** 是否需要绑定数据；false 表示绑定可选（如文本标签：不绑定显示静态文字，绑定后显示数据 / 处理函数的输出） */

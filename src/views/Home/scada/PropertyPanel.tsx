@@ -4,7 +4,7 @@
  * 数据处理函数（JS）通过面板底部的按钮打开 TransformDialog 弹窗编辑。
  * 颜色类字段用 ColorField（预设颜色表 + 调色盘，行内展开），不用 NColorPicker 的弹层。
  */
-import { NButton, NInput, NInputNumber, NPopconfirm, NSelect, NSwitch } from 'naive-ui'
+import { NButton, NInput, NInputNumber, NPopconfirm, NScrollbar, NSelect, NSwitch } from 'naive-ui'
 import { computed, defineComponent, ref, watch, type PropType } from 'vue'
 import ColorField from './ColorField'
 import { dataSourceList, getDataSource } from './dataSource'
@@ -14,6 +14,9 @@ import { transformErrors } from './transform'
 import TransformDialog from './TransformDialog'
 import type { PropField, WidgetInstance } from './types'
 import { tt } from './widgets/common'
+
+/** 本地图片存进布局的上限（data URL 会随布局一起进 localStorage） */
+export const IMAGE_MAX_BYTES = 300 * 1024
 
 const Row = (props: { label: string }, { slots }: { slots: any }) => (
   <div class={'flex items-center gap-2 py-1'}>
@@ -86,12 +89,47 @@ export default defineComponent({
       scada.updateWidgetRect(w.id, { x: w.x, y: w.y, w: w.w, h: w.h, [key]: v })
     }
 
+    /** 图片字段：选择本地文件读成 data URL 存进布局（localStorage 容量有限，单张限制 IMAGE_MAX_BYTES） */
+    const pickImage = (w: WidgetInstance, key: string) => {
+      if (typeof document === 'undefined') return
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = 'image/*'
+      input.onchange = () => {
+        const file = input.files && input.files[0]
+        if (!file) return
+        if (file.size > IMAGE_MAX_BYTES) {
+          window.$message?.warning(tt('scada.panel.imageTooLarge').replace('{kb}', String(Math.round(IMAGE_MAX_BYTES / 1024))))
+          return
+        }
+        const reader = new FileReader()
+        reader.onload = () => {
+          if (typeof reader.result === 'string') scada.setWidgetProp(w.id, key, reader.result)
+        }
+        reader.readAsDataURL(file)
+      }
+      input.click()
+    }
+
     const renderField = (w: WidgetInstance, f: PropField) => {
       const value = w.props[f.key]
       const set = (v: any) => scada.setWidgetProp(w.id, f.key, v)
+      const ph = typeof f.placeholder === 'function' ? f.placeholder() : (f.placeholder || '')
       switch (f.type) {
         case 'boolean':
           return <NSwitch value={!!value} onUpdateValue={set} size="small" />
+        case 'textarea':
+          return <NInput size="small" type="textarea" autosize={{ minRows: 2, maxRows: 8 }} value={value ?? ''} placeholder={ph} onUpdateValue={set} />
+        case 'image':
+          return (
+            <div class={'flex flex-col gap-1'}>
+              <NInput size="small" value={value ?? ''} placeholder={ph} clearable onUpdateValue={set} />
+              <div class={'flex items-center gap-1'}>
+                <NButton size="tiny" onClick={() => pickImage(w, f.key)}>{tt('scada.panel.chooseImage')}</NButton>
+                {value && String(value).startsWith('data:') && <span class={'text-[10px] text-gray-400'}>{Math.round((String(value).length * 3) / 4 / 1024)} KB</span>}
+              </div>
+            </div>
+          )
         case 'number':
           return (
             <NInputNumber
@@ -101,14 +139,14 @@ export default defineComponent({
               min={f.min}
               max={f.max}
               step={f.step}
-              placeholder={f.placeholder || ''}
+              placeholder={ph}
               onUpdateValue={(v: number | null) => set(v)}
             />
           )
         case 'select':
           return <NSelect size="small" value={value ?? null} options={f.options ? f.options() : []} onUpdateValue={set} />
         default:
-          return <NInput size="small" value={value ?? ''} placeholder={f.placeholder || ''} onUpdateValue={set} />
+          return <NInput size="small" value={value ?? ''} placeholder={ph} onUpdateValue={set} />
       }
     }
 
@@ -258,10 +296,11 @@ export default defineComponent({
     return () => (
       <div class={'h-full flex flex-col bg-white'}>
         <div class={'px-3 py-2 text-sm font-bold border-0 border-b border-solid border-gray-200 shrink-0'}>{tt('scada.properties')}</div>
-        <div class={'flex-1 min-h-0 overflow-y-auto'}>
+        {/* 悬浮滚动条：NScrollbar 隐藏原生滚动条、把滑轨浮在内容之上，不挤压内部宽度；trigger=none 让滑轨常显（触摸屏没有 hover） */}
+        <NScrollbar class={'flex-1 min-h-0'} trigger="none">
           {/* 多栏时把 columns 放在内层：外层高度固定 + 多栏会横向溢出，内层高度自适应才能按内容均分两栏 */}
           <div class={props.columns >= 2 ? 'columns-2 gap-0' : ''}>{selected.value ? renderWidgetPanel(selected.value) : renderCanvasPanel()}</div>
-        </div>
+        </NScrollbar>
         {selected.value && renderFooter(selected.value)}
         <TransformDialog show={transformShow.value} widget={selected.value} onClose={() => (transformShow.value = false)} />
       </div>

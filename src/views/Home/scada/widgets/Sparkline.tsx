@@ -5,6 +5,7 @@ import { computed, defineComponent } from 'vue'
 import { formatValue } from '../geometry'
 import type { WidgetDefinition } from '../types'
 import { displayName, pointText, STATUS_COLORS, statusColor, tt, widgetProps } from './common'
+import { icons } from './icons'
 
 const PAD_X = 6
 const HEADER = 24
@@ -93,6 +94,8 @@ export const sparklineDefinition: WidgetDefinition = {
   type: 'sparkline',
   label: () => tt('scada.widget.sparkline'),
   description: () => tt('scada.widget.sparklineDesc'),
+  icon: icons.sparkline,
+  category: 'data',
   defaultSize: { w: 300, h: 140 },
   minSize: { w: 100, h: 50 },
   needsBinding: true,
