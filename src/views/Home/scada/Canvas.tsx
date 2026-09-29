@@ -4,6 +4,7 @@
  *  - Pointer Events 拖动 / 右下角缩放组件（鼠标、触摸通用），按网格吸附；
  *  - 滚轮（或双指捏合）以指针位置为中心缩放视图，键盘 + / - / 0 同样可用；
  *  - 按住空格键拖动鼠标（画布任意位置，包括组件上方）、或按住鼠标中键拖动，平移视图；触摸屏双指同时可缩放 / 平移；
+ *  - 选中组件后方向键微调位置（1px；Shift + 方向键按网格步进），Delete 删除；
  *  - 退出编辑（保存 / 取消）视图自动复位为"适配容器"。
  * 每个组件由 WidgetHost 承载：解析数据绑定 → 经过组件的数据处理函数（transform.ts）→ 维护历史值 → 渲染注册表里的组件。
  */
@@ -167,6 +168,14 @@ interface PinchState {
 }
 
 const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y)
+
+/** 方向键 → 位移方向 */
+const ARROW_KEYS: Record<string, { dx: number; dy: number }> = {
+  ArrowLeft: { dx: -1, dy: 0 },
+  ArrowRight: { dx: 1, dy: 0 },
+  ArrowUp: { dx: 0, dy: -1 },
+  ArrowDown: { dx: 0, dy: 1 }
+}
 
 export default defineComponent({
   name: 'ScadaCanvas',
@@ -389,15 +398,25 @@ export default defineComponent({
     })
 
     const isSpace = (e: KeyboardEvent) => e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar'
+    /** 焦点是否在页面空白（body）或画布容器内：只有这时空格 / 方向键才由画布处理，焦点在按钮 / 下拉等控件上时让控件自己处理 */
+    const focusOnCanvas = () => {
+      const active = typeof document !== 'undefined' ? document.activeElement : null
+      return !active || active === document.body || !!(containerRef.value && containerRef.value.contains(active))
+    }
+    /** 方向键微调选中组件：1px；Shift 按网格步进（画布越界由 updateWidgetRect 收口） */
+    const nudgeSelected = (dx: number, dy: number, byGrid: boolean) => {
+      const w = scada.selected
+      if (!w) return
+      const step = byGrid ? Math.max(1, layout.value.canvas.grid || 10) : 1
+      scada.updateWidgetRect(w.id, { x: w.x + dx * step, y: w.y + dy * step, w: w.w, h: w.h })
+    }
     const onKeyDown = (e: KeyboardEvent) => {
       if (!scada.editing) return
       const target = e.target as HTMLElement | null
       const tag = target?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return
       if (isSpace(e)) {
-        // 焦点在按钮 / 下拉等控件上时让控件自己处理空格；只有焦点在页面空白（body）或画布容器内才当作平移修饰键
-        const active = typeof document !== 'undefined' ? document.activeElement : null
-        if (active && active !== document.body && !(containerRef.value && containerRef.value.contains(active))) return
+        if (!focusOnCanvas()) return
         canvasView.spaceDown = true
         e.preventDefault() // 防止页面滚动
         return
@@ -421,6 +440,13 @@ export default defineComponent({
       if (e.key === 'Delete' || e.key === 'Backspace') {
         scada.removeWidget(scada.selectedId)
         e.preventDefault()
+        return
+      }
+      const arrow = ARROW_KEYS[e.key]
+      if (arrow) {
+        if (!focusOnCanvas()) return
+        nudgeSelected(arrow.dx, arrow.dy, e.shiftKey)
+        e.preventDefault() // 防止页面滚动
       }
     }
     const onKeyUp = (e: KeyboardEvent) => {
@@ -440,6 +466,9 @@ export default defineComponent({
       if (canvasView.spaceDown) return
       e.stopPropagation()
       e.preventDefault()
+      // preventDefault 后浏览器不会再移动焦点，这里主动让容器拿到焦点：属性面板输入框失焦，方向键 / 空格才会交给画布
+      const container = containerRef.value
+      if (container && container.focus) container.focus({ preventScroll: true })
       scada.select(w.id)
       drag = { id: w.id, mode, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, rect: { x: w.x, y: w.y, w: w.w, h: w.h } }
       const target = e.currentTarget as HTMLElement | null

@@ -101,6 +101,7 @@ export const useMain = defineStore('useStore', {
 
             lastFocusedInput: <HTMLInputElement | null>null,
             globalKeyBoardShow: false,
+            globalKeyBoardBlocked: false, //为 true 时输入框聚焦不弹出虚拟键盘（数据组态页）
 
             isLandscape: false, //是否横屏
         }
@@ -213,6 +214,9 @@ export const useMain = defineStore('useStore', {
         },
         setGlobalKeyBoardShow(value: boolean) {
             this.globalKeyBoardShow = value
+        },
+        setGlobalKeyBoardBlocked(value: boolean) {
+            this.globalKeyBoardBlocked = value
         },
         setIsLandscape(value: boolean) {
             this.isLandscape = value

@@ -337,6 +337,18 @@
     "welcome": "欢迎！"
   },
   "scada": {
+    "color": {
+      "presets": "预设颜色",
+      "palette": "调色盘",
+      "addPreset": "加入预设",
+      "manage": "管理",
+      "done": "完成",
+      "resetPresets": "恢复默认",
+      "clear": "清除",
+      "none": "默认",
+      "emptyPresets": "还没有预设颜色，用调色盘选好颜色后点“加入预设”",
+      "manageHint": "点击色块即可从预设中移除"
+    },
     "title": "数据组态",
     "edit": "编辑",
     "save": "保存",
@@ -353,12 +365,12 @@
     "clearConfirm": "确定清空画布上的所有组件？",
     "discardConfirm": "有未保存的修改，确定放弃？",
     "emptyHint": "尚未配置组态组件",
-    "emptyHintEdit": "点击右上角“编辑”，从组件库拖入组件并绑定数据源",
+    "emptyHintEdit": "在页面上点击右键（触摸屏长按）选择“编辑”，从组件库拖入组件并绑定数据源",
     "paletteHint": "点按：自动放到空位；按住拖到画布：放到松手位置",
     "zoomIn": "放大",
     "zoomOut": "缩小",
     "resetView": "复位视图",
-    "zoomHint": "滚轮缩放 · 按住空格 + 拖动鼠标平移",
+    "zoomHint": "滚轮缩放 · 空格 + 拖动平移 · 方向键微调选中组件（Shift 按网格）",
     "paletteHintShort": "点按 / 拖入",
     "paletteHintPortrait": "点按：自动放到空位；按住向下拖到画布：放到松手位置",
     "transformExample": {

@@ -337,6 +337,18 @@
     "welcome": "Hello!"
   },
   "scada": {
+    "color": {
+      "presets": "Preset colors",
+      "palette": "Color palette",
+      "addPreset": "Add preset",
+      "manage": "Manage",
+      "done": "Done",
+      "resetPresets": "Restore defaults",
+      "clear": "Clear",
+      "none": "Default",
+      "emptyPresets": "No preset colors yet. Pick one in the palette and tap \"Add preset\"",
+      "manageHint": "Tap a swatch to remove it from the presets"
+    },
     "title": "Data Dashboard",
     "edit": "Edit",
     "save": "Save",
@@ -353,12 +365,12 @@
     "clearConfirm": "Remove all widgets from the canvas?",
     "discardConfirm": "Discard unsaved changes?",
     "emptyHint": "No widgets configured yet",
-    "emptyHintEdit": "Tap \"Edit\" at the top right, drag widgets from the library and bind a data source",
+    "emptyHintEdit": "Right-click (long-press on touch screens) the page and choose \"Edit\", then drag widgets from the library and bind a data source",
     "paletteHint": "Tap: auto-place in a free spot; press and drag onto the canvas: place where released",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "resetView": "Reset view",
-    "zoomHint": "Wheel: zoom · hold Space and drag: pan",
+    "zoomHint": "Wheel: zoom · Space + drag: pan · arrow keys nudge the selected widget (Shift: by grid)",
     "paletteHintShort": "Tap / drag",
     "paletteHintPortrait": "Tap: place in a free spot; press and drag down onto the canvas: place where released",
     "transformExample": {

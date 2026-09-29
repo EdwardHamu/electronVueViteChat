@@ -128,6 +128,8 @@ export const loopGet = (fn: () => Promise<any>, ms: number, isGettingRef: Ref<bo
 
 export const listenAllInputFocus = (store: ReturnType<typeof useMain>, configStore: ReturnType<typeof useConfigStore>) => {
   document.addEventListener('focusin', function (event) {
+    // 数据组态页等场景屏蔽虚拟键盘：聚焦输入框不弹出
+    if (store.globalKeyBoardBlocked) return
     // `event.target` 是实际获取焦点的元素
     const targetElement = event.target;
     // console.log("🪵 [utils.ts:122] ~ token ~ \x1b[0;32mtargetElement\x1b[0m = ", targetElement);

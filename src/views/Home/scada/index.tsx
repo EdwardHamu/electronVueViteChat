@@ -1,7 +1,11 @@
 /**
- * 数据组态展示页入口：工具栏 + 画布，编辑模式再加上组件库与属性面板：
- *  - 横屏：组件库 | 画布 | 属性面板（左右三栏）
- *  - 竖屏：组件库（横向一条）/ 画布 / 属性面板（上下三行，属性面板分两栏）
+ * 数据组态展示页入口：
+ *  - 展示模式：没有顶栏，画布占满整个标签页；右键（触摸屏长按）弹出菜单进入编辑 / 刷新数据源；
+ *  - 编辑模式：顶部工具栏 + 画布 + 组件库与属性面板：
+ *      横屏：组件库 | 画布 | 属性面板（左右三栏）
+ *      竖屏：组件库（横向一条）/ 画布 / 属性面板（上下三行，属性面板分两栏）
+ *  - 「适配当前屏幕」与首次建布局用的尺寸都按展示模式（无顶栏）的整页面积计算；
+ *  - 本页挂载期间屏蔽全局虚拟键盘（输入框聚焦不弹出）。
  *
  * 目录说明：
  *  - types.ts            公共类型（数据源 / 组件 / 布局）
@@ -10,7 +14,7 @@
  *  - store.ts            布局 / 草稿 / 选中状态；storage.ts 持久化抽象（当前 localStorage）
  *  - Canvas.tsx          等比缩放画布 + 拖动 / 缩放；Palette.tsx 组件库；PropertyPanel.tsx 属性面板
  */
-import { NButton, NButtonGroup, NPopconfirm, NTag } from 'naive-ui'
+import { NButton, NButtonGroup, NDropdown, NPopconfirm, NTag, type DropdownOption } from 'naive-ui'
 import { computed, defineComponent, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useMain } from '@/store'
 import Canvas, { canvasView, resetCanvasView, zoomCanvas } from './Canvas'
@@ -29,14 +33,18 @@ export default defineComponent({
     /** 竖屏：组件库 / 属性面板改为画布上下排布 */
     const portrait = computed(() => !store.isLandscape)
     const rootRef = ref<HTMLElement>()
-    const bodyRef = ref<HTMLElement>()
-    /** 画布可视区域（不含工具栏）的实际尺寸，供新建布局 / "适配当前屏幕" 使用 */
+    /**
+     * 展示模式下画布可用的整页尺寸（展示模式没有顶栏，就是根元素大小；编辑模式量根元素同样得到去掉工具栏后的展示面积），
+     * 供新建布局 / "适配当前屏幕" 使用
+     */
     const screenSize = reactive({ w: 0, h: 0 })
     let ro: ResizeObserver | null = null
     const refreshing = ref(false)
+    /** 展示模式右键菜单 */
+    const menu = reactive({ show: false, x: 0, y: 0 })
 
     const measure = () => {
-      const el = bodyRef.value
+      const el = rootRef.value
       if (!el) return
       screenSize.w = el.clientWidth
       screenSize.h = el.clientHeight
@@ -44,15 +52,19 @@ export default defineComponent({
 
     onMounted(async () => {
       measure()
-      if (typeof ResizeObserver !== 'undefined' && bodyRef.value) {
+      if (typeof ResizeObserver !== 'undefined' && rootRef.value) {
         ro = new ResizeObserver(() => measure())
-        ro.observe(bodyRef.value)
+        ro.observe(rootRef.value)
       }
+      // 组态页内点输入框不弹虚拟键盘（属性面板 / 处理函数弹窗里的输入框都算）
+      store.setGlobalKeyBoardShow(false)
+      store.setGlobalKeyBoardBlocked(true)
       startAllDataSources()
       await scada.load(screenSize.w && screenSize.h ? { width: screenSize.w, height: screenSize.h } : undefined)
     })
     onBeforeUnmount(() => {
       if (ro) ro.disconnect()
+      store.setGlobalKeyBoardBlocked(false)
       stopAllDataSources()
     })
 
@@ -76,45 +88,61 @@ export default defineComponent({
       }
     }
 
+    // ---------------------------------------------------------------- 展示模式右键菜单（触摸屏长按同样触发 contextmenu）
+    const onContextMenu = (e: MouseEvent) => {
+      if (scada.editing) return
+      e.preventDefault()
+      menu.x = e.clientX
+      menu.y = e.clientY
+      menu.show = true
+    }
+    const menuOptions = computed<DropdownOption[]>(() => [
+      {
+        key: 'info',
+        type: 'render',
+        render: () => (
+          <div class={'px-3 py-1 text-xs text-gray-500 whitespace-nowrap'}>
+            {tt('scada.title')} · {tt('scada.panel.widgetCount')}: {scada.current.widgets.length}
+          </div>
+        )
+      },
+      { key: 'divider', type: 'divider' },
+      { key: 'edit', label: tt('scada.edit') },
+      { key: 'refresh', label: tt('scada.refreshData'), disabled: refreshing.value }
+    ])
+    const onMenuSelect = (key: string | number) => {
+      menu.show = false
+      if (key === 'edit') scada.startEdit()
+      else if (key === 'refresh') onRefresh()
+    }
+
+    /** 编辑模式的顶部工具栏；展示模式不渲染顶栏，画布占满整页 */
     const renderToolbar = () => {
-      const editing = scada.editing
       const l = scada.current
       return (
         <div class={'h-11 shrink-0 flex items-center gap-2 px-2 border-0 border-b border-solid border-gray-300 bg-gray-50'}>
-          {editing ? (
-            <>
-              <NTag type="warning" size="small" bordered={false}>{tt('scada.editingTag')}</NTag>
-              <span class={'text-xs text-gray-500'}>{l.canvas.width}×{l.canvas.height}</span>
-              <NButton size="small" secondary type={scada.paletteShow ? 'primary' : 'default'} onClick={() => (scada.paletteShow = !scada.paletteShow)}>{tt('scada.palette')}</NButton>
-              <NButton size="small" secondary type={scada.propsShow ? 'primary' : 'default'} onClick={() => (scada.propsShow = !scada.propsShow)}>{tt('scada.properties')}</NButton>
-              <NButtonGroup size="small">
-                <NButton onClick={() => zoomCanvas(1 / 1.2)}>－</NButton>
-                <NButton class={'min-w-[56px]'} onClick={() => resetCanvasView()}>{Math.round(canvasView.zoom * 100)}%</NButton>
-                <NButton onClick={() => zoomCanvas(1.2)}>＋</NButton>
-              </NButtonGroup>
-              {!portrait.value && <span class={'text-xs text-gray-400 hidden xl:inline'}>{tt('scada.zoomHint')}</span>}
-              <div class={'flex-1'} />
-              {scada.dirty ? (
-                <NPopconfirm onPositiveClick={() => scada.cancelEdit()} positiveText={tt('scada.confirm')} negativeText={tt('scada.cancel')}>
-                  {{
-                    trigger: () => <NButton size="small">{tt('scada.cancel')}</NButton>,
-                    default: () => tt('scada.discardConfirm')
-                  }}
-                </NPopconfirm>
-              ) : (
-                <NButton size="small" onClick={() => scada.cancelEdit()}>{tt('scada.cancel')}</NButton>
-              )}
-              <NButton size="small" type="primary" loading={scada.saving} disabled={!canSave.value} onClick={onSave}>{tt('scada.save')}</NButton>
-            </>
+          <NTag type="warning" size="small" bordered={false}>{tt('scada.editingTag')}</NTag>
+          <span class={'text-xs text-gray-500'}>{l.canvas.width}×{l.canvas.height}</span>
+          <NButton size="small" secondary type={scada.paletteShow ? 'primary' : 'default'} onClick={() => (scada.paletteShow = !scada.paletteShow)}>{tt('scada.palette')}</NButton>
+          <NButton size="small" secondary type={scada.propsShow ? 'primary' : 'default'} onClick={() => (scada.propsShow = !scada.propsShow)}>{tt('scada.properties')}</NButton>
+          <NButtonGroup size="small">
+            <NButton onClick={() => zoomCanvas(1 / 1.2)}>－</NButton>
+            <NButton class={'min-w-[56px]'} onClick={() => resetCanvasView()}>{Math.round(canvasView.zoom * 100)}%</NButton>
+            <NButton onClick={() => zoomCanvas(1.2)}>＋</NButton>
+          </NButtonGroup>
+          {!portrait.value && <span class={'text-xs text-gray-400 hidden xl:inline'}>{tt('scada.zoomHint')}</span>}
+          <div class={'flex-1'} />
+          {scada.dirty ? (
+            <NPopconfirm onPositiveClick={() => scada.cancelEdit()} positiveText={tt('scada.confirm')} negativeText={tt('scada.cancel')}>
+              {{
+                trigger: () => <NButton size="small">{tt('scada.cancel')}</NButton>,
+                default: () => tt('scada.discardConfirm')
+              }}
+            </NPopconfirm>
           ) : (
-            <>
-              <span class={'text-sm font-bold text-gray-700'}>{tt('scada.title')}</span>
-              <span class={'text-xs text-gray-500'}>{tt('scada.panel.widgetCount')}: {l.widgets.length}</span>
-              <div class={'flex-1'} />
-              <NButton size="small" loading={refreshing.value} onClick={onRefresh}>{tt('scada.refreshData')}</NButton>
-              <NButton size="small" type="primary" onClick={() => scada.startEdit()}>{tt('scada.edit')}</NButton>
-            </>
+            <NButton size="small" onClick={() => scada.cancelEdit()}>{tt('scada.cancel')}</NButton>
           )}
+          <NButton size="small" type="primary" loading={scada.saving} disabled={!canSave.value} onClick={onSave}>{tt('scada.save')}</NButton>
         </div>
       )
     }
@@ -123,9 +151,21 @@ export default defineComponent({
       const editing = scada.editing
       const isPortrait = portrait.value
       return (
-        <div ref={rootRef} class={'w-full h-full flex flex-col overflow-hidden bg-white'}>
-          {renderToolbar()}
-          <div ref={bodyRef} class={['flex-1 min-h-0 flex overflow-hidden', isPortrait ? 'flex-col' : 'flex-row']}>
+        <div ref={rootRef} class={'w-full h-full flex flex-col overflow-hidden bg-white'} onContextmenu={onContextMenu}>
+          {editing && renderToolbar()}
+          {!editing && (
+            <NDropdown
+              placement="bottom-start"
+              trigger="manual"
+              show={menu.show}
+              x={menu.x}
+              y={menu.y}
+              options={menuOptions.value}
+              onClickoutside={() => (menu.show = false)}
+              onSelect={onMenuSelect}
+            />
+          )}
+          <div class={['flex-1 min-h-0 flex overflow-hidden', isPortrait ? 'flex-col' : 'flex-row']}>
             {editing && scada.paletteShow && (
               isPortrait ? (
                 <div class={'h-[92px] shrink-0 border-0 border-b border-solid border-gray-300 overflow-hidden'}>

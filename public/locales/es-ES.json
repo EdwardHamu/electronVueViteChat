@@ -337,6 +337,18 @@
     "welcome": "¡Hola!"
   },
   "scada": {
+    "color": {
+      "presets": "Colores predefinidos",
+      "palette": "Paleta de colores",
+      "addPreset": "Añadir predefinido",
+      "manage": "Gestionar",
+      "done": "Listo",
+      "resetPresets": "Restaurar predeterminados",
+      "clear": "Borrar",
+      "none": "Predeterminado",
+      "emptyPresets": "Aún no hay colores predefinidos. Elija uno en la paleta y pulse \"Añadir predefinido\"",
+      "manageHint": "Pulse una muestra para quitarla de los predefinidos"
+    },
     "title": "Panel de datos",
     "edit": "Editar",
     "save": "Guardar",
@@ -353,12 +365,12 @@
     "clearConfirm": "¿Eliminar todos los componentes del lienzo?",
     "discardConfirm": "¿Descartar los cambios sin guardar?",
     "emptyHint": "Aún no hay componentes configurados",
-    "emptyHintEdit": "Pulse \"Editar\" arriba a la derecha, arrastre componentes desde la biblioteca y vincule una fuente de datos",
+    "emptyHintEdit": "Haga clic derecho (pulsación larga en pantallas táctiles) en la página y elija \"Editar\", luego arrastre componentes desde la biblioteca y vincule una fuente de datos",
     "paletteHint": "Toque: se coloca en un hueco libre; mantenga y arrastre al lienzo: se coloca donde suelte",
     "zoomIn": "Acercar",
     "zoomOut": "Alejar",
     "resetView": "Restablecer vista",
-    "zoomHint": "Rueda: zoom · mantener Espacio y arrastrar: desplazar",
+    "zoomHint": "Rueda: zoom · Espacio + arrastrar: desplazar · flechas: mover el componente seleccionado (Mayús: por cuadrícula)",
     "paletteHintShort": "Tocar / arrastrar",
     "paletteHintPortrait": "Tocar: colocar en un hueco libre; mantener pulsado y arrastrar hacia el lienzo: colocar donde se suelte",
     "transformExample": {

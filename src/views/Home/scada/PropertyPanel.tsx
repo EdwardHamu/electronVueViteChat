@@ -2,9 +2,11 @@
  * 属性面板：选中组件时编辑标题 / 数据绑定 / 位置尺寸 / 组件自定义属性（按 propSchema 通用渲染）；
  * 未选中时编辑画布本身（尺寸、背景、网格）。columns = 2 时（竖屏放在画布下方）各区块分两栏排布。
  * 数据处理函数（JS）通过面板底部的按钮打开 TransformDialog 弹窗编辑。
+ * 颜色类字段用 ColorField（预设颜色表 + 调色盘，行内展开），不用 NColorPicker 的弹层。
  */
-import { NButton, NColorPicker, NInput, NInputNumber, NPopconfirm, NSelect, NSwitch } from 'naive-ui'
+import { NButton, NInput, NInputNumber, NPopconfirm, NSelect, NSwitch } from 'naive-ui'
 import { computed, defineComponent, ref, watch, type PropType } from 'vue'
+import ColorField from './ColorField'
 import { dataSourceList, getDataSource } from './dataSource'
 import { getWidgetDefinition } from './registry'
 import { useScadaStore } from './store'
@@ -103,8 +105,6 @@ export default defineComponent({
               onUpdateValue={(v: number | null) => set(v)}
             />
           )
-        case 'color':
-          return <NColorPicker size="small" value={value || null} modes={['hex']} showAlpha={false} actions={['clear']} onUpdateValue={(v: string | null) => set(v || '')} />
         case 'select':
           return <NSelect size="small" value={value ?? null} options={f.options ? f.options() : []} onUpdateValue={set} />
         default:
@@ -176,9 +176,13 @@ export default defineComponent({
           </Section>
           {def?.propSchema && def.propSchema.length > 0 && (
             <Section title={tt('scada.panel.props')}>
-              {def.propSchema.map(f => (
-                <Row key={f.key} label={f.label()}>{renderField(w, f)}</Row>
-              ))}
+              {def.propSchema.map(f =>
+                f.type === 'color' ? (
+                  <ColorField key={f.key} label={f.label()} value={w.props[f.key] || ''} clearable onUpdateValue={(v: string) => scada.setWidgetProp(w.id, f.key, v)} />
+                ) : (
+                  <Row key={f.key} label={f.label()}>{renderField(w, f)}</Row>
+                )
+              )}
             </Section>
           )}
           <Section title={tt('scada.panel.actions')}>
@@ -209,9 +213,7 @@ export default defineComponent({
             <Row label={tt('scada.panel.height')}>
               <NInputNumber size="small" value={l.canvas.height} min={100} max={10000} step={10} onUpdateValue={(v: number | null) => v && scada.setCanvas({ height: Math.round(v) })} />
             </Row>
-            <Row label={tt('scada.panel.background')}>
-              <NColorPicker size="small" value={l.canvas.background} modes={['hex']} showAlpha={false} onUpdateValue={(v: string) => scada.setCanvas({ background: v })} />
-            </Row>
+            <ColorField label={tt('scada.panel.background')} value={l.canvas.background} onUpdateValue={(v: string) => v && scada.setCanvas({ background: v })} />
             <Row label={tt('scada.panel.grid')}>
               <NInputNumber size="small" value={l.canvas.grid} min={1} max={100} step={1} onUpdateValue={(v: number | null) => v && scada.setCanvas({ grid: Math.round(v) })} />
             </Row>

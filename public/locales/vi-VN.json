@@ -337,6 +337,18 @@
     "welcome": "Xin chào!"
   },
   "scada": {
+    "color": {
+      "presets": "Màu đặt sẵn",
+      "palette": "Bảng màu",
+      "addPreset": "Thêm vào đặt sẵn",
+      "manage": "Quản lý",
+      "done": "Xong",
+      "resetPresets": "Khôi phục mặc định",
+      "clear": "Xóa",
+      "none": "Mặc định",
+      "emptyPresets": "Chưa có màu đặt sẵn. Chọn màu trong bảng màu rồi nhấn \"Thêm vào đặt sẵn\"",
+      "manageHint": "Nhấn vào ô màu để xóa khỏi danh sách đặt sẵn"
+    },
     "title": "Bảng dữ liệu",
     "edit": "Chỉnh sửa",
     "save": "Lưu",
@@ -353,12 +365,12 @@
     "clearConfirm": "Xóa tất cả thành phần trên canvas?",
     "discardConfirm": "Bỏ các thay đổi chưa lưu?",
     "emptyHint": "Chưa cấu hình thành phần nào",
-    "emptyHintEdit": "Nhấn \"Chỉnh sửa\" ở góc trên bên phải, kéo thành phần từ thư viện và gắn nguồn dữ liệu",
+    "emptyHintEdit": "Nhấp chuột phải (nhấn giữ trên màn hình cảm ứng) vào trang và chọn \"Chỉnh sửa\", sau đó kéo thành phần từ thư viện và gắn nguồn dữ liệu",
     "paletteHint": "Chạm: tự đặt vào chỗ trống; nhấn giữ và kéo vào canvas: đặt tại vị trí thả",
     "zoomIn": "Phóng to",
     "zoomOut": "Thu nhỏ",
     "resetView": "Đặt lại khung nhìn",
-    "zoomHint": "Con lăn: thu phóng · giữ phím Space và kéo chuột: di chuyển",
+    "zoomHint": "Con lăn: thu phóng · Space + kéo: di chuyển · phím mũi tên: dịch chuyển thành phần đã chọn (Shift: theo lưới)",
     "paletteHintShort": "Chạm / kéo",
     "paletteHintPortrait": "Chạm: đặt vào chỗ trống; nhấn giữ và kéo xuống canvas: đặt tại vị trí thả",
     "transformExample": {
