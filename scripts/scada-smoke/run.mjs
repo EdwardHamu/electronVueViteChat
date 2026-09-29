@@ -8,7 +8,8 @@
  * 覆盖：组件 / 数据源注册表、产品分类数据源加载去重与按需轮询、编辑模式、组件库点按添加、
  *       拖动 / 缩放的网格吸附与最小尺寸、各示例组件渲染、数据处理函数（数字 / 对象 / 文本 / 出错 / 三种写法 / 持久状态）、
  *       画布视图缩放（滚轮 / 键盘 / 双指）与空格 + 拖动 / 中键平移、位置尺寸输入框、竖屏上下布局、Delete 删除、保存到 localStorage、取消丢弃草稿、卸载后停止轮询、
- *       工具箱式组件库（分类折叠 / 网格列表切换 / NScrollbar）、操作说明弹窗、全部图素 / 控制组件渲染、内部变量数据源写入（位按钮 / IO 域步进 / 复选框 / 字按钮 / 只读提示）、表格、多行文本与图片字段。
+ *       工具箱式组件库（分类折叠 / 网格列表切换 / NScrollbar）、操作说明弹窗、全部图素 / 控制组件渲染、内部变量数据源写入（位按钮 / IO 域步进 / 复选框 / 字按钮 / 只读提示）、表格、多行文本与图片字段、
+ *       zip 读写（STORE / DEFLATE）、组态包导出（宿主资源 + 内嵌图 → zip）/ 解析 / 清点 / 执行导入（上传 / 复用 / 内嵌 / 失败）、右键菜单导出下载与导入弹窗流程、图片经 SaveResourceFile 上传到 https://pic.nt.local/。
  * 说明：@/store、@/store/config 与 @/utils/callm 被 stubs/ 里的桩替换（真实模块会把 echarts 等整套依赖拉进来）。
  */
 import { build } from 'esbuild'
@@ -40,6 +41,10 @@ import { useColorPresets, DEFAULT_COLOR_PRESETS, COLOR_PRESETS_KEY } from '@/vie
 export { createApp, nextTick, createPinia, i18n, Scada, useScadaStore, useConfigStore, useMain, getDataSource, dataSourceList, widgetDefinitions }
 export { canvasView, zoomCanvas, resetCanvasView, compileTransform, runTransform, mergeTransformResult, transformErrors, transformDebug }
 export { normalizeHex, hexToHsv, hsvToHex, isLightColor, useColorPresets, DEFAULT_COLOR_PRESETS, COLOR_PRESETS_KEY }
+import { createZip, readZip, zipEntryText, crc32 } from '@/views/Home/scada/zip'
+import { buildPackage, parsePackage, planImport, applyPackage, PACKAGE_REF_PREFIX } from '@/views/Home/scada/package'
+import { collectResourceRefs, RESOURCE_BASE_URL, RESOURCE_MAX_BYTES, INLINE_MAX_BYTES } from '@/views/Home/scada/resource'
+export { createZip, readZip, zipEntryText, crc32, buildPackage, parsePackage, planImport, applyPackage, PACKAGE_REF_PREFIX, collectResourceRefs, RESOURCE_BASE_URL, RESOURCE_MAX_BYTES, INLINE_MAX_BYTES }
 `)
 const stubs = {
   '@/store': path.join(here, 'stubs', 'store.ts'),
@@ -71,7 +76,7 @@ await build({
 // ---------------- jsdom 环境 ----------------
 const dom = new JSDOM('<!doctype html><html><body><div id="app"></div></body></html>', { pretendToBeVisual: true, url: 'http://localhost/' })
 const { window } = dom
-for (const k of ['window', 'document', 'navigator', 'HTMLElement', 'Element', 'Node', 'SVGElement', 'getComputedStyle', 'localStorage', 'Event', 'InputEvent', 'MouseEvent', 'KeyboardEvent', 'WheelEvent', 'requestAnimationFrame', 'cancelAnimationFrame', 'CSS', 'MutationObserver', 'Text', 'Comment', 'DocumentFragment', 'HTMLInputElement']) {
+for (const k of ['window', 'document', 'navigator', 'HTMLElement', 'Element', 'Node', 'SVGElement', 'getComputedStyle', 'localStorage', 'Event', 'InputEvent', 'MouseEvent', 'KeyboardEvent', 'WheelEvent', 'requestAnimationFrame', 'cancelAnimationFrame', 'CSS', 'MutationObserver', 'Text', 'Comment', 'DocumentFragment', 'HTMLInputElement', 'Blob', 'File', 'FileReader', 'HTMLAnchorElement']) {
   if (window[k] !== undefined) globalThis[k] = window[k]
 }
 globalThis.ResizeObserver = class { observe() {} disconnect() {} unobserve() {} }
@@ -79,7 +84,15 @@ globalThis.PointerEvent = window.PointerEvent || class PointerEvent extends wind
   constructor(type, init = {}) { super(type, init); this.pointerId = init.pointerId ?? 1; this.pointerType = init.pointerType ?? 'mouse' }
 }
 window.PointerEvent = globalThis.PointerEvent
-globalThis.fetch = async () => ({ ok: false }) // i18n 初始化的语言包请求直接失败，随后手动注入 zh-CN
+// fetch：i18n 初始化的语言包请求直接失败（随后手动注入 zh-CN）；https://pic.nt.local/<name> 由下面模拟的宿主静态目录 hostFiles 提供（导出打包 / 导入查重用）
+const hostFiles = new Map()
+globalThis.fetch = async url => {
+  const u = String(url)
+  if (!u.startsWith('https://pic.nt.local/')) return { ok: false, status: 404 }
+  const bytes = hostFiles.get(decodeURIComponent(u.slice('https://pic.nt.local/'.length)))
+  if (!bytes) return { ok: false, status: 404 }
+  return { ok: true, status: 200, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) }
+}
 const origError = console.error
 console.error = (...args) => { if (!String(args[0]).includes('Failed to load locale')) origError(...args) }
 
@@ -90,7 +103,19 @@ window.chrome = { webview: { hostObjects: { JsBridge: {
   GetDeviceGroups: gid => { calls.groups++; return json(gid === 'g1' ? [{ GId: 'dev1', DeviceName: '测径仪A' }, { GId: 'dev2', DeviceName: '测温仪B' }] : []) },
   GetShowDataGroups: did => json(did === 'dev1' ? [{ GId: 'd_od', DataName: '外径', Unit: 'mm', Precision: 3 }] : [{ GId: 'd_temp', DataName: '温度', Unit: '℃', Precision: 1 }]),
   GetChartDataGroups: did => json(did === 'dev1' ? [{ GId: 'd_od', DataName: '外径', Unit: 'mm', Precision: 3 }, { GId: 'd_ov', DataName: '椭圆度', Unit: 'mm', Precision: 4 }] : []),
-  GetRealtimeData: gid => { calls.realtime++; return json({ GId: gid, Value: gid === 'd_od' ? 1.523 : 88.4, StringValue: '', DataType: 0, Intime: '', Index: 0 }) }
+  GetRealtimeData: gid => { calls.realtime++; return json({ GId: gid, Value: gid === 'd_od' ? 1.523 : 88.4, StringValue: '', DataType: 0, Intime: '', Index: 0 }) },
+  // 任务 41：资源上传（SPC_M 4cbe92c）——按 GUID 改名存到 Resources/pic，返回 https://pic.nt.local/ 地址；这里用递增序号代替 GUID
+  SaveResourceFile: (fileName, base64Data) => {
+    calls.save = (calls.save || 0) + 1
+    calls.lastSave = { fileName, base64Data }
+    if (typeof fileName !== 'string' || /[\\/:*?"<>|]/.test(fileName)) return Promise.resolve(JSON.stringify({ Code: 1, Message: '保存资源失败：文件名不合法' }))
+    const ext = (fileName.split('.').pop() || 'bin').toLowerCase()
+    const name = `${String(calls.save).padStart(8, '0')}-0000-4000-8000-000000000000.${ext}`
+    const b64 = String(base64Data).replace(/^data:[^,]*,/, '')
+    const bytes = new Uint8Array(Buffer.from(b64, 'base64'))
+    hostFiles.set(name, bytes)
+    return json({ FileName: name, OriginalFileName: fileName, RelativePath: 'Resources/pic/' + name, Url: 'https://pic.nt.local/' + name, Size: bytes.length })
+  }
 } } } }
 globalThis.chrome = window.chrome
 
@@ -98,6 +123,7 @@ const m = await import(pathToFileURL(bundle).href)
 const { createApp, nextTick, createPinia, i18n, Scada, useScadaStore, useConfigStore, useMain, getDataSource, dataSourceList, widgetDefinitions } = m
 const { canvasView, zoomCanvas, resetCanvasView, compileTransform, runTransform, mergeTransformResult, transformErrors, transformDebug } = m
 const { normalizeHex, hexToHsv, hsvToHex, isLightColor, useColorPresets, DEFAULT_COLOR_PRESETS, COLOR_PRESETS_KEY } = m
+const { createZip, readZip, zipEntryText, crc32, buildPackage, parsePackage, planImport, applyPackage, PACKAGE_REF_PREFIX, collectResourceRefs, RESOURCE_BASE_URL, RESOURCE_MAX_BYTES, INLINE_MAX_BYTES } = m
 i18n.global.setLocaleMessage('zh-CN', JSON.parse(fs.readFileSync(path.join(repo, 'public/locales/zh-CN.json'), 'utf8')))
 i18n.global.locale.value = 'zh-CN'
 
@@ -562,6 +588,232 @@ await contextMenu(100, 100)
 const beforeRefresh = calls.groups
 menuItem('刷新数据源').click(); await nextTick(); await sleep(50)
 check('展示模式右键菜单“刷新数据源”重新拉取数据项目录并关闭菜单', () => { assert.equal(calls.groups, beforeRefresh + 1); assert.equal(menuItems().length, 0) })
+
+// ---------------- 任务 41：zip 读写 / 组态包导入导出 / 图片上传到宿主（SaveResourceFile → https://pic.nt.local/）----------------
+import zlib from 'node:zlib'
+const enc = new TextEncoder()
+const PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+const PNG = new Uint8Array(Buffer.from(PNG_B64, 'base64'))
+const PNG_DATA_URL = 'data:image/png;base64,' + PNG_B64
+const blobBytes = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(new Uint8Array(r.result)); r.onerror = () => rej(r.error); r.readAsArrayBuffer(blob) })
+const bin = new Uint8Array(1500).map((_, i) => (i * 7919) & 0xff)
+const zipBytes = createZip([{ name: 'manifest.json', data: enc.encode('{"a":1}') }, { name: 'resources/中文 图.png', data: bin }], new Date(2026, 8, 29, 12, 34, 56))
+const zipEntries = readZip(zipBytes)
+check('zip：STORE 写入 → 读回，名称（UTF-8）/ 内容 / CRC 一致', () => {
+  assert.equal(zipBytes[0], 0x50); assert.equal(zipBytes[1], 0x4b)
+  assert.deepEqual(zipEntries.map(e => e.name), ['manifest.json', 'resources/中文 图.png'])
+  assert.equal(crc32(enc.encode('123456789')), 0xcbf43926) // CRC-32 标准校验值
+})
+{
+  const t = await zipEntryText(zipEntries[0]); const d = await zipEntries[1].data()
+  check('zip：读回的内容与写入一致', () => { assert.equal(t, '{"a":1}'); assert.deepEqual([...d], [...bin]) })
+}
+// 手工拼一个带 DEFLATE 条目（method 8）+ 目录项的 zip，覆盖第三方压缩工具产出的包
+const deflatedZip = (() => {
+  const name = enc.encode('layout.json'); const raw = enc.encode(JSON.stringify({ version: 1, canvas: { width: 800, height: 600 }, widgets: [] }))
+  const comp = new Uint8Array(zlib.deflateRawSync(raw)); const crc = crc32(raw)
+  const u16 = v => [v & 0xff, (v >> 8) & 0xff]; const u32 = v => [v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff, (v >>> 24) & 0xff]
+  const local = [0x50, 0x4b, 3, 4, ...u16(20), ...u16(0x800), ...u16(8), ...u16(0), ...u16(0), ...u32(crc), ...u32(comp.length), ...u32(raw.length), ...u16(name.length), ...u16(0), ...name, ...comp]
+  const dirName = enc.encode('resources/')
+  const local2 = [0x50, 0x4b, 3, 4, ...u16(20), ...u16(0x800), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(0), ...u32(0), ...u16(dirName.length), ...u16(0), ...dirName]
+  const cd = [0x50, 0x4b, 1, 2, ...u16(20), ...u16(20), ...u16(0x800), ...u16(8), ...u16(0), ...u16(0), ...u32(crc), ...u32(comp.length), ...u32(raw.length), ...u16(name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(0), ...name]
+  const cd2 = [0x50, 0x4b, 1, 2, ...u16(20), ...u16(20), ...u16(0x800), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(0), ...u32(0), ...u16(dirName.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0x10), ...u32(local.length), ...dirName]
+  const eocd = [0x50, 0x4b, 5, 6, ...u16(0), ...u16(0), ...u16(2), ...u16(2), ...u32(cd.length + cd2.length), ...u32(local.length + local2.length), ...u16(0)]
+  return new Uint8Array([...local, ...local2, ...cd, ...cd2, ...eocd])
+})()
+{
+  const es = readZip(deflatedZip); const txt = await zipEntryText(es[0])
+  check('zip：DEFLATE 条目经 DecompressionStream 解压，目录项被过滤', () => { assert.deepEqual(es.map(e => e.name), ['layout.json']); assert.equal(JSON.parse(txt).canvas.width, 800) })
+  const pkg = await parsePackage(deflatedZip)
+  check('组态包：只含 layout.json 的 zip 也能解析（无清单 → 无资源）', () => { assert.equal(pkg.kind, 'zip'); assert.equal(pkg.manifest, null); assert.equal(pkg.resources.length, 0); assert.equal(pkg.layout.canvas.width, 800) })
+}
+check('zip：损坏 / 非 zip 输入抛错', () => {
+  assert.throws(() => readZip(new Uint8Array([0x50, 0x4b, 3, 4, 1, 2, 3])))
+  assert.throws(() => readZip(enc.encode('hello world, not a zip')))
+})
+// 导出：宿主 URL 图片（可读 / 读取失败）+ 旧版内嵌 data URL 图片 + 同一 URL 复用 + 无关字符串
+hostFiles.set('exp1.png', PNG)
+const srcLayout = {
+  version: 1, canvas: { width: 1024, height: 600 },
+  widgets: [
+    { id: 'i1', type: 'image', x: 0, y: 0, w: 100, h: 80, props: { src: RESOURCE_BASE_URL + 'exp1.png', fit: 'contain' } },
+    { id: 'i2', type: 'image', x: 120, y: 0, w: 100, h: 80, props: { src: PNG_DATA_URL } },
+    { id: 'i3', type: 'image', x: 240, y: 0, w: 100, h: 80, props: { src: RESOURCE_BASE_URL + 'gone.png' } },
+    { id: 'i4', type: 'image', x: 360, y: 0, w: 100, h: 80, props: { src: RESOURCE_BASE_URL + 'exp1.png' } },
+    { id: 't1', type: 'textLabel', x: 0, y: 100, w: 100, h: 30, props: { text: 'https://example.com/not-a-resource.png' } }
+  ]
+}
+check('资源引用收集：宿主 URL 与 data URL 去重，忽略其它字符串', () => assert.deepEqual(collectResourceRefs(srcLayout), [RESOURCE_BASE_URL + 'exp1.png', PNG_DATA_URL, RESOURCE_BASE_URL + 'gone.png']))
+const exp = await buildPackage(srcLayout, { now: new Date(2026, 8, 29, 9, 5, 7) })
+const expEntries = readZip(exp.bytes)
+const expLayout = JSON.parse(await zipEntryText(expEntries.find(e => e.name === 'layout.json')))
+check('导出：zip 含 manifest.json + layout.json + resources/（宿主文件按原名、内嵌图抽成 inline-1.png），读不到的资源记入 missing，文件名带时间戳', () => {
+  assert.equal(exp.fileName, 'scada-layout-20260929-090507.zip')
+  assert.deepEqual(expEntries.map(e => e.name).sort(), ['layout.json', 'manifest.json', 'resources/exp1.png', 'resources/inline-1.png'])
+  assert.equal(exp.manifest.format, 'scada-layout-package'); assert.equal(exp.manifest.widgets, 5)
+  assert.deepEqual(exp.manifest.resources, [{ file: 'resources/exp1.png', url: RESOURCE_BASE_URL + 'exp1.png' }, { file: 'resources/inline-1.png', url: PACKAGE_REF_PREFIX + 'resources/inline-1.png' }])
+  assert.deepEqual(exp.missing, [RESOURCE_BASE_URL + 'gone.png'])
+  assert.equal(expLayout.widgets[0].props.src, RESOURCE_BASE_URL + 'exp1.png') // 宿主 URL 原样保留
+  assert.equal(expLayout.widgets[1].props.src, 'pkg:resources/inline-1.png') // data URL 换成包内占位
+  assert.equal(expLayout.widgets[3].props.src, RESOURCE_BASE_URL + 'exp1.png')
+  assert.ok(!JSON.stringify(expLayout).includes('base64'))
+  assert.equal(exp.blob.type, 'application/zip')
+})
+{
+  const png = await expEntries.find(e => e.name === 'resources/inline-1.png').data()
+  check('导出：内嵌图片按原始字节写入 zip', () => assert.deepEqual([...png], [...PNG]))
+}
+const parsed = await parsePackage(exp.bytes)
+const plan1 = await planImport(parsed)
+check('导入清点：同名宿主文件已存在 → 复用；包内占位资源 → 需上传', () => {
+  assert.equal(parsed.kind, 'zip'); assert.equal(parsed.layout.widgets.length, 5); assert.equal(parsed.resources.length, 2)
+  assert.deepEqual(plan1.reusable.map(r => r.file), ['resources/exp1.png']); assert.deepEqual(plan1.toUpload.map(r => r.file), ['resources/inline-1.png']); assert.equal(plan1.missing.length, 0)
+})
+const plan2 = await planImport(parsed, async () => false)
+check('导入清点：换一台机器（宿主文件不存在）→ 两个都要上传', () => { assert.equal(plan2.reusable.length, 0); assert.equal(plan2.toUpload.length, 2) })
+const uploads = []
+const res1 = await applyPackage(parsed, plan2, { bridge: true, upload: async (name, blob, bytes) => { uploads.push([name, blob.type, bytes.length]); return RESOURCE_BASE_URL + 'new-' + name } })
+check('执行导入（有宿主）：逐个上传并把布局里的引用换成新地址，复用的保持原值', () => {
+  assert.deepEqual(uploads, [['exp1.png', 'image/png', PNG.length], ['inline-1.png', 'image/png', PNG.length]])
+  assert.equal(res1.uploaded, 2); assert.equal(res1.reused, 0); assert.equal(res1.inlined, 0); assert.equal(res1.failed.length, 0)
+  const srcs = res1.layout.widgets.map(w => w.props.src)
+  assert.equal(srcs[0], RESOURCE_BASE_URL + 'new-exp1.png'); assert.equal(srcs[1], RESOURCE_BASE_URL + 'new-inline-1.png'); assert.equal(srcs[3], RESOURCE_BASE_URL + 'new-exp1.png')
+  assert.equal(srcs[2], RESOURCE_BASE_URL + 'gone.png') // 导出时就缺的宿主 URL 原样保留
+  assert.ok(!JSON.stringify(res1.layout).includes('pkg:'))
+})
+const res2 = await applyPackage(parsed, plan1, { bridge: false })
+check('执行导入（无宿主桥）：需上传的资源内嵌回 data URL，复用的保持宿主 URL', () => {
+  assert.equal(res2.inlined, 1); assert.equal(res2.reused, 1); assert.equal(res2.uploaded, 0)
+  assert.equal(res2.layout.widgets[1].props.src, PNG_DATA_URL); assert.equal(res2.layout.widgets[0].props.src, RESOURCE_BASE_URL + 'exp1.png')
+})
+const res3 = await applyPackage(parsed, plan2, { bridge: true, upload: async name => { if (name === 'inline-1.png') throw new Error('boom'); return RESOURCE_BASE_URL + 'ok-' + name } })
+check('执行导入：某个资源上传失败 → 记入 failed，占位引用清空，其余照常', () => {
+  assert.equal(res3.failed.length, 1); assert.equal(res3.failed[0].file, 'resources/inline-1.png'); assert.equal(res3.uploaded, 1)
+  assert.equal(res3.layout.widgets[1].props.src, ''); assert.equal(res3.layout.widgets[0].props.src, RESOURCE_BASE_URL + 'ok-exp1.png')
+})
+{
+  const j = await parsePackage(JSON.stringify(srcLayout))
+  const j2 = await parsePackage(enc.encode(JSON.stringify(srcLayout)))
+  check('导入：直接选择 JSON（文本或字节）也能解析', () => { assert.equal(j.kind, 'json'); assert.equal(j.layout.widgets.length, 5); assert.equal(j2.kind, 'json'); assert.equal(j2.resources.length, 0) })
+  const errOf = async input => { try { await parsePackage(input); return 'no-error' } catch (e) { return e.message } }
+  const noLayoutZip = createZip([{ name: 'readme.txt', data: enc.encode('x') }])
+  const msgs = [await errOf('not json'), await errOf('{"foo":1}'), await errOf(new Uint8Array([0x50, 0x4b, 9, 9, 0, 0])), await errOf(noLayoutZip)]
+  check('导入：非法输入分别报 invalid-json / invalid-layout / invalid-zip / invalid-package', () => assert.deepEqual(msgs, ['invalid-json', 'invalid-layout', 'invalid-zip', 'invalid-package']))
+}
+
+// ---- 页面流程：右键菜单“导出组态”→ 浏览器下载；“导入组态”→ 隐藏 file input → 导入弹窗 ----
+scada.startEdit(); const imgW = scada.addWidget('image'); scada.setWidgetProp(imgW.id, 'src', RESOURCE_BASE_URL + 'exp1.png'); await scada.save(); await nextTick()
+const downloads = []
+URL.createObjectURL = blob => { downloads.push({ blob }); return 'blob:smoke' }
+URL.revokeObjectURL = () => {}
+window.HTMLAnchorElement.prototype.click = function () { downloads[downloads.length - 1].name = this.download; downloads[downloads.length - 1].href = this.href }
+const msgs = []
+const origSuccess = window.$message.success
+window.$message.success = t => { msgs.push(t); origSuccess(t) }
+await contextMenu(100, 100)
+check('展示模式右键菜单含“导出组态 / 导入组态”', () => assert.ok(menuItem('导出组态') && menuItem('导入组态')))
+menuItem('导出组态').click(); await nextTick(); await sleep(80)
+check('导出组态：生成 zip 触发浏览器下载（a[download]），提示含文件名与资源数', () => {
+  assert.equal(downloads.length, 1); assert.match(downloads[0].name, /^scada-layout-\d{8}-\d{6}\.zip$/); assert.equal(downloads[0].href, 'blob:smoke')
+  assert.ok(msgs[msgs.length - 1].includes(downloads[0].name) && msgs[msgs.length - 1].includes('1 个资源'), msgs[msgs.length - 1])
+  assert.equal(menuItems().length, 0)
+})
+const dlBytes = await blobBytes(downloads[0].blob)
+const dlEntries = readZip(dlBytes)
+{
+  const l = JSON.parse(await zipEntryText(dlEntries.find(e => e.name === 'layout.json')))
+  check('下载的 zip 包含当前布局（5 个组件）和 resources/exp1.png', () => { assert.equal(l.widgets.length, 5); assert.ok(dlEntries.some(e => e.name === 'resources/exp1.png')) })
+}
+// 准备一个"来自别的机器"的包：2 个组件，一张内嵌图（需上传）+ 一张本机已有的宿主图（复用）
+const foreign = await buildPackage({ version: 1, canvas: { width: 640, height: 480 }, widgets: [
+  { id: 'f1', type: 'image', x: 0, y: 0, w: 100, h: 80, props: { src: PNG_DATA_URL } },
+  { id: 'f2', type: 'image', x: 0, y: 100, w: 100, h: 80, props: { src: RESOURCE_BASE_URL + 'exp1.png' } },
+  { id: 'f3', type: 'textLabel', x: 0, y: 200, w: 100, h: 30, props: { text: 'imported' } }
+] })
+const fileInput = root.querySelector('input[type=file][data-scada-import]')
+const dialog = () => document.body.querySelector('[data-scada-import-dialog]')
+const phase = () => { const el = dialog() && dialog().querySelector('[data-import-phase]'); return el ? el.getAttribute('data-import-phase') : null }
+const waitPhase = async (...pending) => { for (let i = 0; i < 40 && (phase() === null || pending.includes(phase())); i++) await sleep(50); await nextTick() }
+const waitUntil = async fn => { for (let i = 0; i < 40 && !fn(); i++) await sleep(50); await nextTick() }
+const feedFile = async file => {
+  Object.defineProperty(fileInput, 'files', { value: [file], configurable: true })
+  fileInput.dispatchEvent(new Event('change', { bubbles: true })); await nextTick(); await waitPhase('parsing')
+}
+const dialogButton = text => [...document.body.querySelectorAll('.n-modal button')].find(b => b.textContent.trim() === text)
+menuItem('导入组态') || await contextMenu(100, 100)
+const clickedInputs = []
+fileInput.click = () => clickedInputs.push(fileInput)
+menuItem('导入组态').click(); await nextTick(); await sleep(80)
+check('导入组态：菜单项触发隐藏的 file input（接受 .zip / .json）', () => { assert.equal(clickedInputs.length, 1); assert.ok(fileInput.accept.includes('.zip') && fileInput.accept.includes('.json')); assert.equal(menuItems().length, 0) })
+await feedFile(new File([foreign.bytes], 'foreign.zip', { type: 'application/zip' }))
+check('选择文件后弹出导入弹窗并列出清单：文件名 / 组件数 / 画布 / 资源（需上传 1 · 可复用 1 · 缺失 0）+ 替换提示', () => {
+  assert.equal(phase(), 'ready'); const txt = dialog().textContent
+  for (const kw of ['foreign.zip', '3', '640 × 480', '需上传 1', '可复用 1', '缺失 0', '替换当前已保存的组态']) assert.ok(txt.includes(kw), kw)
+  assert.ok(!txt.includes('没有宿主环境')); assert.ok(dialogButton('导入') && dialogButton('取消'))
+  assert.ok(document.body.querySelector('.n-modal .n-card-header__close'))
+})
+const saveBefore = calls.save || 0
+const layoutBefore = scada.layout
+document.body.querySelector('[data-import-confirm]').click(); await nextTick(); await waitPhase('ready', 'importing')
+check('确认导入：内嵌图经 SaveResourceFile 上传（原文件名 inline-1.png + data URL），布局替换并持久化，弹窗显示完成', () => {
+  assert.equal(phase(), 'done'); assert.equal(calls.save, saveBefore + 1)
+  assert.equal(calls.lastSave.fileName, 'inline-1.png'); assert.ok(calls.lastSave.base64Data.startsWith('data:image/png;base64,'))
+  assert.notEqual(scada.layout, layoutBefore); assert.equal(scada.layout.widgets.length, 3); assert.ok(!scada.editing)
+  const srcs = scada.layout.widgets.map(w => w.props.src)
+  assert.match(srcs[0], /^https:\/\/pic\.nt\.local\/[0-9a-f-]+\.png$/); assert.equal(srcs[1], RESOURCE_BASE_URL + 'exp1.png')
+  assert.equal(JSON.parse(localStorage.getItem('scadaLayout')).widgets.length, 3)
+  assert.ok(dialog().textContent.includes('导入完成') && dialog().textContent.includes('资源上传 1 个、复用 1 个'))
+  assert.ok(msgs[msgs.length - 1].includes('导入完成'), msgs[msgs.length - 1]); assert.ok(dialogButton('关闭'))
+  assert.ok(canvasView.el.textContent.includes('imported'))
+})
+dialogButton('关闭').click(); await nextTick(); await sleep(100)
+check('关闭导入弹窗', () => assert.ok(!dialog()))
+await feedFile(new File([enc.encode('this is not a package')], 'bad.zip', { type: 'application/zip' }))
+check('导入非法文件：弹窗显示“不是有效的组态包”，没有“导入”按钮', () => { assert.equal(phase(), 'error'); assert.ok(dialog().textContent.includes('不是有效的组态包')); assert.ok(!dialogButton('导入')) })
+document.body.querySelector('.n-modal .n-card-header__close').click(); await nextTick(); await sleep(100)
+check('右上角 × 关闭', () => assert.ok(!dialog()))
+// 编辑模式导入：只替换草稿
+scada.startEdit(); await nextTick()
+await feedFile(new File([foreign.bytes], 'foreign.zip', { type: 'application/zip' }))
+check('编辑模式导入：提示“替换当前草稿，保存后才生效”', () => { assert.equal(phase(), 'ready'); assert.ok(dialog().textContent.includes('替换当前草稿')) })
+document.body.querySelector('[data-import-confirm]').click(); await nextTick(); await waitPhase('ready', 'importing')
+check('编辑模式确认导入：草稿被替换（复用已上传的宿主文件不重复上传），已保存布局不变，提示记得保存', () => {
+  assert.equal(phase(), 'done'); assert.equal(scada.draft.widgets.length, 3); assert.equal(scada.draft.widgets[2].props.text, 'imported'); assert.ok(scada.dirty)
+  assert.equal(calls.save, saveBefore + 2) // 内嵌图仍需上传一次；宿主图复用
+  assert.ok(dialog().textContent.includes('记得保存'))
+})
+dialogButton('关闭').click(); await nextTick(); await sleep(100)
+// 属性面板“选择图片文件”：有宿主桥 → SaveResourceFile，布局里只存 https://pic.nt.local/ 地址
+scada.select(scada.draft.widgets[0].id); await nextTick()
+const captureInput = async () => {
+  const orig = document.createElement.bind(document); let el = null
+  document.createElement = (tag, ...a) => { const n = orig(tag, ...a); if (tag === 'input') el = n; return n }
+  const btn = buttons().find(b => b.textContent.trim().includes('选择图片')); btn.click(); await nextTick()
+  document.createElement = orig; return el
+}
+const picker = await captureInput()
+const logo = new File([PNG], 'logo.png', { type: 'image/png' })
+const srcBefore = scada.draft.widgets[0].props.src
+Object.defineProperty(picker, 'files', { value: [logo] }); picker.onchange(); await waitUntil(() => scada.draft.widgets[0].props.src !== srcBefore)
+check('选择本地图片：经 SaveResourceFile(logo.png, dataURL) 上传，src 变为宿主地址，面板显示宿主文件名', () => {
+  assert.equal(calls.save, saveBefore + 3); assert.equal(calls.lastSave.fileName, 'logo.png')
+  const src = scada.draft.widgets[0].props.src; assert.match(src, /^https:\/\/pic\.nt\.local\/[0-9a-f-]+\.png$/)
+  assert.ok(propsCol().textContent.includes(src.slice(RESOURCE_BASE_URL.length)))
+  assert.ok(!src.startsWith('data:'))
+})
+const picker2 = await captureInput()
+const big = new File([PNG], 'big.png', { type: 'image/png' }); Object.defineProperty(big, 'size', { value: RESOURCE_MAX_BYTES + 1 })
+Object.defineProperty(picker2, 'files', { value: [big] }); const warnsB = warns.length; picker2.onchange(); await waitUntil(() => warns.length > warnsB)
+check('超过 20 MB 的图片：提示不上传', () => { assert.equal(warns.length, warnsB + 1); assert.ok(warns[warns.length - 1].includes('20 MB'), warns[warns.length - 1]); assert.equal(calls.save, saveBefore + 3) })
+delete window.chrome.webview.hostObjects.JsBridge.SaveResourceFile
+const picker3 = await captureInput()
+Object.defineProperty(picker3, 'files', { value: [logo] }); const errs = []; const origErr = window.$message.error; window.$message.error = t => { errs.push(t); origErr(t) }
+picker3.onchange(); await waitUntil(() => errs.length > 0); window.$message.error = origErr
+check('宿主保存失败：提示“图片上传失败”，src 不变', () => { assert.equal(errs.length, 1); assert.ok(errs[0].includes('上传失败')); assert.match(scada.draft.widgets[0].props.src, /^https:\/\/pic\.nt\.local\//) })
+scada.cancelEdit(); await nextTick()
+check('取消编辑：丢弃导入的草稿，已保存布局仍是 3 个组件', () => { assert.ok(!scada.editing); assert.equal(scada.layout.widgets.length, 3) })
+assert.ok(INLINE_MAX_BYTES < RESOURCE_MAX_BYTES)
+
 app.unmount()
 check('卸载后恢复虚拟键盘', () => assert.equal(main.globalKeyBoardBlocked, false))
 const before = calls.realtime; await sleep(400)

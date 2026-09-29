@@ -1,6 +1,6 @@
 /**
  * 数据组态展示页入口：
- *  - 展示模式：没有顶栏，画布占满整个标签页；右键（触摸屏长按）弹出菜单进入编辑 / 刷新数据源；
+ *  - 展示模式：没有顶栏，画布占满整个标签页；右键（触摸屏长按）弹出菜单进入编辑 / 刷新数据源 / 导出 / 导入组态；
  *  - 编辑模式：顶部工具栏 + 画布 + 组件库与属性面板：
  *      横屏：组件库 | 画布 | 属性面板（左右三栏）
  *      竖屏：组件库（横向一条）/ 画布 / 属性面板（上下三行，属性面板分两栏）
@@ -13,14 +13,19 @@
  *  - registry.ts         组件注册表；widgets/ 内置示例组件
  *  - store.ts            布局 / 草稿 / 选中状态；storage.ts 持久化抽象（当前 localStorage）
  *  - Canvas.tsx          等比缩放画布 + 拖动 / 缩放；Palette.tsx 组件库；PropertyPanel.tsx 属性面板
+ *  - resource.ts         资源文件（图片）经宿主 SaveResourceFile 保存、https://pic.nt.local/ 读取
+ *  - package.ts / zip.ts 组态包（布局 + 资源打成 zip）导入导出；ImportDialog.tsx 导入弹窗
  */
 import { NButton, NButtonGroup, NDropdown, NModal, NPopconfirm, NTag, type DropdownOption } from 'naive-ui'
 import { computed, defineComponent, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useMain } from '@/store'
 import Canvas, { canvasView, resetCanvasView, zoomCanvas } from './Canvas'
 import { refreshAllDataSources, startAllDataSources, stopAllDataSources } from './dataSource'
+import ImportDialog from './ImportDialog'
+import { buildPackage } from './package'
 import Palette from './Palette'
 import PropertyPanel from './PropertyPanel'
+import { downloadBlob } from './resource'
 import { useScadaStore } from './store'
 import { tt } from './widgets/common'
 import './widgets'
@@ -44,6 +49,11 @@ export default defineComponent({
     const menu = reactive({ show: false, x: 0, y: 0 })
     /** 操作说明弹窗（原先顶栏里的提示文字） */
     const helpShow = ref(false)
+    /** 导入 / 导出组态包 */
+    const fileInputRef = ref<HTMLInputElement>()
+    const importFile = ref<File | null>(null)
+    const importShow = ref(false)
+    const exporting = ref(false)
 
     const measure = () => {
       const el = rootRef.value
@@ -90,6 +100,50 @@ export default defineComponent({
       }
     }
 
+    // ---------------------------------------------------------------- 导入 / 导出组态包（zip：layout.json + 图片等资源）
+    const onExport = async () => {
+      if (exporting.value) return
+      exporting.value = true
+      try {
+        const result = await buildPackage(scada.current)
+        downloadBlob(result.blob, result.fileName)
+        window.$message && window.$message.success(tt('scada.pkg.exported', { name: result.fileName, n: result.manifest.resources.length }))
+        if (result.missing.length) window.$message && window.$message.warning(tt('scada.pkg.exportMissing', { n: result.missing.length }))
+      } catch (err) {
+        console.error('[scada] export failed', err)
+        window.$message && window.$message.error(tt('scada.pkg.exportFailed'))
+      } finally {
+        exporting.value = false
+      }
+    }
+    const onImportClick = () => {
+      const input = fileInputRef.value
+      if (!input) return
+      input.value = ''
+      input.click()
+    }
+    const onImportFileChange = (e: Event) => {
+      const input = e.target as HTMLInputElement
+      const file = input.files && input.files[0]
+      if (!file) return
+      importFile.value = file
+      importShow.value = true
+    }
+    const closeImport = () => {
+      importShow.value = false
+      importFile.value = null
+      if (fileInputRef.value) fileInputRef.value.value = ''
+    }
+    /** 编辑模式工具栏「⋯」菜单 */
+    const moreOptions = computed<DropdownOption[]>(() => [
+      { key: 'export', label: tt('scada.export'), disabled: exporting.value },
+      { key: 'import', label: tt('scada.import') }
+    ])
+    const onMoreSelect = (key: string | number) => {
+      if (key === 'export') onExport()
+      else if (key === 'import') onImportClick()
+    }
+
     // ---------------------------------------------------------------- 展示模式右键菜单（触摸屏长按同样触发 contextmenu）
     const onContextMenu = (e: MouseEvent) => {
       if (scada.editing) return
@@ -110,12 +164,17 @@ export default defineComponent({
       },
       { key: 'divider', type: 'divider' },
       { key: 'edit', label: tt('scada.edit') },
-      { key: 'refresh', label: tt('scada.refreshData'), disabled: refreshing.value }
+      { key: 'refresh', label: tt('scada.refreshData'), disabled: refreshing.value },
+      { key: 'divider2', type: 'divider' },
+      { key: 'export', label: tt('scada.export'), disabled: exporting.value },
+      { key: 'import', label: tt('scada.import') }
     ])
     const onMenuSelect = (key: string | number) => {
       menu.show = false
       if (key === 'edit') scada.startEdit()
       else if (key === 'refresh') onRefresh()
+      else if (key === 'export') onExport()
+      else if (key === 'import') onImportClick()
     }
 
     const HELP_SECTIONS = ['palette', 'canvas', 'widget', 'display', 'control']
@@ -154,6 +213,11 @@ export default defineComponent({
           <NButton size="small" quaternary circle data-scada-help onClick={() => (helpShow.value = true)}>
             <span class={'font-bold'}>?</span>
           </NButton>
+          <NDropdown trigger="click" placement="bottom-start" options={moreOptions.value} onSelect={onMoreSelect}>
+            <NButton size="small" quaternary circle data-scada-more>
+              <span class={'font-bold tracking-widest'}>⋯</span>
+            </NButton>
+          </NDropdown>
           <div class={'flex-1'} />
           {scada.dirty ? (
             <NPopconfirm onPositiveClick={() => scada.cancelEdit()} positiveText={tt('scada.confirm')} negativeText={tt('scada.cancel')}>
@@ -177,6 +241,8 @@ export default defineComponent({
         <div ref={rootRef} class={'w-full h-full flex flex-col overflow-hidden bg-white'} onContextmenu={onContextMenu}>
           {editing && renderToolbar()}
           {editing ? renderHelp() : null}
+          <input ref={fileInputRef} type="file" accept=".zip,.json,application/zip,application/json" class={'hidden'} data-scada-import onChange={onImportFileChange} />
+          <ImportDialog show={importShow.value} file={importFile.value} onClose={closeImport} />
           {!editing && (
             <NDropdown
               placement="bottom-start"

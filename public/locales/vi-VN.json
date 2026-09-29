@@ -337,6 +337,32 @@
     "welcome": "Xin chào!"
   },
   "scada": {
+    "close": "Đóng",
+    "export": "Xuất bố cục",
+    "import": "Nhập bố cục",
+    "pkg": {
+      "importTitle": "Nhập bố cục",
+      "parsing": "Đang đọc tệp…",
+      "readFailed": "Không đọc được tệp",
+      "invalid": "Không phải gói bố cục hợp lệ: zip phải chứa layout.json (tệp JSON đã xuất cũng dùng được)",
+      "importFailed": "Nhập thất bại",
+      "importing": "Đang nhập tài nguyên {done}/{total}…",
+      "file": "Tệp",
+      "resources": "Tài nguyên",
+      "resourceDetail": "{u} cần tải lên · {r} dùng lại · {m} thiếu",
+      "noResources": "Không có",
+      "noBridge": "Không có môi trường máy chủ: tài nguyên không thể tải lên pic.nt.local và sẽ được nhúng vào bố cục",
+      "replaceHint": "Nhập sẽ thay thế bố cục đã lưu hiện tại",
+      "replaceDraftHint": "Chế độ chỉnh sửa: nhập sẽ thay thế bản nháp hiện tại, có hiệu lực sau khi lưu",
+      "apply": "Nhập",
+      "done": "Đã nhập: {w} thành phần, {u} tài nguyên đã tải lên, {r} dùng lại",
+      "failedCount": "{n} tài nguyên lỗi, ảnh tương ứng sẽ trống",
+      "inlinedNote": "Không có môi trường máy chủ: tài nguyên đã được nhúng vào bố cục",
+      "draftNote": "Đã thay thế bản nháp, nhớ lưu lại",
+      "exported": "Đã xuất {name} ({n} tệp tài nguyên, xem thư mục tải xuống của trình duyệt)",
+      "exportMissing": "{n} tệp tài nguyên không đọc được và không được đóng gói",
+      "exportFailed": "Xuất thất bại"
+    },
     "paletteGrid": "Dạng lưới",
     "paletteList": "Dạng danh sách",
     "category": {
@@ -353,7 +379,7 @@
       "widget": "Thao tác thành phần",
       "widgetText": "Kéo để di chuyển, kéo tay cầm góc dưới phải để đổi kích thước\nPhím mũi tên dịch 1px, Shift + mũi tên theo lưới\nDelete xóa thành phần đang chọn; bảng thuộc tính cho nhập vị trí / kích thước chính xác",
       "display": "Chế độ hiển thị",
-      "displayText": "Lưu xong sẽ thoát chỉnh sửa, khung vẽ chiếm toàn trang\nNhấp chuột phải (nhấn giữ trên màn hình cảm ứng): Chỉnh sửa / Làm mới nguồn dữ liệu",
+      "displayText": "Lưu xong sẽ thoát chỉnh sửa, khung vẽ chiếm toàn trang\nNhấp chuột phải (nhấn giữ trên màn hình cảm ứng): Chỉnh sửa / Làm mới nguồn dữ liệu / Xuất, Nhập bố cục\nXuất sẽ đóng gói bố cục và ảnh vào một tệp zip; khi nhập chỉ cần chọn tệp zip đó (ảnh được máy chủ lưu vào Resources/pic)",
       "control": "Thành phần điều khiển",
       "controlText": "Nút / công tắc / ô IO cần gắn nguồn dữ liệu ghi được: hiện chỉ «Biến nội bộ» ghi được, dữ liệu sản phẩm chỉ đọc\nNút còn có thể chạy lệnh bắt đầu / dừng / xóa / đổi trục thu thập"
     },
@@ -611,6 +637,9 @@
       "radius": "Bo góc"
     },
     "panel": {
+      "imageTooLargeMb": "Ảnh không được vượt quá {mb} MB",
+      "uploadFailed": "Tải ảnh lên thất bại",
+      "imageInline": "nhúng",
       "chooseImage": "Chọn tệp ảnh",
       "imageTooLarge": "Ảnh vượt quá {kb} KB, hãy nén trước",
       "transform": "Hàm xử lý dữ liệu (JS)",

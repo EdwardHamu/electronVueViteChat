@@ -87,7 +87,9 @@ enum callFnName {
   CalcConcentricity = `CalcConcentricity`,
   getSpanCollectPoints = `getSpanCollectPoints`, getNormalDistribution = 'getNormalDistribution', ClearCollect = 'ClearCollect',
   getFFT = `getFFT`, showKeyBoard = `showKeyBoard`, initKeyboardConfig = `initKeyboardConfig`, checkRegister = `checkRegister`, getMachineCode = `getMachineCode`, getRegisterState = `getRegisterState`, getRegisterCode = `getRegisterCode`, KeyPress = `KeyPress`, KeyDown = `KeyDown`, KeyUp = `KeyUp`, getLastPoint = `getLastPoint`,
-  GetWallThickness = "GetWallThickness"
+  GetWallThickness = "GetWallThickness",
+  /** 保存图片等资源到宿主 Resources/pic（参数 fileName, base64/dataURL），返回 https://pic.nt.local/ 下的 URL */
+  SaveResourceFile = "SaveResourceFile"
 }
 
 export {

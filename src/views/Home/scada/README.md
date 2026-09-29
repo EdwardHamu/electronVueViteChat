@@ -18,14 +18,18 @@
 | `widgets/` | 内置组件，分三类（`WidgetDefinition.category`）：`shape` 基础图素（`shapes.tsx` 直线 / 折线 / 弧线 / 矩形 / 圆形 / 椭圆 / 扇形 / 弓形 / 多边形 / 管道，`TextLabel.tsx` 文本，`Image.tsx` 图片）、`control` 控制与显示（`controls.tsx` 数值 IO 域 / 字符 IO 域 / 日期时间域 / 按钮 / 位按钮 / 字按钮 / 位状态显示 / 字状态显示 / 文本列表 / 文本开关 / 单选框 / 复选框，`Table.tsx` 表格）、`data` 数据看板（数值卡片 / 仪表盘 / 迷你趋势 / 状态灯）。`icons.tsx` 是组件库用的 24×24 线条图标；`common.ts` / `controlCommon.ts`（`useControl` 写入封装、选项列表解析、共享秒表）为共用工具 |
 | `store.ts` | Pinia store：已保存布局 `layout`、编辑草稿 `draft`、选中项、增删改 / 层级 / 画布设置 |
 | `storage.ts` | 持久化抽象 `LayoutStorage`，默认 localStorage（key `scadaLayout`） |
+| `resource.ts` | **资源文件**（图片等）：有宿主时经 `JsBridge.SaveResourceFile(fileName, base64)` 存到运行目录 `Resources/pic/<GUID>.<ext>`，布局里只记返回的 `https://pic.nt.local/<GUID>.<ext>`（WebView2 虚拟主机映射到该目录，跨域 fetch 已放开）；没有宿主桥（纯浏览器调试）退回 data URL 内嵌（单张 ≤ `INLINE_MAX_BYTES` 300 KB）。还包括引用收集 / 替换、`fetchResource` / `resourceExists`、`downloadBlob`（`a[download]` 触发浏览器下载） |
+| `zip.ts` | 零依赖 zip：写 STORE（含 CRC32、UTF-8 文件名标志），读 STORE / DEFLATE（`DecompressionStream('deflate-raw')`），够用于组态包 |
+| `package.ts` | **组态包**导入导出（纯逻辑）：`buildPackage()` 把布局 + 引用的全部资源打成一个 zip（`manifest.json` + `layout.json` + `resources/…`）；`parsePackage()` 解析 zip 或直接的 JSON；`planImport()` 清点资源（本机已有同名 GUID 文件 → 复用，否则上传，包里缺的 → 缺失）；`applyPackage()` 上传 / 复用 / 内嵌并返回引用已替换的布局 |
+| `ImportDialog.tsx` | 导入弹窗：解析 → 清单（组件数 / 画布 / 资源统计）→ 确认后上传并调用 `store.applyLayout()`（展示模式直接持久化，编辑模式只替换草稿） |
 | `layout.ts` | 默认值与反序列化校验 / 版本迁移；`geometry.ts` 吸附、越界、缩放等纯函数 |
 | `Canvas.tsx` | 等比缩放画布、`WidgetHost`（绑定 → 处理函数 → 历史值 → 组件）、Pointer Events 拖动 / 缩放组件、Delete 删除、方向键微调（1px，Shift 按网格）；编辑模式的视图缩放（滚轮 / 双指 / 键盘 + - 0）与平移（空格 + 拖动 / 中键拖动 / 双指） |
 | `Palette.tsx` | 组件库，HMI 工具箱样式：按三个分类分组（点分类标题折叠 / 展开），每项是小图标 + 名称，横屏可在**网格**（3 列）/ **列表**（图标 + 名称 + 说明）间切换（记在 localStorage `scadaPaletteView`）；点按放到空位、按住拖到画布上松手放置；`direction` = vertical（横屏侧栏 200px）/ horizontal（竖屏顶部横向条带，分类做成竖排标签）。滚动容器是 naive-ui `NScrollbar`（悬浮式滚动条，不占内容宽度） |
-| `PropertyPanel.tsx` | 属性面板（标题、数据绑定、位置尺寸、按 `propSchema` 生成的组件属性、层级 / 复制 / 删除；未选中时编辑画布）；`columns=2` 时分两栏；底部按钮打开数据处理函数弹窗；同样用 `NScrollbar` 悬浮滚动。字段类型 text / textarea / number / color / boolean / select / image（图片 = 地址输入 + 「选择图片文件」按钮，文件读成 data URL 存进布局，超过 `IMAGE_MAX_BYTES`（300 KB）拒绝） |
+| `PropertyPanel.tsx` | 属性面板（标题、数据绑定、位置尺寸、按 `propSchema` 生成的组件属性、层级 / 复制 / 删除；未选中时编辑画布）；`columns=2` 时分两栏；底部按钮打开数据处理函数弹窗；同样用 `NScrollbar` 悬浮滚动。字段类型 text / textarea / number / color / boolean / select / image（图片 = 地址输入 + 「选择图片文件」按钮：有宿主时上传到 `Resources/pic` 只存 `https://pic.nt.local/…` 地址（≤ 20 MB），无宿主时读成 data URL 内嵌（≤ 300 KB），见 `resource.ts`） |
 | `ColorField.tsx` | 颜色字段（组件颜色属性、画布背景）：一行色块按钮，点开在下方行内展开面板——第一界面是**预设颜色表**，按钮切换到 HSV **调色盘**（SV 面板 + 色相条 + hex 输入）；两处都能「加入预设」，「管理」模式点色块移除、可恢复默认；`clearable` 时提供「清除」（空值 = 组件默认色）。不用 naive-ui 的 NColorPicker 弹层（嵌在滚动面板 / 弹层里会被 click-outside 关掉） |
 | `color.ts` / `colorPresets.ts` | hex ↔ HSV 等纯函数；预设颜色表（所有颜色字段共用，最多 64 个，localStorage key `scadaColorPresets`，损坏 / 清空时回落到默认 24 色） |
 | `TransformDialog.tsx` | 数据处理函数编辑弹窗：本地草稿 + 用当前数据实时预览输出 / 错误，「确定」才写回组件，语法错误不可确定 |
-| `index.tsx` | 页面入口：展示模式右键菜单（`NDropdown` trigger=manual）、编辑模式工具栏（含缩放按钮、`?` 操作说明弹窗）；横屏三栏 / 竖屏三行布局切换；挂载期间屏蔽虚拟键盘 |
+| `index.tsx` | 页面入口：展示模式右键菜单（`NDropdown` trigger=manual：编辑 / 刷新数据源 / 导出组态 / 导入组态）、编辑模式工具栏（含缩放按钮、`?` 操作说明弹窗、`⋯` 更多菜单里的导出 / 导入）；隐藏的 `<input type=file>` 选包后打开 `ImportDialog`；横屏三栏 / 竖屏三行布局切换；挂载期间屏蔽虚拟键盘 |
 
 ## 数据流
 
@@ -78,6 +82,13 @@ DataSourceProvider.read(key) ──► DataPoint ──► 数据处理函数（
 
 实现 `LayoutStorage`（`load / save / clear`）后调用 `setLayoutStorage()`；`normalizeLayout()` 会校验任意来源的数据并处理版本迁移。`exportLayoutText / importLayoutText` 可用于备份或跨设备复制。
 
+## 导入 / 导出组态包
+
+- 入口：展示模式右键菜单，或编辑模式工具栏的 `⋯` 菜单。
+- 导出：`buildPackage(scada.current)` → 一个 zip（`scada-layout-YYYYMMDD-HHmmss.zip`）→ `downloadBlob()` 走浏览器下载（WebView2 默认下载流程，落在系统下载目录）。包内：`manifest.json`（格式 / 版本 / 组件数 / 资源清单 `[{ file, url }]`）、`layout.json`（与 localStorage 里保存的结构一致）、`resources/`（图片等）。宿主 URL 引用的文件按原名（GUID）放入并保留原 URL；旧版内嵌的 data URL 会抽成 `resources/inline-N.ext`，`layout.json` 里换成 `pkg:resources/inline-N.ext` 占位。读不到的资源计入 `missing`（提示但不中断）。
+- 导入：选 zip（也接受直接导出的 JSON）→ `parsePackage` → `planImport`（`resourceExists` 用 `fetch(https://pic.nt.local/<name>)` 探测同名文件：同一台机器重新导入不重复上传）→ 确认 → `applyPackage`（需上传的逐个 `SaveResourceFile`，返回新 URL 写回布局；没有宿主桥时内嵌成 data URL）→ `store.applyLayout()`。展示模式导入后直接持久化并显示；编辑模式只替换草稿，保存才生效（取消编辑可丢弃）。
+- 限制：宿主没有删除 / 列目录接口，旧图片会留在 `Resources/pic` 里（不影响使用）；`collectResourceRefs` 只扫描组件 `props` 的顶层字符串值，新组件若把图片放进嵌套结构需要扩展它。
+
 ## 坐标系与视图
 
 布局保存的是逻辑尺寸 `canvas.width × canvas.height` 下的像素坐标；展示时按容器等比缩放并居中（横竖屏、编辑时侧栏占位都能完整显示）。首次进入没有保存过布局时，画布尺寸取当前可视区域；属性面板的「适配当前屏幕」可随时重设。这两处用的尺寸都是页面根元素（`rootRef`）的大小，即展示模式下没有顶栏时画布能占到的整页面积——编辑模式虽然多了工具栏，量的仍是整页，所以适配后回到展示模式正好铺满。
@@ -94,4 +105,4 @@ DataSourceProvider.read(key) ──► DataPoint ──► 数据处理函数（
 
 ## 测试
 
-无需 WebView2 宿主：`npm i --no-save esbuild@0.21 jsdom@22 && node scripts/scada-smoke/run.mjs`（见脚本头部说明，目前 87 步）。
+无需 WebView2 宿主：`npm i --no-save esbuild@0.21 jsdom@22 && node scripts/scada-smoke/run.mjs`（见脚本头部说明，目前 117 步；zip / 组态包 / 资源上传部分用 Node 20 自带的 `DecompressionStream` 与 jsdom 的 `File` / `FileReader`，宿主 `SaveResourceFile` 与 `https://pic.nt.local/` 静态目录都在脚本里模拟）。

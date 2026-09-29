@@ -337,6 +337,32 @@
     "welcome": "Hello!"
   },
   "scada": {
+    "close": "Close",
+    "export": "Export layout",
+    "import": "Import layout",
+    "pkg": {
+      "importTitle": "Import layout",
+      "parsing": "Reading file…",
+      "readFailed": "Failed to read the file",
+      "invalid": "Not a valid layout package: the zip must contain layout.json (an exported JSON file also works)",
+      "importFailed": "Import failed",
+      "importing": "Importing resources {done}/{total}…",
+      "file": "File",
+      "resources": "Resources",
+      "resourceDetail": "{u} to upload · {r} reusable · {m} missing",
+      "noResources": "None",
+      "noBridge": "No host environment: resources cannot be uploaded to pic.nt.local and will be embedded in the layout",
+      "replaceHint": "Importing replaces the currently saved layout",
+      "replaceDraftHint": "Edit mode: importing replaces the current draft; it takes effect after saving",
+      "apply": "Import",
+      "done": "Imported: {w} widgets, {u} resources uploaded, {r} reused",
+      "failedCount": "{n} resources failed; their images will be blank",
+      "inlinedNote": "No host environment: resources were embedded in the layout",
+      "draftNote": "The edit draft was replaced — remember to save",
+      "exported": "Exported {name} ({n} resource files, see the browser download folder)",
+      "exportMissing": "{n} resource files could not be read and were left out",
+      "exportFailed": "Export failed"
+    },
     "paletteGrid": "Grid view",
     "paletteList": "List view",
     "category": {
@@ -353,7 +379,7 @@
       "widget": "Widgets",
       "widgetText": "Drag to move, drag the bottom-right handle to resize\nArrow keys nudge 1px, Shift + arrows step by the grid\nDelete removes the selection; the property panel accepts exact position / size",
       "display": "Display mode",
-      "displayText": "Saving leaves edit mode and the canvas fills the whole page\nRight-click the page (long-press on touch screens): Edit / Refresh data sources",
+      "displayText": "Saving leaves edit mode and the canvas fills the whole page\nRight-click the page (long-press on touch screens): Edit / Refresh data sources / Export, Import layout\nExport packs the layout and its images into one zip; pick that zip to import (images are stored by the host under Resources/pic)",
       "control": "Control widgets",
       "controlText": "Buttons / switches / IO fields need a writable data source: currently only \"Internal variables\" is writable, product data is read-only\nButtons can also run the start / stop / clear / shaft collect commands"
     },
@@ -611,6 +637,9 @@
       "radius": "Corner Radius"
     },
     "panel": {
+      "imageTooLargeMb": "Image must not exceed {mb} MB",
+      "uploadFailed": "Image upload failed",
+      "imageInline": "embedded",
       "chooseImage": "Choose image file",
       "imageTooLarge": "Image exceeds {kb} KB, please compress it first",
       "transform": "Data transform (JS)",

@@ -227,7 +227,7 @@ export default defineComponent({
                       <Statistical />
                     </div>
                   </NTabPane>
-                  <NTabPane displayDirective="if" name="scada" tab={t('menu.scada')} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'scada' ? activeStyle : {} } }}>
+                  <NTabPane displayDirective="if" name="scada" class="scada-pane" tab={t('menu.scada')} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'scada' ? activeStyle : {} } }}>
                     <div class={'h-full'}>
                       <Scada />
                     </div>
@@ -297,7 +297,7 @@ export default defineComponent({
                         <Statistical />
                       </div>
                     </NTabPane>
-                    <NTabPane displayDirective="if" name="scada" tab={t('menu.scada')} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'scada' ? activeStyle : {} } }}>
+                    <NTabPane displayDirective="if" name="scada" class="scada-pane" tab={t('menu.scada')} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'scada' ? activeStyle : {} } }}>
                       <div class={'h-full'}>
                         <Scada />
                       </div>

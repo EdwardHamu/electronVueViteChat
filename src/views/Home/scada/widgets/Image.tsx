@@ -1,5 +1,6 @@
 /**
- * 图片：显示网络地址 / 本地选择的图片（本地文件在属性面板里读成 data URL 存进布局，受 localStorage 容量限制，单张上限见 PropertyPanel）。
+ * 图片：显示网络地址 / 本地选择的图片。本地文件在属性面板里经宿主 SaveResourceFile 存到 Resources/pic，
+ * 布局里只记 https://pic.nt.local/… 的地址（见 resource.ts）；没有宿主桥时退回 data URL 内嵌。
  */
 import { computed, defineComponent } from 'vue'
 import type { WidgetDefinition } from '../types'

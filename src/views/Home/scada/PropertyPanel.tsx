@@ -9,14 +9,12 @@ import { computed, defineComponent, ref, watch, type PropType } from 'vue'
 import ColorField from './ColorField'
 import { dataSourceList, getDataSource } from './dataSource'
 import { getWidgetDefinition } from './registry'
+import { hasHostBridge, INLINE_MAX_BYTES, isDataUrl, isResourceUrl, readBlobAsDataUrl, RESOURCE_MAX_BYTES, resourceFileName, uploadResource } from './resource'
 import { useScadaStore } from './store'
 import { transformErrors } from './transform'
 import TransformDialog from './TransformDialog'
 import type { PropField, WidgetInstance } from './types'
 import { tt } from './widgets/common'
-
-/** 本地图片存进布局的上限（data URL 会随布局一起进 localStorage） */
-export const IMAGE_MAX_BYTES = 300 * 1024
 
 const Row = (props: { label: string }, { slots }: { slots: any }) => (
   <div class={'flex items-center gap-2 py-1'}>
@@ -89,26 +87,52 @@ export default defineComponent({
       scada.updateWidgetRect(w.id, { x: w.x, y: w.y, w: w.w, h: w.h, [key]: v })
     }
 
-    /** 图片字段：选择本地文件读成 data URL 存进布局（localStorage 容量有限，单张限制 IMAGE_MAX_BYTES） */
+    /**
+     * 图片字段：选择本地文件。有宿主桥时经 JsBridge.SaveResourceFile 存到运行目录 Resources/pic，
+     * 布局里只记 https://pic.nt.local/… 地址；没有宿主桥（纯浏览器调试）退回 data URL 内嵌（进 localStorage，单张限 INLINE_MAX_BYTES）。
+     */
+    const uploading = ref(false)
     const pickImage = (w: WidgetInstance, key: string) => {
       if (typeof document === 'undefined') return
       const input = document.createElement('input')
       input.type = 'file'
       input.accept = 'image/*'
-      input.onchange = () => {
+      input.onchange = async () => {
         const file = input.files && input.files[0]
         if (!file) return
-        if (file.size > IMAGE_MAX_BYTES) {
-          window.$message?.warning(tt('scada.panel.imageTooLarge').replace('{kb}', String(Math.round(IMAGE_MAX_BYTES / 1024))))
+        const bridge = hasHostBridge()
+        const limit = bridge ? RESOURCE_MAX_BYTES : INLINE_MAX_BYTES
+        if (file.size > limit) {
+          window.$message?.warning(
+            bridge
+              ? tt('scada.panel.imageTooLargeMb', { mb: Math.round(limit / 1024 / 1024) })
+              : tt('scada.panel.imageTooLarge', { kb: Math.round(limit / 1024) })
+          )
           return
         }
-        const reader = new FileReader()
-        reader.onload = () => {
-          if (typeof reader.result === 'string') scada.setWidgetProp(w.id, key, reader.result)
+        uploading.value = true
+        try {
+          const dataUrl = await readBlobAsDataUrl(file)
+          if (bridge) {
+            const saved = await uploadResource(file.name, dataUrl)
+            scada.setWidgetProp(w.id, key, saved.Url)
+          } else {
+            scada.setWidgetProp(w.id, key, dataUrl)
+          }
+        } catch (err) {
+          console.error('[scada] upload image failed', err)
+          window.$message?.error(tt('scada.panel.uploadFailed'))
+        } finally {
+          uploading.value = false
         }
-        reader.readAsDataURL(file)
       }
       input.click()
+    }
+    /** 图片字段下方的小字：宿主资源显示文件名，内嵌 data URL 显示大小 */
+    const imageInfo = (value: any) => {
+      if (isResourceUrl(value)) return resourceFileName(value)
+      if (isDataUrl(value)) return `${Math.round((String(value).length * 3) / 4 / 1024)} KB · ${tt('scada.panel.imageInline')}`
+      return ''
     }
 
     const renderField = (w: WidgetInstance, f: PropField) => {
@@ -124,9 +148,9 @@ export default defineComponent({
           return (
             <div class={'flex flex-col gap-1'}>
               <NInput size="small" value={value ?? ''} placeholder={ph} clearable onUpdateValue={set} />
-              <div class={'flex items-center gap-1'}>
-                <NButton size="tiny" onClick={() => pickImage(w, f.key)}>{tt('scada.panel.chooseImage')}</NButton>
-                {value && String(value).startsWith('data:') && <span class={'text-[10px] text-gray-400'}>{Math.round((String(value).length * 3) / 4 / 1024)} KB</span>}
+              <div class={'flex items-center gap-1 min-w-0'}>
+                <NButton size="tiny" loading={uploading.value} disabled={uploading.value} onClick={() => pickImage(w, f.key)}>{tt('scada.panel.chooseImage')}</NButton>
+                {imageInfo(value) ? <span class={'text-[10px] text-gray-400 truncate'} title={String(value)}>{imageInfo(value)}</span> : null}
               </div>
             </div>
           )

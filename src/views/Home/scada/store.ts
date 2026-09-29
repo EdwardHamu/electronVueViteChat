@@ -78,6 +78,20 @@ export const useScadaStore = defineStore('scada', {
       this.selectedId = null
       this.dirty = true
     },
+    /** 展示模式下导入：直接替换已保存布局并持久化；编辑中则等同 replaceDraft（保存后才生效） */
+    async applyLayout(layout: ScadaLayout) {
+      if (this.editing) {
+        this.replaceDraft(layout)
+        return
+      }
+      const next = cloneDeep(layout)
+      next.version = LAYOUT_VERSION
+      next.updatedAt = Date.now()
+      await getLayoutStorage().save(next)
+      this.layout = next
+      this.loaded = true
+      this.selectedId = null
+    },
     select(id: string | null) {
       this.selectedId = id
     },

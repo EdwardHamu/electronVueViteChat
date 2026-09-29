@@ -337,6 +337,32 @@
     "welcome": "欢迎！"
   },
   "scada": {
+    "close": "关闭",
+    "export": "导出组态",
+    "import": "导入组态",
+    "pkg": {
+      "importTitle": "导入组态",
+      "parsing": "正在读取文件…",
+      "readFailed": "文件读取失败",
+      "invalid": "不是有效的组态包：zip 内需包含 layout.json（也可直接选择导出的 JSON 文件）",
+      "importFailed": "导入失败",
+      "importing": "正在导入资源 {done}/{total}…",
+      "file": "文件",
+      "resources": "资源文件",
+      "resourceDetail": "需上传 {u} · 可复用 {r} · 缺失 {m}",
+      "noResources": "无",
+      "noBridge": "当前没有宿主环境，资源无法上传到 pic.nt.local，将以内嵌方式保存进布局",
+      "replaceHint": "导入将替换当前已保存的组态",
+      "replaceDraftHint": "编辑模式：导入将替换当前草稿，保存后才生效",
+      "apply": "导入",
+      "done": "导入完成：组件 {w} 个，资源上传 {u} 个、复用 {r} 个",
+      "failedCount": "{n} 个资源处理失败，对应图片将显示为空",
+      "inlinedNote": "没有宿主环境，资源已内嵌进布局",
+      "draftNote": "已替换编辑草稿，请记得保存",
+      "exported": "已导出 {name}（含 {n} 个资源文件，见浏览器下载目录）",
+      "exportMissing": "{n} 个资源文件读取失败，未打进包里",
+      "exportFailed": "导出失败"
+    },
     "paletteGrid": "网格视图",
     "paletteList": "列表视图",
     "category": {
@@ -353,7 +379,7 @@
       "widget": "组件操作",
       "widgetText": "拖动组件移动，拖右下角手柄改大小\n方向键微调 1px，Shift + 方向键按网格步进\nDelete 删除选中组件；属性面板可精确输入位置 / 尺寸",
       "display": "展示模式",
-      "displayText": "保存后退出编辑，画布占满整页\n在页面上点击右键（触摸屏长按）：进入编辑 / 刷新数据源",
+      "displayText": "保存后退出编辑，画布占满整页\n在页面上点击右键（触摸屏长按）：进入编辑 / 刷新数据源 / 导出、导入组态\n导出会把布局和用到的图片打成一个 zip，导入时选择该 zip 即可（图片经宿主存到 Resources/pic）",
       "control": "控制类组件",
       "controlText": "按钮 / 开关 / IO 域等需要绑定可写的数据源：目前只有「内部变量」可写，产品分类数据为只读\n按钮还可以执行开始 / 停止 / 清零 / 换轴采集命令"
     },
@@ -611,6 +637,9 @@
       "radius": "圆角"
     },
     "panel": {
+      "imageTooLargeMb": "图片不能超过 {mb} MB",
+      "uploadFailed": "图片上传失败",
+      "imageInline": "内嵌",
       "chooseImage": "选择图片文件",
       "imageTooLarge": "图片超过 {kb} KB，请压缩后再选择",
       "transform": "数据处理函数 (JS)",

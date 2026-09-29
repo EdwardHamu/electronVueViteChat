@@ -43,7 +43,8 @@ export const autoFontSize = (w: number, h: number, chars: number, ratio = 0.6, m
   return Math.max(10, Math.min(max, byHeight, byWidth))
 }
 
-export const tt = (key: string) => i18n.global.t(key)
+/** 取文案；带 {name} 占位的文案必须把值通过 values 传给 vue-i18n（先 t() 再 replace 会把占位符吃掉） */
+export const tt = (key: string, values?: Record<string, unknown>) => (values ? i18n.global.t(key, values) : i18n.global.t(key))
 
 /** 所有组态组件统一的 props 定义 */
 export const widgetProps = {
