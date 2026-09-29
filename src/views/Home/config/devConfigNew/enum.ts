@@ -129,8 +129,8 @@ export const WALL_DATA_CLASSES = [
 /**
  * 后端 IDeviceDriver.GetDriverName() 返回的驱动名；前端据此决定连接表单 / 地址表单（ConForm、AdressForm、addForm）。
  * betaUltrasonic 对应 SPC.Driver.Beta.UltrasonicWave（超声波偏心仪 / 壁厚，Modbus TCP）。
- * 注意：后端 c41cddf 里它的 DriverName 仍是 "Modbus Tcp Client"（与 Modbus 驱动同名，DriverHelper 按名去重会被覆盖），
- * 待后端改成唯一名称后只需同步这里的字符串。
+ * 名称来自后端 fac4e7e（`UltrasonicWave.DriverName => "UltrasonicWave"`）；c41cddf 时它还叫 "Modbus Tcp Client"，
+ * 与 Modbus 驱动同名会让 DriverHelper 按名去重时互相覆盖。后端若再改名，只需同步这里的字符串。
  */
 export const driverNameEnum = {
   modbusTcp: 'Modbus Tcp Client',
@@ -139,7 +139,7 @@ export const driverNameEnum = {
   opcDa: 'OPC DA Client',
   opcUa: 'OPC UA Client',
   siemensTcp: 'Siemens Tcp Client',
-  betaUltrasonic: 'Beta Ultrasonic Client',
+  betaUltrasonic: 'UltrasonicWave',
 } as const
 
 export const getDeviceClassNameMap = (): Record<number, string> => ({
