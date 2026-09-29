@@ -4,9 +4,11 @@
  *    预设表所有颜色字段共用并持久化（colorPresets.ts，localStorage）。
  *  - 点「调色盘」切换到 HSV 调色盘：饱和度 / 明度面板 + 色相条 + hex 输入，同样可以把当前颜色加入预设。
  *  - clearable 时提供「清除」（写回空字符串 = 使用组件默认色）。
+ *  - 自动收起：同一时间只展开一个颜色字段（打开另一个时旧的收起）；焦点 / 点按落到面板外的其它输入框或控件上时也收起。
+ *    点面板外的空白处、拖动属性面板滚动条 / 触摸滚动都不会收起（行内面板不是弹层，滚动时收起会很突兀）。
  */
 import { NButton, NInput } from 'naive-ui'
-import { computed, defineComponent, reactive, ref, watch, type PropType } from 'vue'
+import { computed, defineComponent, onBeforeUnmount, reactive, ref, watch, type PropType } from 'vue'
 import { clamp01, hexToHsv, hsvToHex, isLightColor, normalizeHex } from './color'
 import { addColorPreset, COLOR_PRESETS_MAX, removeColorPreset, resetColorPresets, useColorPresets } from './colorPresets'
 import { tt } from './widgets/common'
@@ -16,6 +18,16 @@ type View = 'presets' | 'palette'
 /** 空值（使用默认色）时色块显示棋盘格 */
 const EMPTY_BG = 'repeating-conic-gradient(#e5e7eb 0 25%, #ffffff 0 50%) 0 0 / 8px 8px'
 const HUE_BG = 'linear-gradient(to right, #f00 0%, #ff0 16.7%, #0f0 33.3%, #0ff 50%, #00f 66.7%, #f0f 83.3%, #f00 100%)'
+
+/** 当前展开的颜色字段实例 id（模块级：所有 ColorField 共用，保证同时只展开一个） */
+let fieldSeq = 0
+export const activeColorField = ref<number | null>(null)
+/**
+ * 面板外被点按时会让面板收起的目标：其它输入框 / 表单控件（含 naive-ui 的选择器、开关、复选、滑块）和别的颜色字段按钮。
+ * 能获得焦点的控件其实靠 focusin 就够了，这里是触摸 / readonly 等拿不到焦点时的兜底。
+ */
+export const CLOSE_ON_POINTERDOWN_SELECTOR =
+  'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [data-color-trigger], .n-base-selection, .n-switch, .n-checkbox, .n-radio, .n-slider, .n-input-number'
 
 export default defineComponent({
   name: 'ScadaColorField',
@@ -28,6 +40,8 @@ export default defineComponent({
   },
   setup(props) {
     const presets = useColorPresets()
+    const id = ++fieldSeq
+    const rootRef = ref<HTMLElement>()
     const open = ref(false)
     const view = ref<View>('presets')
     const manage = ref(false)
@@ -56,15 +70,56 @@ export default defineComponent({
     watch(() => props.value, syncFromValue, { immediate: true })
 
     const emit = (v: string) => props.onUpdateValue(v)
-    const toggle = () => {
-      open.value = !open.value
-      if (open.value) {
-        // 每次打开都回到预设表
-        view.value = 'presets'
-        manage.value = false
-        syncFromValue()
-      }
+    const close = () => {
+      if (!open.value) return
+      open.value = false
+      // 面板连同 hex 输入框一起被卸载时浏览器不会补发 blur，这里手动复位
+      hexFocused.value = false
+      if (activeColorField.value === id) activeColorField.value = null
     }
+    const toggle = () => {
+      if (open.value) {
+        close()
+        return
+      }
+      open.value = true
+      // 记为当前展开的字段：别的颜色字段会因此收起
+      activeColorField.value = id
+      // 每次打开都回到预设表
+      view.value = 'presets'
+      manage.value = false
+      syncFromValue()
+    }
+    // 别的颜色字段展开了 → 自己收起
+    watch(activeColorField, v => {
+      if (v !== id) close()
+    })
+
+    // ---------------------------------------------------------------- 焦点 / 点按落到面板外的其它输入框上时收起
+    const isInside = (t: EventTarget | null) => !!(t && rootRef.value && t instanceof Node && rootRef.value.contains(t))
+    const onDocFocusIn = (e: FocusEvent) => {
+      if (!isInside(e.target)) close()
+    }
+    const onDocPointerDown = (e: PointerEvent) => {
+      const t = e.target as Element | null
+      if (!t || isInside(t) || typeof t.closest !== 'function') return
+      if (t.closest(CLOSE_ON_POINTERDOWN_SELECTOR)) close()
+    }
+    const attach = () => {
+      if (typeof document === 'undefined') return
+      document.addEventListener('focusin', onDocFocusIn, true)
+      document.addEventListener('pointerdown', onDocPointerDown, true)
+    }
+    const detach = () => {
+      if (typeof document === 'undefined') return
+      document.removeEventListener('focusin', onDocFocusIn, true)
+      document.removeEventListener('pointerdown', onDocPointerDown, true)
+    }
+    watch(open, v => (v ? attach() : detach()))
+    onBeforeUnmount(() => {
+      detach()
+      if (activeColorField.value === id) activeColorField.value = null
+    })
     const pick = (hex: string) => emit(hex)
     const canAdd = computed(() => !!current.value && !presets.colors.includes(current.value!) && presets.colors.length < COLOR_PRESETS_MAX)
     const addCurrent = () => {
@@ -255,7 +310,7 @@ export default defineComponent({
     return () => {
       const v = props.value
       return (
-        <div class={'py-1'} data-color-field>
+        <div ref={rootRef} class={'py-1'} data-color-field>
           <div class={'flex items-center gap-2'}>
             <div class={'w-[88px] shrink-0 text-xs text-gray-600 truncate'} title={props.label}>{props.label}</div>
             <button

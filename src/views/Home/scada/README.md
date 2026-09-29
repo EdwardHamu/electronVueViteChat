@@ -26,7 +26,7 @@
 | `Canvas.tsx` | 等比缩放画布、`WidgetHost`（绑定 → 处理函数 → 历史值 → 组件）、Pointer Events 拖动 / 缩放组件、Delete 删除、方向键微调（1px，Shift 按网格）；编辑模式的视图缩放（滚轮 / 双指 / 键盘 + - 0）与平移（空格 + 拖动 / 中键拖动 / 双指） |
 | `Palette.tsx` | 组件库，HMI 工具箱样式：按三个分类分组（点分类标题折叠 / 展开），每项是小图标 + 名称，横屏可在**网格**（3 列）/ **列表**（图标 + 名称 + 说明）间切换（记在 localStorage `scadaPaletteView`）；点按放到空位、按住拖到画布上松手放置；`direction` = vertical（横屏侧栏 200px）/ horizontal（竖屏顶部横向条带，分类做成竖排标签）。滚动容器是 naive-ui `NScrollbar`（悬浮式滚动条，不占内容宽度） |
 | `PropertyPanel.tsx` | 属性面板（标题、数据绑定、位置尺寸、按 `propSchema` 生成的组件属性、层级 / 复制 / 删除；未选中时编辑画布）；`columns=2` 时分两栏；底部按钮打开数据处理函数弹窗；同样用 `NScrollbar` 悬浮滚动。字段类型 text / textarea / number / color / boolean / select / image（图片 = 地址输入 + 「选择图片文件」按钮：有宿主时上传到 `Resources/pic` 只存 `https://pic.nt.local/…` 地址（≤ 20 MB），无宿主时读成 data URL 内嵌（≤ 300 KB），见 `resource.ts`） |
-| `ColorField.tsx` | 颜色字段（组件颜色属性、画布背景）：一行色块按钮，点开在下方行内展开面板——第一界面是**预设颜色表**，按钮切换到 HSV **调色盘**（SV 面板 + 色相条 + hex 输入）；两处都能「加入预设」，「管理」模式点色块移除、可恢复默认；`clearable` 时提供「清除」（空值 = 组件默认色）。不用 naive-ui 的 NColorPicker 弹层（嵌在滚动面板 / 弹层里会被 click-outside 关掉） |
+| `ColorField.tsx` | 颜色字段（组件颜色属性、画布背景）：一行色块按钮，点开在下方行内展开面板——第一界面是**预设颜色表**，按钮切换到 HSV **调色盘**（SV 面板 + 色相条 + hex 输入）；两处都能「加入预设」，「管理」模式点色块移除、可恢复默认；`clearable` 时提供「清除」（空值 = 组件默认色）。不用 naive-ui 的 NColorPicker 弹层（嵌在滚动面板 / 弹层里会被 click-outside 关掉）。**自动收起**：模块级 `activeColorField` 保证同时只展开一个（打开另一个字段时旧的收起）；展开期间在 `document` 上监听 `focusin` / `pointerdown`（capture），焦点或点按落到面板外的其它输入框 / 控件（`CLOSE_ON_POINTERDOWN_SELECTOR`）上就收起；点面板外空白处、拖滚动条 / 触摸滚动不收起 |
 | `color.ts` / `colorPresets.ts` | hex ↔ HSV 等纯函数；预设颜色表（所有颜色字段共用，最多 64 个，localStorage key `scadaColorPresets`，损坏 / 清空时回落到默认 24 色） |
 | `TransformDialog.tsx` | 数据处理函数编辑弹窗：本地草稿 + 用当前数据实时预览输出 / 错误，「确定」才写回组件，语法错误不可确定 |
 | `index.tsx` | 页面入口：展示模式右键菜单（`NDropdown` trigger=manual：编辑 / 刷新数据源 / 导出组态 / 导入组态）、编辑模式工具栏（含缩放按钮、`?` 操作说明弹窗、`⋯` 更多菜单里的导出 / 导入）；有宿主时导出 / 导入交给宿主（另存为 / 打开对话框），否则前端打包下载、隐藏的 `<input type=file>` 选包后打开 `ImportDialog`；横屏三栏 / 竖屏三行布局切换；挂载期间屏蔽虚拟键盘 |
@@ -109,4 +109,4 @@ DataSourceProvider.read(key) ──► DataPoint ──► 数据处理函数（
 
 ## 测试
 
-无需 WebView2 宿主：`npm i --no-save esbuild@0.21 jsdom@22 && node scripts/scada-smoke/run.mjs`（见脚本头部说明，目前 132 步；zip / 组态包 / 资源上传部分用 Node 20 自带的 `DecompressionStream` 与 jsdom 的 `File` / `FileReader`，宿主 `SaveResourceFile` / `ListResourceFiles` / `DeleteResourceFile` / `ExportScadaPackage` / `PreviewScadaPackage` / `ImportScadaPackage` 与 `https://pic.nt.local/` 静态目录都在脚本里模拟——前半段在没有打包接口的桥上跑（覆盖浏览器 / 老宿主流程），任务 42 一节再把新接口补进桩里）。宿主侧对应的自检是 `SPC.M.Test.exe --scada-package`。
+无需 WebView2 宿主：`npm i --no-save esbuild@0.21 jsdom@22 && node scripts/scada-smoke/run.mjs`（见脚本头部说明，目前 138 步；zip / 组态包 / 资源上传部分用 Node 20 自带的 `DecompressionStream` 与 jsdom 的 `File` / `FileReader`，宿主 `SaveResourceFile` / `ListResourceFiles` / `DeleteResourceFile` / `ExportScadaPackage` / `PreviewScadaPackage` / `ImportScadaPackage` 与 `https://pic.nt.local/` 静态目录都在脚本里模拟——前半段在没有打包接口的桥上跑（覆盖浏览器 / 老宿主流程），任务 42 一节再把新接口补进桩里）。宿主侧对应的自检是 `SPC.M.Test.exe --scada-package`。

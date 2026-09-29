@@ -12,6 +12,7 @@
  *       zip 读写（STORE / DEFLATE）、组态包导出（宿主资源 + 内嵌图 → zip）/ 解析 / 清点 / 执行导入（上传 / 复用 / 内嵌 / 失败）、右键菜单导出下载与导入弹窗流程、图片经 SaveResourceFile 上传到 https://pic.nt.local/。
  *       任务 42：宿主打包（ExportScadaPackage 另存为 / PreviewScadaPackage 清点 → 导入弹窗 → ImportScadaPackage 解压并替换布局、取消 / 失败 / 编辑模式）、
  *       嵌套属性里的资源引用、保存 / 展示模式导入后经 ListResourceFiles + DeleteResourceFile 清理未引用的 GUID 文件（老宿主没有这些接口时退回前端 zip 流程 —— 前面的用例就是在没有这些接口的桥上跑的）。
+ *       任务 43：颜色字段自动收起（打开另一个颜色字段 / 焦点或点按落到别的输入框时收起；面板内操作与面板外空白处不收起）。
  * 说明：@/store、@/store/config 与 @/utils/callm 被 stubs/ 里的桩替换（真实模块会把 echarts 等整套依赖拉进来）。
  */
 import { build } from 'esbuild'
@@ -350,6 +351,30 @@ check('管理模式点色块 → 从预设移除并持久化（组件属性不�
 check('“清除”恢复为组件默认色（空值）', () => { assert.equal(wA().props.bg, ''); assert.ok(bgField.querySelector('[data-color-trigger]').textContent.includes('默认')) })
 bgField.querySelector('[data-color-trigger]').click(); await nextTick()
 check('再次点击色块按钮收起面板', () => assert.ok(!panel()))
+// ---- 自动收起：打开另一个颜色字段 / 焦点或点按落到别的输入框；面板内操作、面板外空白处不收起 ----
+const fgField = fields()[1]
+const trig = f => f.querySelector('[data-color-trigger]')
+const panelOf = f => f.querySelector('[data-color-panel]')
+trig(bgField).click(); await nextTick(); trig(fgField).click(); await nextTick()
+check('打开另一个颜色字段：先前展开的自动收起，同一时间只有一个面板', () => { assert.ok(!panelOf(bgField)); assert.ok(panelOf(fgField)); assert.equal(root.querySelectorAll('[data-color-panel]').length, 1) })
+const otherInput = [...root.querySelectorAll('input')].find(i => !i.closest('[data-color-field]'))
+assert.ok(otherInput, '属性面板里应有别的输入框')
+otherInput.focus(); await nextTick()
+check('焦点移到别的输入框（focusin）：颜色面板收起', () => { assert.equal(document.activeElement, otherInput); assert.ok(!panelOf(fgField)) })
+otherInput.blur(); await nextTick()
+trig(fgField).click(); await nextTick(); assert.ok(panelOf(fgField))
+otherInput.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 31, button: 0 })); await nextTick()
+check('在别的输入框上按下（触摸等拿不到焦点的场景）：颜色面板收起', () => assert.ok(!panelOf(fgField)))
+trig(fgField).click(); await nextTick(); panelOf(fgField).querySelector('[data-color-switch]').click(); await nextTick()
+const ownHex = panelOf(fgField).querySelector('input'); ownHex.focus(); await nextTick()
+ownHex.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 32, button: 0 })); await nextTick()
+root.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 33, button: 0 })); await nextTick()
+check('面板内自己的 hex 输入框获得焦点 / 点按，以及点面板外的空白处：都不收起', () => { assert.ok(panelOf(fgField)); assert.ok(panelOf(fgField).querySelector('[data-color-sv]')) })
+ownHex.blur(); await nextTick()
+trig(bgField).dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 34, button: 0 })); trig(bgField).click(); await nextTick()
+check('按下另一个颜色字段的按钮：旧面板先收起、新面板打开且回到预设表', () => { assert.ok(!panelOf(fgField)); assert.ok(panelOf(bgField)); assert.ok(panelOf(bgField).querySelector('[data-color-presets]')) })
+trig(bgField).click(); await nextTick()
+check('收起后没有任何颜色面板残留', () => assert.equal(root.querySelectorAll('[data-color-panel]').length, 0))
 
 // ---------------- 视图缩放 / 平移（编辑模式） ----------------
 const container = canvasView.el.parentElement
