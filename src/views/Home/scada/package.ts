@@ -11,11 +11,17 @@
  *     导入时若本机已有同名文件（同一台机器重新导入）直接复用，否则上传后把 URL 换成新地址。
  *   - data URL（旧版本 / 无宿主时内嵌的图片）：抽成 resources/inline-N.ext，layout.json 里换成 pkg:resources/inline-N.ext 占位；
  *     导入时上传并替换成宿主 URL（没有宿主桥时再内嵌回 data URL）。
+ *
+ * 有宿主时（SPC_M 91ebedd 起）打包 / 解包由宿主完成（文件末尾的 exportPackageViaHost / previewPackageViaHost / importPackageViaHost）：
+ * 宿主弹「另存为 / 打开」对话框，直接读写 Resources/pic，包结构相同（宿主把 data URL 抽成 GUID 文件、导入时兼容 pkg: 占位）。
+ * 前端这套 zip 实现留给纯浏览器调试 / 老宿主用。
  * 纯逻辑，不碰 store / UI，方便测试。
  */
 import { LAYOUT_VERSION, normalizeLayout } from './layout'
+import { callFnName } from '@/utils/enum'
 import {
   bytesToDataUrl,
+  callHost,
   collectResourceRefs,
   dataUrlToBytes,
   extFromMime,
@@ -290,4 +296,82 @@ export const applyPackage = async (pkg: ParsedPackage, plan: ImportPlan, opts: A
   layout.version = LAYOUT_VERSION
   layout.updatedAt = Date.now()
   return { layout, uploaded, reused: plan.reusable.length, inlined, failed: [...failed, ...plan.missing] }
+}
+
+// ---------------------------------------------------------------- 宿主打包（JsBridge.ExportScadaPackage / PreviewScadaPackage / ImportScadaPackage）
+
+/** ExportScadaPackage 的 Data */
+export interface HostExportResult {
+  /** 用户在「另存为」里点了取消 */
+  Cancelled: boolean
+  Path?: string
+  FileName?: string
+  Size?: number
+  Widgets?: number
+  /** 打进包里的资源数 */
+  Resources?: number
+  /** 布局引用、但本机 Resources/pic 里没有的地址 */
+  Missing?: string[]
+}
+
+export interface HostPackageFile {
+  File: string
+  Url: string
+  Size: number
+  InPackage: boolean
+  Exists: boolean
+}
+
+/** PreviewScadaPackage 的 Data：只清点、宿主还没写任何文件 */
+export interface HostPackagePreview {
+  Cancelled: boolean
+  Path?: string
+  FileName?: string
+  Size?: number
+  Widgets?: number
+  Canvas?: { Width: number; Height: number }
+  /** 布局里引用的资源数（去重） */
+  Resources?: number
+  /** 包里有、本机没有 → 导入时解压 */
+  ToCopy?: number
+  /** 本机已有同名文件 → 直接复用 */
+  Reusable?: number
+  /** 包里没有、本机也没有 */
+  Missing?: string[]
+  Files?: HostPackageFile[]
+}
+
+/** ImportScadaPackage 的 Data */
+export interface HostImportResult {
+  Path: string
+  FileName: string
+  /** 资源引用在本机已可用的布局（结构同 layout.json，仍需 normalizeLayout） */
+  Layout: any
+  Widgets: number
+  Copied: number
+  Reused: number
+  Missing: string[]
+  Failed: string[]
+}
+
+/**
+ * 三个宿主调用的返回约定同 callHost：
+ *  undefined = 老宿主没有该接口（调用方退回前端 zip 实现）；null = 宿主返回失败（已弹提示）；否则为 Data。
+ */
+export const exportPackageViaHost = (layout: ScadaLayout, targetPath = '') =>
+  callHost<HostExportResult>(callFnName.ExportScadaPackage, [JSON.stringify(layout), targetPath])
+
+export const previewPackageViaHost = (packagePath = '') => callHost<HostPackagePreview>(callFnName.PreviewScadaPackage, [packagePath])
+
+export const importPackageViaHost = (packagePath: string) => callHost<HostImportResult>(callFnName.ImportScadaPackage, [packagePath])
+
+/** 把宿主 ImportScadaPackage 返回的 Layout 规范成前端布局；不像布局时抛 Error('invalid-layout') */
+export const layoutFromHostImport = (result: HostImportResult): ScadaLayout => {
+  const raw = result && result.Layout
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !Array.isArray(raw.widgets)) throw new Error('invalid-layout')
+  const layout = normalizeLayout(raw)
+  if (!layout) throw new Error('invalid-layout')
+  layout.version = LAYOUT_VERSION
+  layout.updatedAt = Date.now()
+  return layout
 }

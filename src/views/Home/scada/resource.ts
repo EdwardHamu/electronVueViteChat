@@ -6,7 +6,9 @@
  * （HostResourceAccessKind.Allow，任意来源都能 fetch，导出打包时靠它把图片读回来）。
  * 布局里只保存这个 URL；没有宿主桥（纯浏览器调试 / 冒烟测试）时退回 data URL 内嵌。
  *
- * 宿主没有删除 / 列举资源的接口，重复上传只会多占磁盘，不影响功能。
+ * 宿主（SPC_M b75fc6e 起）另有 ListResourceFiles / DeleteResourceFile：保存组态、展示模式导入之后调用
+ * cleanupUnusedResources 把布局里不再引用的 GUID 文件删掉（换图 / 删组件 / 取消编辑留下的孤儿文件），
+ * 只动 <32 位 hex>.<ext> 这种宿主生成的文件名，手工放进去的文件不碰。
  */
 import { callBrige } from '@/utils/callm'
 import { callFnName } from '@/utils/enum'
@@ -131,33 +133,133 @@ export const resourceExists = async (url: string) => {
   }
 }
 
-/** 遍历布局里所有组件属性中的资源引用（宿主 URL 或 data URL），去重、保持出现顺序 */
+/**
+ * 深度遍历一个 JSON 结构里的所有字符串值（对象 / 数组任意嵌套），replace 返回非 undefined 时原地替换。
+ * 资源引用可能藏在组件属性的子对象里（如表格列配置），与宿主 ScadaPackageHelper 的做法一致：不限定字段名，只看值。
+ */
+export const walkStrings = (node: any, visit: (value: string) => string | undefined) => {
+  if (Array.isArray(node)) {
+    node.forEach((v, i) => {
+      if (typeof v === 'string') {
+        const next = visit(v)
+        if (next !== undefined) node[i] = next
+      } else walkStrings(v, visit)
+    })
+  } else if (node && typeof node === 'object') {
+    Object.keys(node).forEach(k => {
+      const v = node[k]
+      if (typeof v === 'string') {
+        const next = visit(v)
+        if (next !== undefined) node[k] = next
+      } else walkStrings(v, visit)
+    })
+  }
+}
+
+/** 遍历布局里所有资源引用（宿主 URL 或 data URL，含嵌套属性），去重、保持出现顺序 */
 export const collectResourceRefs = (layout: ScadaLayout): string[] => {
   const out: string[] = []
   const seen = new Set<string>()
-  layout.widgets.forEach(w => {
-    Object.values(w.props || {}).forEach(v => {
-      if ((isResourceUrl(v) || isDataUrl(v)) && !seen.has(v)) {
-        seen.add(v)
-        out.push(v)
-      }
-    })
+  walkStrings(layout.widgets, v => {
+    if ((isResourceUrl(v) || isDataUrl(v)) && !seen.has(v)) {
+      seen.add(v)
+      out.push(v)
+    }
+    return undefined
   })
   return out
 }
 
-/** 按映射表替换组件属性里的资源引用，返回新布局（不改原对象） */
+/** 按映射表替换布局里的资源引用（含嵌套属性），返回新布局（不改原对象） */
 export const replaceResourceRefs = (layout: ScadaLayout, map: Record<string, string>): ScadaLayout => {
-  const keys = Object.keys(map)
-  if (!keys.length) return JSON.parse(JSON.stringify(layout))
   const copy: ScadaLayout = JSON.parse(JSON.stringify(layout))
-  copy.widgets.forEach(w => {
-    Object.keys(w.props || {}).forEach(k => {
-      const v = w.props[k]
-      if (typeof v === 'string' && Object.prototype.hasOwnProperty.call(map, v)) w.props[k] = map[v]
-    })
-  })
+  if (!Object.keys(map).length) return copy
+  walkStrings(copy.widgets, v => (Object.prototype.hasOwnProperty.call(map, v) ? map[v] : undefined))
   return copy
+}
+
+// ---------------------------------------------------------------- 宿主资源目录：列举 / 删除 / 清理孤儿文件
+
+/** 宿主 ListResourceFiles 的返回项 */
+export interface HostResourceFile {
+  FileName: string
+  RelativePath: string
+  Url: string
+  Size: number
+  LastModifiedUtc: string
+}
+
+/** 宿主 SaveResourceFile 生成的文件名：32 位 hex GUID + 扩展名；清理时只认这种名字 */
+export const HOST_GENERATED_NAME = /^[0-9a-f]{32}\.[a-z0-9]+$/i
+
+/**
+ * 统一处理 callBrige 的三种结果：
+ *  - undefined：老宿主没有这个接口 / 调用抛错（callBrige 已提示）→ 调用方按“不支持”处理；
+ *  - null：宿主返回 Code != 0（callBrige 已弹出宿主的错误信息）；
+ *  - 其它：Data（Data 为 null 时 callBrige 返回 1）。
+ */
+export const callHost = async <T>(fn: string, args?: any[]): Promise<T | null | undefined> => {
+  if (!hasHostBridge()) return undefined
+  try {
+    const res = args ? await callBrige(fn, args, true) : await callBrige(fn)
+    return res as T | null | undefined
+  } catch (err) {
+    console.warn(`[scada] host call ${fn} failed`, err)
+    return undefined
+  }
+}
+
+/** Resources/pic 里的文件列表；宿主不支持或出错时返回 null（调用方不得据此删除任何东西） */
+export const listResourceFiles = async (): Promise<HostResourceFile[] | null> => {
+  const res = await callHost<HostResourceFile[] | number>(callFnName.ListResourceFiles)
+  if (res === undefined || res === null) return null
+  return Array.isArray(res) ? res : []
+}
+
+/** 删除 Resources/pic 里的一个文件（纯文件名）；成功（含文件本来就不存在）返回 true */
+export const deleteResourceFile = async (fileName: string): Promise<boolean> => {
+  if (!fileName || !HOST_GENERATED_NAME.test(fileName)) return false
+  const res = await callHost<{ FileName: string; Deleted: boolean }>(callFnName.DeleteResourceFile, [fileName])
+  return !!res && typeof res === 'object'
+}
+
+export interface CleanupResult {
+  /** 宿主目录里的文件数（宿主不支持时为 -1） */
+  total: number
+  deleted: string[]
+  failed: string[]
+}
+
+let cleanupChain: Promise<CleanupResult> = Promise.resolve({ total: -1, deleted: [], failed: [] })
+
+/**
+ * 删除宿主 Resources/pic 里布局不再引用的 GUID 文件。保存组态 / 展示模式导入后调用（此时 layout 就是唯一生效的布局），
+ * 编辑草稿里新上传的图片在保存前不会被清（清理只在保存后跑）。串行执行、不抛错。
+ */
+export const cleanupUnusedResources = (layout: ScadaLayout): Promise<CleanupResult> => {
+  const run = async (): Promise<CleanupResult> => {
+    if (!hasHostBridge()) return { total: -1, deleted: [], failed: [] }
+    const files = await listResourceFiles()
+    if (!files) return { total: -1, deleted: [], failed: [] }
+    const referenced = new Set<string>()
+    collectResourceRefs(layout).forEach(ref => {
+      if (isResourceUrl(ref)) referenced.add(resourceFileName(ref).toLowerCase())
+    })
+    const result: CleanupResult = { total: files.length, deleted: [], failed: [] }
+    for (const f of files) {
+      const name = f && typeof f.FileName === 'string' ? f.FileName : ''
+      if (!HOST_GENERATED_NAME.test(name) || referenced.has(name.toLowerCase())) continue
+      if (await deleteResourceFile(name)) result.deleted.push(name)
+      else result.failed.push(name)
+    }
+    if (result.deleted.length || result.failed.length) console.info('[scada] resource cleanup', result)
+    return result
+  }
+  cleanupChain = cleanupChain.then(run, run).catch(err => {
+    console.warn('[scada] resource cleanup failed', err)
+    return { total: -1, deleted: [], failed: [] }
+  })
+  return cleanupChain
 }
 
 /** 触发浏览器下载（WebView2 走默认下载流程，文件落在系统下载目录） */

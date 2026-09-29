@@ -13,8 +13,9 @@
  *  - registry.ts         组件注册表；widgets/ 内置示例组件
  *  - store.ts            布局 / 草稿 / 选中状态；storage.ts 持久化抽象（当前 localStorage）
  *  - Canvas.tsx          等比缩放画布 + 拖动 / 缩放；Palette.tsx 组件库；PropertyPanel.tsx 属性面板
- *  - resource.ts         资源文件（图片）经宿主 SaveResourceFile 保存、https://pic.nt.local/ 读取
- *  - package.ts / zip.ts 组态包（布局 + 资源打成 zip）导入导出；ImportDialog.tsx 导入弹窗
+ *  - resource.ts         资源文件（图片）经宿主 SaveResourceFile 保存、https://pic.nt.local/ 读取；保存 / 导入后清理未引用的文件
+ *  - package.ts / zip.ts 组态包（布局 + 资源打成 zip）导入导出：有宿主时由宿主 Export/Preview/ImportScadaPackage 完成（另存为 / 打开对话框），
+ *                        没有宿主（浏览器调试）时前端打包下载 / file input 读取；ImportDialog.tsx 导入弹窗（两种来源共用）
  */
 import { NButton, NButtonGroup, NDropdown, NModal, NPopconfirm, NTag, type DropdownOption } from 'naive-ui'
 import { computed, defineComponent, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
@@ -22,10 +23,10 @@ import { useMain } from '@/store'
 import Canvas, { canvasView, resetCanvasView, zoomCanvas } from './Canvas'
 import { refreshAllDataSources, startAllDataSources, stopAllDataSources } from './dataSource'
 import ImportDialog from './ImportDialog'
-import { buildPackage } from './package'
+import { buildPackage, exportPackageViaHost, previewPackageViaHost, type HostPackagePreview } from './package'
 import Palette from './Palette'
 import PropertyPanel from './PropertyPanel'
-import { downloadBlob } from './resource'
+import { downloadBlob, hasHostBridge } from './resource'
 import { useScadaStore } from './store'
 import { tt } from './widgets/common'
 import './widgets'
@@ -52,8 +53,12 @@ export default defineComponent({
     /** 导入 / 导出组态包 */
     const fileInputRef = ref<HTMLInputElement>()
     const importFile = ref<File | null>(null)
+    /** 宿主模式：PreviewScadaPackage 的清点结果 */
+    const importPreview = ref<HostPackagePreview | null>(null)
     const importShow = ref(false)
     const exporting = ref(false)
+    /** 宿主打开文件对话框期间置位，防止重复触发 */
+    const picking = ref(false)
 
     const measure = () => {
       const el = rootRef.value
@@ -101,10 +106,23 @@ export default defineComponent({
     }
 
     // ---------------------------------------------------------------- 导入 / 导出组态包（zip：layout.json + 图片等资源）
+    /**
+     * 导出：有宿主 → 宿主弹「另存为」并自己打包（ExportScadaPackage，读 Resources/pic 不经过 fetch）；
+     * 没有宿主、或老宿主没有这个接口（返回 undefined）→ 前端打包 + 浏览器下载。
+     */
     const onExport = async () => {
       if (exporting.value) return
       exporting.value = true
       try {
+        if (hasHostBridge()) {
+          const res = await exportPackageViaHost(scada.current)
+          if (res !== undefined) {
+            if (!res || typeof res !== 'object' || res.Cancelled) return // 失败（宿主已提示）或用户取消
+            window.$message && window.$message.success(tt('scada.pkg.exportedTo', { path: res.Path || res.FileName || '', n: res.Resources || 0 }))
+            if (res.Missing && res.Missing.length) window.$message && window.$message.warning(tt('scada.pkg.exportMissing', { n: res.Missing.length }))
+            return
+          }
+        }
         const result = await buildPackage(scada.current)
         downloadBlob(result.blob, result.fileName)
         window.$message && window.$message.success(tt('scada.pkg.exported', { name: result.fileName, n: result.manifest.resources.length }))
@@ -116,7 +134,29 @@ export default defineComponent({
         exporting.value = false
       }
     }
-    const onImportClick = () => {
+    /**
+     * 导入：有宿主 → 宿主弹打开文件对话框并清点（PreviewScadaPackage），结果交给导入弹窗确认后再 ImportScadaPackage；
+     * 没有宿主 / 老宿主 → 隐藏 file input 选文件，前端解析。
+     */
+    const onImportClick = async () => {
+      if (picking.value) return
+      if (hasHostBridge()) {
+        picking.value = true
+        try {
+          const res = await previewPackageViaHost('')
+          if (res !== undefined) {
+            if (!res || typeof res !== 'object' || res.Cancelled) return
+            importFile.value = null
+            importPreview.value = res
+            importShow.value = true
+            return
+          }
+        } catch (err) {
+          console.error('[scada] host preview failed', err)
+        } finally {
+          picking.value = false
+        }
+      }
       const input = fileInputRef.value
       if (!input) return
       input.value = ''
@@ -126,18 +166,20 @@ export default defineComponent({
       const input = e.target as HTMLInputElement
       const file = input.files && input.files[0]
       if (!file) return
+      importPreview.value = null
       importFile.value = file
       importShow.value = true
     }
     const closeImport = () => {
       importShow.value = false
       importFile.value = null
+      importPreview.value = null
       if (fileInputRef.value) fileInputRef.value.value = ''
     }
     /** 编辑模式工具栏「⋯」菜单 */
     const moreOptions = computed<DropdownOption[]>(() => [
       { key: 'export', label: tt('scada.export'), disabled: exporting.value },
-      { key: 'import', label: tt('scada.import') }
+      { key: 'import', label: tt('scada.import'), disabled: picking.value }
     ])
     const onMoreSelect = (key: string | number) => {
       if (key === 'export') onExport()
@@ -167,7 +209,7 @@ export default defineComponent({
       { key: 'refresh', label: tt('scada.refreshData'), disabled: refreshing.value },
       { key: 'divider2', type: 'divider' },
       { key: 'export', label: tt('scada.export'), disabled: exporting.value },
-      { key: 'import', label: tt('scada.import') }
+      { key: 'import', label: tt('scada.import'), disabled: picking.value }
     ])
     const onMenuSelect = (key: string | number) => {
       menu.show = false
@@ -242,7 +284,7 @@ export default defineComponent({
           {editing && renderToolbar()}
           {editing ? renderHelp() : null}
           <input ref={fileInputRef} type="file" accept=".zip,.json,application/zip,application/json" class={'hidden'} data-scada-import onChange={onImportFileChange} />
-          <ImportDialog show={importShow.value} file={importFile.value} onClose={closeImport} />
+          <ImportDialog show={importShow.value} file={importFile.value} preview={importPreview.value} onClose={closeImport} />
           {!editing && (
             <NDropdown
               placement="bottom-start"

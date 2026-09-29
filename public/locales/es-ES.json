@@ -360,7 +360,12 @@
       "inlinedNote": "Sin entorno anfitrión: los recursos se incrustaron en el diseño",
       "draftNote": "Se reemplazó el borrador; recuerde guardar",
       "exported": "Exportado {name} ({n} archivos de recursos, ver la carpeta de descargas)",
-      "exportMissing": "{n} archivos de recursos no se pudieron leer y no se incluyeron",
+      "exportMissing": "{n} archivos de recursos faltan en este equipo o no se pudieron leer y no se incluyeron",
+      "exportedTo": "Exportado a {path} ({n} archivos de recursos)",
+      "hostResourceDetail": "{u} por copiar · {r} reutilizables · {m} faltantes",
+      "hostImporting": "Importando paquete…",
+      "hostDone": "Importado: {w} componentes, {u} recursos copiados, {r} reutilizados",
+      "missingCount": "{n} recursos no están ni en el paquete ni en este equipo; sus imágenes quedarán vacías",
       "exportFailed": "Error al exportar"
     },
     "paletteGrid": "Vista de cuadrícula",
@@ -379,7 +384,7 @@
       "widget": "Componentes",
       "widgetText": "Arrastre para mover, arrastre el asa inferior derecha para cambiar el tamaño\nFlechas: mover 1px; Mayús + flechas: por cuadrícula\nSupr elimina la selección; el panel de propiedades admite posición / tamaño exactos",
       "display": "Modo de visualización",
-      "displayText": "Al guardar se sale de la edición y el lienzo ocupa toda la página\nClic derecho en la página (pulsación larga en táctil): Editar / Actualizar fuentes de datos / Exportar, Importar diseño\nLa exportación empaqueta el diseño y sus imágenes en un zip; para importar elija ese zip (el anfitrión guarda las imágenes en Resources/pic)",
+      "displayText": "Al guardar se sale de la edición y el lienzo ocupa toda la página\nClic derecho en la página (pulsación larga en táctil): Editar / Actualizar fuentes de datos / Exportar, Importar diseño\nLa exportación empaqueta el diseño y sus imágenes en un zip (diálogo Guardar como); para importar elija ese zip (el anfitrión guarda las imágenes en Resources/pic; las imágenes que ya no se usan se limpian al guardar)",
       "control": "Componentes de control",
       "controlText": "Botones / interruptores / campos IO necesitan una fuente de datos escribible: por ahora solo «Variables internas» es escribible, los datos de producto son de solo lectura\nLos botones también pueden ejecutar los comandos iniciar / detener / poner a cero / cambio de eje"
     },

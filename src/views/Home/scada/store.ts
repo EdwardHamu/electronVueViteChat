@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { clampRect, cloneDeep, findFreeSpot, snap } from './geometry'
 import { createEmptyLayout, LAYOUT_VERSION } from './layout'
 import { getWidgetDefinition } from './registry'
+import { cleanupUnusedResources } from './resource'
 import { getLayoutStorage } from './storage'
 import type { CanvasConfig, DataBinding, ScadaLayout, WidgetInstance, WidgetRect } from './types'
 
@@ -67,6 +68,8 @@ export const useScadaStore = defineStore('scada', {
         this.editing = false
         this.selectedId = null
         this.dirty = false
+        // 保存后的布局就是唯一生效的布局：顺手把宿主 Resources/pic 里不再引用的图片删掉（异步、失败不影响保存）
+        cleanupUnusedResources(layout)
       } finally {
         this.saving = false
       }
@@ -91,6 +94,7 @@ export const useScadaStore = defineStore('scada', {
       this.layout = next
       this.loaded = true
       this.selectedId = null
+      cleanupUnusedResources(next)
     },
     select(id: string | null) {
       this.selectedId = id

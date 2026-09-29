@@ -89,7 +89,17 @@ enum callFnName {
   getFFT = `getFFT`, showKeyBoard = `showKeyBoard`, initKeyboardConfig = `initKeyboardConfig`, checkRegister = `checkRegister`, getMachineCode = `getMachineCode`, getRegisterState = `getRegisterState`, getRegisterCode = `getRegisterCode`, KeyPress = `KeyPress`, KeyDown = `KeyDown`, KeyUp = `KeyUp`, getLastPoint = `getLastPoint`,
   GetWallThickness = "GetWallThickness",
   /** 保存图片等资源到宿主 Resources/pic（参数 fileName, base64/dataURL），返回 https://pic.nt.local/ 下的 URL */
-  SaveResourceFile = "SaveResourceFile"
+  SaveResourceFile = "SaveResourceFile",
+  /** 列出 Resources/pic 里的资源文件（无参数），返回 [{ FileName, RelativePath, Url, Size, LastModifiedUtc }] */
+  ListResourceFiles = "ListResourceFiles",
+  /** 删除 Resources/pic 里的一个资源文件（参数 fileName，纯文件名），返回 { FileName, RelativePath, Deleted } */
+  DeleteResourceFile = "DeleteResourceFile",
+  /** 导出数据组态包（参数 layoutJson, targetPath；targetPath 为空时宿主弹「另存为」），返回 { Cancelled, Path, FileName, Size, Widgets, Resources, Missing } */
+  ExportScadaPackage = "ExportScadaPackage",
+  /** 选择并清点组态包（参数 packagePath；为空时宿主弹打开文件对话框），返回 { Cancelled, Path, FileName, Widgets, Canvas, Resources, ToCopy, Reusable, Missing, Files } */
+  PreviewScadaPackage = "PreviewScadaPackage",
+  /** 导入组态包（参数 packagePath）：宿主把缺的资源解压到 Resources/pic，返回 { Layout, Widgets, Copied, Reused, Missing, Failed } */
+  ImportScadaPackage = "ImportScadaPackage"
 }
 
 export {

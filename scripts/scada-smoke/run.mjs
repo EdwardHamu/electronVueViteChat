@@ -10,6 +10,8 @@
  *       画布视图缩放（滚轮 / 键盘 / 双指）与空格 + 拖动 / 中键平移、位置尺寸输入框、竖屏上下布局、Delete 删除、保存到 localStorage、取消丢弃草稿、卸载后停止轮询、
  *       工具箱式组件库（分类折叠 / 网格列表切换 / NScrollbar）、操作说明弹窗、全部图素 / 控制组件渲染、内部变量数据源写入（位按钮 / IO 域步进 / 复选框 / 字按钮 / 只读提示）、表格、多行文本与图片字段、
  *       zip 读写（STORE / DEFLATE）、组态包导出（宿主资源 + 内嵌图 → zip）/ 解析 / 清点 / 执行导入（上传 / 复用 / 内嵌 / 失败）、右键菜单导出下载与导入弹窗流程、图片经 SaveResourceFile 上传到 https://pic.nt.local/。
+ *       任务 42：宿主打包（ExportScadaPackage 另存为 / PreviewScadaPackage 清点 → 导入弹窗 → ImportScadaPackage 解压并替换布局、取消 / 失败 / 编辑模式）、
+ *       嵌套属性里的资源引用、保存 / 展示模式导入后经 ListResourceFiles + DeleteResourceFile 清理未引用的 GUID 文件（老宿主没有这些接口时退回前端 zip 流程 —— 前面的用例就是在没有这些接口的桥上跑的）。
  * 说明：@/store、@/store/config 与 @/utils/callm 被 stubs/ 里的桩替换（真实模块会把 echarts 等整套依赖拉进来）。
  */
 import { build } from 'esbuild'
@@ -45,6 +47,9 @@ import { createZip, readZip, zipEntryText, crc32 } from '@/views/Home/scada/zip'
 import { buildPackage, parsePackage, planImport, applyPackage, PACKAGE_REF_PREFIX } from '@/views/Home/scada/package'
 import { collectResourceRefs, RESOURCE_BASE_URL, RESOURCE_MAX_BYTES, INLINE_MAX_BYTES } from '@/views/Home/scada/resource'
 export { createZip, readZip, zipEntryText, crc32, buildPackage, parsePackage, planImport, applyPackage, PACKAGE_REF_PREFIX, collectResourceRefs, RESOURCE_BASE_URL, RESOURCE_MAX_BYTES, INLINE_MAX_BYTES }
+import { replaceResourceRefs, cleanupUnusedResources, listResourceFiles, deleteResourceFile, HOST_GENERATED_NAME } from '@/views/Home/scada/resource'
+import { exportPackageViaHost, previewPackageViaHost, importPackageViaHost, layoutFromHostImport } from '@/views/Home/scada/package'
+export { replaceResourceRefs, cleanupUnusedResources, listResourceFiles, deleteResourceFile, HOST_GENERATED_NAME, exportPackageViaHost, previewPackageViaHost, importPackageViaHost, layoutFromHostImport }
 `)
 const stubs = {
   '@/store': path.join(here, 'stubs', 'store.ts'),
@@ -813,6 +818,149 @@ check('宿主保存失败：提示“图片上传失败”，src 不变', () => 
 scada.cancelEdit(); await nextTick()
 check('取消编辑：丢弃导入的草稿，已保存布局仍是 3 个组件', () => { assert.ok(!scada.editing); assert.equal(scada.layout.widgets.length, 3) })
 assert.ok(INLINE_MAX_BYTES < RESOURCE_MAX_BYTES)
+
+// ---------------- 任务 42：宿主打包（SPC_M 91ebedd）+ 未引用资源清理（SPC_M b75fc6e）----------------
+const { replaceResourceRefs, cleanupUnusedResources, listResourceFiles, deleteResourceFile, HOST_GENERATED_NAME, exportPackageViaHost, previewPackageViaHost, importPackageViaHost, layoutFromHostImport } = m
+const G = n => `${String(n).padStart(32, '0')}` // 32 位 hex 的 GUID 文件名
+const nestedLayout = { version: 2, canvas: { width: 800, height: 600 }, widgets: [
+  { id: 'n1', type: 'image', x: 0, y: 0, w: 10, h: 10, props: { src: RESOURCE_BASE_URL + G(1) + '.png' } },
+  { id: 'n2', type: 'table', x: 0, y: 0, w: 10, h: 10, props: { columns: [{ icon: RESOURCE_BASE_URL + G(2) + '.png' }, { icon: PNG_DATA_URL }], meta: { deep: { logo: RESOURCE_BASE_URL + G(1) + '.png' } }, text: 'plain' } }
+] }
+check('资源引用收集 / 替换：递归进入嵌套对象与数组，去重保序，不改原布局', () => {
+  assert.deepEqual(collectResourceRefs(nestedLayout), [RESOURCE_BASE_URL + G(1) + '.png', RESOURCE_BASE_URL + G(2) + '.png', PNG_DATA_URL])
+  const r = replaceResourceRefs(nestedLayout, { [RESOURCE_BASE_URL + G(2) + '.png']: 'X', [PNG_DATA_URL]: '' })
+  assert.equal(r.widgets[1].props.columns[0].icon, 'X'); assert.equal(r.widgets[1].props.columns[1].icon, ''); assert.equal(r.widgets[1].props.meta.deep.logo, RESOURCE_BASE_URL + G(1) + '.png')
+  assert.equal(nestedLayout.widgets[1].props.columns[0].icon, RESOURCE_BASE_URL + G(2) + '.png')
+  assert.ok(HOST_GENERATED_NAME.test(G(7) + '.PNG') && !HOST_GENERATED_NAME.test('exp1.png') && !HOST_GENERATED_NAME.test(G(7)) && !HOST_GENERATED_NAME.test('.gitkeep'))
+})
+// 老宿主（没有这些接口）：列举返回 null、清理不删任何东西、宿主打包返回 undefined（页面退回前端流程，上面的用例已覆盖）
+{
+  const r = await cleanupUnusedResources(nestedLayout)
+  const l = await listResourceFiles(); const e = await exportPackageViaHost(nestedLayout); const pv = await previewPackageViaHost('')
+  check('老宿主没有 ListResourceFiles / ExportScadaPackage 等接口：清理跳过（total -1）、列举 null、宿主打包 undefined', () => {
+    assert.deepEqual(r, { total: -1, deleted: [], failed: [] }); assert.equal(l, null); assert.equal(e, undefined); assert.equal(pv, undefined)
+  })
+  assert.throws(() => layoutFromHostImport({ Layout: { foo: 1 } }), /invalid-layout/)
+  assert.throws(() => layoutFromHostImport({ Layout: [] }), /invalid-layout/)
+}
+// 给模拟宿主补上新接口（SPC_M b75fc6e / 91ebedd）
+const bridge = window.chrome.webview.hostObjects.JsBridge
+const fail = Message => Promise.resolve(JSON.stringify({ Code: 1, Message }))
+const hostFlags = { exportCancel: false, previewCancel: false, importFail: false }
+Object.assign(bridge, {
+  ListResourceFiles: () => { calls.list = (calls.list || 0) + 1; return json([...hostFiles.keys()].map(name => ({ FileName: name, RelativePath: 'Resources/pic/' + name, Url: 'https://pic.nt.local/' + name, Size: hostFiles.get(name).length, LastModifiedUtc: '2026-09-29T00:00:00Z' }))) },
+  DeleteResourceFile: name => {
+    calls.deleted = (calls.deleted || []); calls.deleted.push(name)
+    if (typeof name !== 'string' || /[\\/:*?"<>|]/.test(name) || name === '.gitkeep') return fail('删除资源失败：文件名不合法')
+    const existed = hostFiles.delete(name); return json({ FileName: name, RelativePath: 'Resources/pic/' + name, Deleted: existed })
+  },
+  ExportScadaPackage: (layoutJson, targetPath) => {
+    calls.export = { layoutJson, targetPath }
+    if (typeof layoutJson !== 'string' || typeof targetPath !== 'string') return fail('导出组态失败：参数类型错误')
+    if (hostFlags.exportCancel) return json({ Cancelled: true })
+    const l = JSON.parse(layoutJson)
+    return json({ Cancelled: false, Path: 'D:\\Export\\scada-layout-20260929-120000.zip', FileName: 'scada-layout-20260929-120000.zip', Size: 2048, Widgets: l.widgets.length, Resources: 1, Missing: ['https://pic.nt.local/gone.png'] })
+  },
+  PreviewScadaPackage: packagePath => {
+    calls.preview = packagePath
+    if (typeof packagePath !== 'string') return fail('读取组态包失败：参数类型错误')
+    if (hostFlags.previewCancel) return json({ Cancelled: true })
+    return json({ Cancelled: false, Path: 'D:\\pkg\\foreign.zip', FileName: 'foreign.zip', Size: 999, Widgets: 2, Canvas: { Width: 640, Height: 480 }, Resources: 3, ToCopy: 1, Reusable: 1, Missing: ['https://pic.nt.local/gone.png'],
+      Files: [{ File: 'resources/' + G(9) + '.png', Url: 'https://pic.nt.local/' + G(9) + '.png', Size: PNG.length, InPackage: true, Exists: false }, { File: 'resources/exp1.png', Url: RESOURCE_BASE_URL + 'exp1.png', Size: PNG.length, InPackage: true, Exists: true }, { File: 'resources/gone.png', Url: 'https://pic.nt.local/gone.png', Size: 0, InPackage: false, Exists: false }] })
+  },
+  ImportScadaPackage: packagePath => {
+    calls.import = packagePath
+    if (hostFlags.importFail) return fail('导入组态失败：模拟失败')
+    hostFiles.set(G(9) + '.png', PNG) // 宿主把包里的资源解压到 Resources/pic
+    return json({ Path: packagePath, FileName: 'foreign.zip', Layout: { version: 2, canvas: { width: 640, height: 480, background: '#ffffff', grid: 10 }, widgets: [
+      { id: 'h1', type: 'image', x: 0, y: 0, w: 100, h: 80, props: { src: 'https://pic.nt.local/' + G(9) + '.png' } },
+      { id: 'h2', type: 'textLabel', x: 0, y: 100, w: 100, h: 30, props: { text: 'host imported' } }
+    ] }, Widgets: 2, Copied: 1, Reused: 1, Missing: ['https://pic.nt.local/gone.png'], Failed: [] })
+  }
+})
+// 清理：只删布局不再引用的 GUID 文件；非 GUID 文件（exp1.png 等）和引用中的文件不动
+hostFiles.set(G(1) + '.png', PNG); hostFiles.set(G(2) + '.png', PNG); hostFiles.set(G(3) + '.jpg', PNG); hostFiles.set('manual-copy.png', PNG)
+{
+  const r = await cleanupUnusedResources(nestedLayout)
+  check('cleanupUnusedResources：删除未引用的 GUID 文件（含大小写无关的扩展名），保留引用中的与非 GUID 文件', () => {
+    assert.deepEqual(r.deleted, [G(3) + '.jpg']); assert.deepEqual(r.failed, [])
+    assert.ok(hostFiles.has(G(1) + '.png') && hostFiles.has(G(2) + '.png') && hostFiles.has('manual-copy.png') && hostFiles.has('exp1.png') && !hostFiles.has(G(3) + '.jpg'))
+    assert.ok(!calls.deleted.includes('manual-copy.png') && !calls.deleted.includes('exp1.png'))
+  })
+  const d1 = await deleteResourceFile('manual-copy.png'); const d2 = await deleteResourceFile('../x.png'); const d3 = await deleteResourceFile(G(2) + '.png')
+  check('deleteResourceFile：只接受 GUID 文件名（非 GUID / 带路径的名字不会发给宿主）', () => { assert.equal(d1, false); assert.equal(d2, false); assert.equal(d3, true); assert.ok(!hostFiles.has(G(2) + '.png')); assert.ok(!calls.deleted.includes('../x.png')) })
+  hostFiles.set(G(2) + '.png', PNG)
+}
+// 保存后自动清理：当前已保存布局是 3 个组件（f1 → 上传的宿主图、f2 → exp1.png、f3 文本），G(1)/G(2) 未被引用
+const listBefore = calls.list || 0
+scada.startEdit(); scada.addWidget('textLabel'); await scada.save(); await waitUntil(() => (calls.list || 0) > listBefore && !hostFiles.has(G(1) + '.png'))
+check('保存组态后自动清理：未引用的 GUID 文件被删除，布局引用的上传图与非 GUID 文件保留', () => {
+  assert.ok(!hostFiles.has(G(1) + '.png') && !hostFiles.has(G(2) + '.png'))
+  const kept = scada.layout.widgets.map(w => w.props.src).filter(s => typeof s === 'string' && s.startsWith(RESOURCE_BASE_URL)).map(s => decodeURIComponent(s.slice(RESOURCE_BASE_URL.length)))
+  assert.ok(kept.length >= 1 && kept.every(n => hostFiles.has(n)), kept); assert.ok(hostFiles.has('manual-copy.png'))
+})
+// 页面流程：右键菜单“导出组态”→ 宿主 ExportScadaPackage（另存为），不再走浏览器下载
+const dlBefore = downloads.length; const msgBefore = msgs.length
+await contextMenu(100, 100); menuItem('导出组态').click(); await nextTick(); await waitUntil(() => msgs.length > msgBefore)
+check('导出组态（有宿主）：把当前布局 JSON 交给 ExportScadaPackage、路径留空（宿主弹另存为），提示导出路径，不触发浏览器下载', () => {
+  assert.equal(calls.export.targetPath, ''); const l = JSON.parse(calls.export.layoutJson); assert.equal(l.widgets.length, scada.layout.widgets.length); assert.equal(l.canvas.width, scada.layout.canvas.width)
+  assert.equal(downloads.length, dlBefore); assert.ok(msgs[msgs.length - 1].includes('D:\\Export\\scada-layout-20260929-120000.zip') && msgs[msgs.length - 1].includes('1 个资源'), msgs[msgs.length - 1])
+  assert.ok(warns[warns.length - 1].includes('1 个资源文件'), warns[warns.length - 1]) // Missing → 警告
+})
+hostFlags.exportCancel = true; calls.export = null
+await contextMenu(100, 100); menuItem('导出组态').click(); await nextTick(); await waitUntil(() => !!calls.export); await sleep(80)
+check('导出组态：宿主另存为被取消 → 不提示、不下载', () => { assert.ok(calls.export); assert.equal(msgs.length, msgBefore + 1); assert.equal(downloads.length, dlBefore) })
+hostFlags.exportCancel = false
+// 页面流程：右键菜单“导入组态”→ 宿主 PreviewScadaPackage（打开对话框）→ 导入弹窗清单 → ImportScadaPackage
+const inputsBefore = clickedInputs.length
+calls.preview = undefined
+await contextMenu(100, 100); menuItem('导入组态').click(); await nextTick(); await waitUntil(() => phase() === 'ready')
+check('导入组态（有宿主）：PreviewScadaPackage(\'\') 由宿主选文件，不再点隐藏 file input；弹窗列出宿主清点结果（文件 / 组件数 / 画布 / 需复制 1 · 可复用 1 · 缺失 1）', () => {
+  assert.equal(calls.preview, ''); assert.equal(clickedInputs.length, inputsBefore)
+  assert.equal(phase(), 'ready'); assert.equal(dialog().querySelector('[data-import-phase]').getAttribute('data-import-source'), 'host')
+  const txt = dialog().textContent
+  for (const kw of ['foreign.zip', '640 × 480', '需复制 1', '可复用 1', '缺失 1', '本机都没有', '替换当前已保存的组态']) assert.ok(txt.includes(kw), kw)
+  assert.ok(!txt.includes('需上传')); assert.ok(dialogButton('导入'))
+})
+const listBefore2 = calls.list || 0; const layoutBefore2 = scada.layout
+hostFiles.set(G(5) + '.png', PNG) // 导入前的孤儿文件，导入后应被清理
+document.body.querySelector('[data-import-confirm]').click(); await nextTick(); await waitPhase('ready', 'importing'); await waitUntil(() => (calls.list || 0) > listBefore2 && !hostFiles.has(G(5) + '.png'))
+check('确认导入：ImportScadaPackage(Path) 解压资源并返回布局 → 规范化后替换并持久化，弹窗显示“复制 1 · 复用 1”，缺失提示；随后清理未引用文件', () => {
+  assert.equal(phase(), 'done'); assert.equal(calls.import, 'D:\\pkg\\foreign.zip')
+  assert.notEqual(scada.layout, layoutBefore2); assert.equal(scada.layout.widgets.length, 2); assert.equal(scada.layout.widgets[0].props.src, 'https://pic.nt.local/' + G(9) + '.png')
+  assert.equal(JSON.parse(localStorage.getItem('scadaLayout')).widgets.length, 2); assert.ok(canvasView.el.textContent.includes('host imported'))
+  const txt = dialog().textContent; assert.ok(txt.includes('导入完成') && txt.includes('资源复制 1 个、复用 1 个') && txt.includes('本机都没有'), txt)
+  assert.ok(msgs[msgs.length - 1].includes('资源复制 1 个'), msgs[msgs.length - 1])
+  assert.ok(hostFiles.has(G(9) + '.png') && !hostFiles.has(G(5) + '.png') && hostFiles.has('manual-copy.png'))
+})
+dialogButton('关闭').click(); await nextTick(); await sleep(100)
+check('关闭宿主导入弹窗', () => assert.ok(!dialog()))
+hostFlags.previewCancel = true; calls.preview = undefined
+await contextMenu(100, 100); menuItem('导入组态').click(); await nextTick(); await waitUntil(() => calls.preview !== undefined); await sleep(80)
+check('导入组态：宿主打开对话框被取消 → 不弹导入弹窗、不点 file input', () => { assert.equal(calls.preview, ''); assert.ok(!dialog()); assert.equal(clickedInputs.length, inputsBefore) })
+hostFlags.previewCancel = false
+// 宿主导入失败：弹窗显示错误，布局不变
+hostFlags.importFail = true
+await contextMenu(100, 100); menuItem('导入组态').click(); await nextTick(); await waitUntil(() => phase() === 'ready')
+document.body.querySelector('[data-import-confirm]').click(); await nextTick(); await waitPhase('ready', 'importing')
+check('宿主 ImportScadaPackage 返回失败：弹窗显示“导入失败”，已保存布局不变', () => { assert.equal(phase(), 'error'); assert.ok(dialog().textContent.includes('导入失败')); assert.equal(scada.layout.widgets.length, 2); assert.ok(!dialogButton('导入')) })
+hostFlags.importFail = false
+document.body.querySelector('.n-modal .n-card-header__close').click(); await nextTick(); await sleep(100)
+// 编辑模式下宿主导入：只替换草稿，不持久化、不清理
+scada.startEdit(); await nextTick()
+const listBefore3 = calls.list || 0
+await contextMenu(100, 100)
+check('编辑模式没有右键菜单（用工具栏 ⋯）', () => assert.equal(menuItems().length, 0))
+root.querySelector('[data-scada-more]').click(); await nextTick(); await sleep(80)
+menuItem('导入组态').click(); await nextTick(); await waitUntil(() => phase() === 'ready')
+check('编辑模式宿主导入：清单提示“替换当前草稿”', () => { assert.equal(phase(), 'ready'); assert.ok(dialog().textContent.includes('替换当前草稿')) })
+document.body.querySelector('[data-import-confirm]').click(); await nextTick(); await waitPhase('ready', 'importing'); await sleep(80)
+check('编辑模式确认宿主导入：草稿被替换（dirty），已保存布局与存储不变，不触发清理，提示记得保存', () => {
+  assert.equal(phase(), 'done'); assert.equal(scada.draft.widgets.length, 2); assert.ok(scada.dirty); assert.ok(scada.editing)
+  assert.equal(calls.list || 0, listBefore3); assert.ok(dialog().textContent.includes('记得保存'))
+})
+dialogButton('关闭').click(); await nextTick(); await sleep(100)
+scada.cancelEdit(); await nextTick()
 
 app.unmount()
 check('卸载后恢复虚拟键盘', () => assert.equal(main.globalKeyBoardBlocked, false))

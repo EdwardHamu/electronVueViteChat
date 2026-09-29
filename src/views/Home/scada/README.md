@@ -18,10 +18,10 @@
 | `widgets/` | 内置组件，分三类（`WidgetDefinition.category`）：`shape` 基础图素（`shapes.tsx` 直线 / 折线 / 弧线 / 矩形 / 圆形 / 椭圆 / 扇形 / 弓形 / 多边形 / 管道，`TextLabel.tsx` 文本，`Image.tsx` 图片）、`control` 控制与显示（`controls.tsx` 数值 IO 域 / 字符 IO 域 / 日期时间域 / 按钮 / 位按钮 / 字按钮 / 位状态显示 / 字状态显示 / 文本列表 / 文本开关 / 单选框 / 复选框，`Table.tsx` 表格）、`data` 数据看板（数值卡片 / 仪表盘 / 迷你趋势 / 状态灯）。`icons.tsx` 是组件库用的 24×24 线条图标；`common.ts` / `controlCommon.ts`（`useControl` 写入封装、选项列表解析、共享秒表）为共用工具 |
 | `store.ts` | Pinia store：已保存布局 `layout`、编辑草稿 `draft`、选中项、增删改 / 层级 / 画布设置 |
 | `storage.ts` | 持久化抽象 `LayoutStorage`，默认 localStorage（key `scadaLayout`） |
-| `resource.ts` | **资源文件**（图片等）：有宿主时经 `JsBridge.SaveResourceFile(fileName, base64)` 存到运行目录 `Resources/pic/<GUID>.<ext>`，布局里只记返回的 `https://pic.nt.local/<GUID>.<ext>`（WebView2 虚拟主机映射到该目录，跨域 fetch 已放开）；没有宿主桥（纯浏览器调试）退回 data URL 内嵌（单张 ≤ `INLINE_MAX_BYTES` 300 KB）。还包括引用收集 / 替换、`fetchResource` / `resourceExists`、`downloadBlob`（`a[download]` 触发浏览器下载） |
+| `resource.ts` | **资源文件**（图片等）：有宿主时经 `JsBridge.SaveResourceFile(fileName, base64)` 存到运行目录 `Resources/pic/<GUID>.<ext>`，布局里只记返回的 `https://pic.nt.local/<GUID>.<ext>`（WebView2 虚拟主机映射到该目录，跨域 fetch 已放开）；没有宿主桥（纯浏览器调试）退回 data URL 内嵌（单张 ≤ `INLINE_MAX_BYTES` 300 KB）。还包括递归的引用收集 / 替换（`walkStrings`，嵌套属性也算）、`fetchResource` / `resourceExists`、`downloadBlob`（`a[download]` 触发浏览器下载）、宿主调用封装 `callHost`、`listResourceFiles` / `deleteResourceFile` 与 **`cleanupUnusedResources(layout)`**（删掉 `Resources/pic` 里布局不再引用的 `<32 位 hex>.<ext>` 文件，`store.save()` 与展示模式 `applyLayout()` 后自动调用） |
 | `zip.ts` | 零依赖 zip：写 STORE（含 CRC32、UTF-8 文件名标志），读 STORE / DEFLATE（`DecompressionStream('deflate-raw')`），够用于组态包 |
-| `package.ts` | **组态包**导入导出（纯逻辑）：`buildPackage()` 把布局 + 引用的全部资源打成一个 zip（`manifest.json` + `layout.json` + `resources/…`）；`parsePackage()` 解析 zip 或直接的 JSON；`planImport()` 清点资源（本机已有同名 GUID 文件 → 复用，否则上传，包里缺的 → 缺失）；`applyPackage()` 上传 / 复用 / 内嵌并返回引用已替换的布局 |
-| `ImportDialog.tsx` | 导入弹窗：解析 → 清单（组件数 / 画布 / 资源统计）→ 确认后上传并调用 `store.applyLayout()`（展示模式直接持久化，编辑模式只替换草稿） |
+| `package.ts` | **组态包**导入导出（纯逻辑）。有宿主：`exportPackageViaHost(layout)` / `previewPackageViaHost('')` / `importPackageViaHost(path)` 分别调 `JsBridge.ExportScadaPackage`（另存为对话框 + 宿主打包）/ `PreviewScadaPackage`（打开对话框 + 清点）/ `ImportScadaPackage`（解压资源到 `Resources/pic`、返回布局），`layoutFromHostImport()` 规范化返回的布局；返回 `undefined` 表示老宿主没有该接口。浏览器 / 老宿主：`buildPackage()` 把布局 + 引用的全部资源打成一个 zip（`manifest.json` + `layout.json` + `resources/…`）；`parsePackage()` 解析 zip 或直接的 JSON；`planImport()` 清点资源（本机已有同名 GUID 文件 → 复用，否则上传，包里缺的 → 缺失）；`applyPackage()` 上传 / 复用 / 内嵌并返回引用已替换的布局 |
+| `ImportDialog.tsx` | 导入弹窗，两种来源：`preview`（宿主 `PreviewScadaPackage` 的清点结果 → 确认后 `ImportScadaPackage`）或 `file`（前端解析 → 上传）；清单（组件数 / 画布 / 资源统计）→ 确认后调用 `store.applyLayout()`（展示模式直接持久化，编辑模式只替换草稿） |
 | `layout.ts` | 默认值与反序列化校验 / 版本迁移；`geometry.ts` 吸附、越界、缩放等纯函数 |
 | `Canvas.tsx` | 等比缩放画布、`WidgetHost`（绑定 → 处理函数 → 历史值 → 组件）、Pointer Events 拖动 / 缩放组件、Delete 删除、方向键微调（1px，Shift 按网格）；编辑模式的视图缩放（滚轮 / 双指 / 键盘 + - 0）与平移（空格 + 拖动 / 中键拖动 / 双指） |
 | `Palette.tsx` | 组件库，HMI 工具箱样式：按三个分类分组（点分类标题折叠 / 展开），每项是小图标 + 名称，横屏可在**网格**（3 列）/ **列表**（图标 + 名称 + 说明）间切换（记在 localStorage `scadaPaletteView`）；点按放到空位、按住拖到画布上松手放置；`direction` = vertical（横屏侧栏 200px）/ horizontal（竖屏顶部横向条带，分类做成竖排标签）。滚动容器是 naive-ui `NScrollbar`（悬浮式滚动条，不占内容宽度） |
@@ -29,7 +29,7 @@
 | `ColorField.tsx` | 颜色字段（组件颜色属性、画布背景）：一行色块按钮，点开在下方行内展开面板——第一界面是**预设颜色表**，按钮切换到 HSV **调色盘**（SV 面板 + 色相条 + hex 输入）；两处都能「加入预设」，「管理」模式点色块移除、可恢复默认；`clearable` 时提供「清除」（空值 = 组件默认色）。不用 naive-ui 的 NColorPicker 弹层（嵌在滚动面板 / 弹层里会被 click-outside 关掉） |
 | `color.ts` / `colorPresets.ts` | hex ↔ HSV 等纯函数；预设颜色表（所有颜色字段共用，最多 64 个，localStorage key `scadaColorPresets`，损坏 / 清空时回落到默认 24 色） |
 | `TransformDialog.tsx` | 数据处理函数编辑弹窗：本地草稿 + 用当前数据实时预览输出 / 错误，「确定」才写回组件，语法错误不可确定 |
-| `index.tsx` | 页面入口：展示模式右键菜单（`NDropdown` trigger=manual：编辑 / 刷新数据源 / 导出组态 / 导入组态）、编辑模式工具栏（含缩放按钮、`?` 操作说明弹窗、`⋯` 更多菜单里的导出 / 导入）；隐藏的 `<input type=file>` 选包后打开 `ImportDialog`；横屏三栏 / 竖屏三行布局切换；挂载期间屏蔽虚拟键盘 |
+| `index.tsx` | 页面入口：展示模式右键菜单（`NDropdown` trigger=manual：编辑 / 刷新数据源 / 导出组态 / 导入组态）、编辑模式工具栏（含缩放按钮、`?` 操作说明弹窗、`⋯` 更多菜单里的导出 / 导入）；有宿主时导出 / 导入交给宿主（另存为 / 打开对话框），否则前端打包下载、隐藏的 `<input type=file>` 选包后打开 `ImportDialog`；横屏三栏 / 竖屏三行布局切换；挂载期间屏蔽虚拟键盘 |
 
 ## 数据流
 
@@ -84,10 +84,14 @@ DataSourceProvider.read(key) ──► DataPoint ──► 数据处理函数（
 
 ## 导入 / 导出组态包
 
-- 入口：展示模式右键菜单，或编辑模式工具栏的 `⋯` 菜单。
-- 导出：`buildPackage(scada.current)` → 一个 zip（`scada-layout-YYYYMMDD-HHmmss.zip`）→ `downloadBlob()` 走浏览器下载（WebView2 默认下载流程，落在系统下载目录）。包内：`manifest.json`（格式 / 版本 / 组件数 / 资源清单 `[{ file, url }]`）、`layout.json`（与 localStorage 里保存的结构一致）、`resources/`（图片等）。宿主 URL 引用的文件按原名（GUID）放入并保留原 URL；旧版内嵌的 data URL 会抽成 `resources/inline-N.ext`，`layout.json` 里换成 `pkg:resources/inline-N.ext` 占位。读不到的资源计入 `missing`（提示但不中断）。
-- 导入：选 zip（也接受直接导出的 JSON）→ `parsePackage` → `planImport`（`resourceExists` 用 `fetch(https://pic.nt.local/<name>)` 探测同名文件：同一台机器重新导入不重复上传）→ 确认 → `applyPackage`（需上传的逐个 `SaveResourceFile`，返回新 URL 写回布局；没有宿主桥时内嵌成 data URL）→ `store.applyLayout()`。展示模式导入后直接持久化并显示；编辑模式只替换草稿，保存才生效（取消编辑可丢弃）。
-- 限制：宿主没有删除 / 列目录接口，旧图片会留在 `Resources/pic` 里（不影响使用）；`collectResourceRefs` 只扫描组件 `props` 的顶层字符串值，新组件若把图片放进嵌套结构需要扩展它。
+- 入口：展示模式右键菜单，或编辑模式工具栏的 `⋯` 菜单。包结构（宿主与前端实现一致）：`manifest.json`（格式 / 版本 / 组件数 / 画布 / 资源清单 `[{ file, url }]`）、`layout.json`（与 localStorage 里保存的结构一致）、`resources/<GUID>.<ext>`（图片等，文件名就是 `Resources/pic` 里的名字，所以 `layout.json` 里的 `https://pic.nt.local/<GUID>.<ext>` 在导入机器上原样可用）。
+- **有宿主（SPC_M `91ebedd` 起）——打包 / 解包都在 C# 侧完成，前端只传布局、确认清单、应用结果：**
+  - 导出：`exportPackageViaHost(scada.current)` → `JsBridge.ExportScadaPackage(layoutJson, '')`：宿主弹「另存为」（默认名 `scada-layout-YYYYMMDD-HHmmss.zip`，初始目录 = 系统配置的导出路径），直接从 `Resources/pic` 读文件打包，布局里内嵌的 data URL 由宿主抽成新的 GUID 文件；返回 `{ Cancelled, Path, FileName, Size, Widgets, Resources, Missing }`，取消时 `Cancelled=true` 静默返回，`Missing`（本机没有的引用）提示但不中断。
+  - 导入：`previewPackageViaHost('')` → `JsBridge.PreviewScadaPackage('')`：宿主弹打开文件对话框并只清点不写文件，返回 `{ Path, FileName, Widgets, Canvas, Resources, ToCopy, Reusable, Missing, Files }` → `ImportDialog`（`preview` 模式）显示清单 → 确认 → `importPackageViaHost(Path)` → `JsBridge.ImportScadaPackage(Path)`：宿主把本机没有的资源解压到 `Resources/pic`（同名文件复用、不覆盖；旧版前端包里的 `pkg:resources/…` 占位另存为新 GUID 并改写地址）并返回 `Layout` → `layoutFromHostImport()`（`normalizeLayout`）→ `store.applyLayout()`。
+  - 老宿主没有这些接口时 `callHost` 返回 `undefined`（真实 WebView2 代理会先抛错、`callBrige` 弹一条错误），页面自动退回下面的浏览器流程。
+- **没有宿主桥（纯浏览器调试）：** 导出 `buildPackage(scada.current)` → zip → `downloadBlob()` 浏览器下载（内嵌 data URL 抽成 `resources/inline-N.ext` + `pkg:resources/inline-N.ext` 占位）；导入选 zip（也接受直接导出的 JSON）→ `parsePackage` → `planImport`（`resourceExists` 用 `fetch(https://pic.nt.local/<name>)` 探测同名文件）→ 确认 → `applyPackage`（需上传的逐个 `SaveResourceFile`；没有宿主桥时内嵌成 data URL）→ `store.applyLayout()`。
+- 展示模式导入后直接持久化并显示；编辑模式只替换草稿，保存才生效（取消编辑可丢弃）。
+- **孤儿资源清理：** `store.save()` 与展示模式 `applyLayout()` 成功后异步调用 `cleanupUnusedResources(layout)`：`ListResourceFiles` 列出 `Resources/pic`，把布局（递归扫描全部字符串值）没有引用、且文件名形如 `<32 位 hex>.<ext>`（宿主生成的名字）的文件逐个 `DeleteResourceFile`；手工放进目录的文件、`.gitkeep` 不碰；列举失败 / 老宿主没有接口时什么都不删。编辑草稿里刚上传、还没保存的图片不会被清（清理只在保存后按保存结果跑）。
 
 ## 坐标系与视图
 
@@ -105,4 +109,4 @@ DataSourceProvider.read(key) ──► DataPoint ──► 数据处理函数（
 
 ## 测试
 
-无需 WebView2 宿主：`npm i --no-save esbuild@0.21 jsdom@22 && node scripts/scada-smoke/run.mjs`（见脚本头部说明，目前 117 步；zip / 组态包 / 资源上传部分用 Node 20 自带的 `DecompressionStream` 与 jsdom 的 `File` / `FileReader`，宿主 `SaveResourceFile` 与 `https://pic.nt.local/` 静态目录都在脚本里模拟）。
+无需 WebView2 宿主：`npm i --no-save esbuild@0.21 jsdom@22 && node scripts/scada-smoke/run.mjs`（见脚本头部说明，目前 132 步；zip / 组态包 / 资源上传部分用 Node 20 自带的 `DecompressionStream` 与 jsdom 的 `File` / `FileReader`，宿主 `SaveResourceFile` / `ListResourceFiles` / `DeleteResourceFile` / `ExportScadaPackage` / `PreviewScadaPackage` / `ImportScadaPackage` 与 `https://pic.nt.local/` 静态目录都在脚本里模拟——前半段在没有打包接口的桥上跑（覆盖浏览器 / 老宿主流程），任务 42 一节再把新接口补进桩里）。宿主侧对应的自检是 `SPC.M.Test.exe --scada-package`。

@@ -1,10 +1,24 @@
 /**
- * 导入组态包弹窗：解析 zip / JSON → 显示清单（组件数、画布、资源：复用 / 需上传 / 缺失）→ 确认后上传资源并替换布局。
+ * 导入组态包弹窗，两种来源：
+ *  - 宿主模式（preview）：宿主 PreviewScadaPackage 已选好文件并清点完毕 → 显示清单（组件数、画布、资源：需复制 / 可复用 / 缺失）
+ *    → 确认后调宿主 ImportScadaPackage 解压资源、拿回布局并替换；
+ *  - 浏览器模式（file）：前端解析 zip / JSON → 清单（复用 / 需上传 / 缺失）→ 确认后上传资源并替换布局。
  * 展示模式下直接持久化；编辑模式下替换草稿，保存后才生效。
  */
 import { NButton, NModal, NSpin } from 'naive-ui'
 import { defineComponent, reactive, watch, type PropType } from 'vue'
-import { applyPackage, parsePackage, planImport, type ImportPlan, type ImportResult, type ParsedPackage } from './package'
+import {
+  applyPackage,
+  importPackageViaHost,
+  layoutFromHostImport,
+  parsePackage,
+  planImport,
+  type HostImportResult,
+  type HostPackagePreview,
+  type ImportPlan,
+  type ImportResult,
+  type ParsedPackage
+} from './package'
 import { hasHostBridge } from './resource'
 import { useScadaStore } from './store'
 import { tt } from './widgets/common'
@@ -27,7 +41,10 @@ export default defineComponent({
   name: 'ScadaImportDialog',
   props: {
     show: { type: Boolean, default: false },
-    file: { type: Object as PropType<File | null>, default: null }
+    /** 浏览器模式：用户通过 file input 选的文件 */
+    file: { type: Object as PropType<File | null>, default: null },
+    /** 宿主模式：PreviewScadaPackage 的结果（优先于 file） */
+    preview: { type: Object as PropType<HostPackagePreview | null>, default: null }
   },
   emits: {
     close: () => true,
@@ -42,6 +59,8 @@ export default defineComponent({
       pkg: null as ParsedPackage | null,
       plan: null as ImportPlan | null,
       result: null as ImportResult | null,
+      host: null as HostPackagePreview | null,
+      hostResult: null as HostImportResult | null,
       progress: { done: 0, total: 0 }
     })
     let seq = 0
@@ -52,6 +71,8 @@ export default defineComponent({
       state.pkg = null
       state.plan = null
       state.result = null
+      state.host = null
+      state.hostResult = null
       state.progress = { done: 0, total: 0 }
     }
 
@@ -77,9 +98,14 @@ export default defineComponent({
     }
 
     watch(
-      () => [props.show, props.file] as const,
-      ([show, file]) => {
-        if (show && file) parse(file)
+      () => [props.show, props.file, props.preview] as const,
+      ([show, file, preview]) => {
+        if (show && preview) {
+          seq++
+          reset()
+          state.host = preview
+          state.phase = 'ready'
+        } else if (show && file) parse(file)
         else if (!show) {
           seq++
           reset()
@@ -88,7 +114,31 @@ export default defineComponent({
       { immediate: true }
     )
 
+    /** 宿主模式确认：宿主解压资源并返回布局 → 规范化 → 替换 */
+    const confirmHost = async () => {
+      const host = state.host
+      if (!host || !host.Path || state.phase !== 'ready') return
+      state.phase = 'importing'
+      try {
+        const res = await importPackageViaHost(host.Path)
+        // undefined / null：宿主不支持或返回失败（callBrige 已弹出宿主的错误信息）
+        if (!res || typeof res !== 'object') throw new Error('host-import-failed')
+        const layout = layoutFromHostImport(res)
+        await scada.applyLayout(layout)
+        state.hostResult = res
+        state.phase = 'done'
+        window.$message && window.$message.success(fmt('scada.pkg.hostDone', { w: layout.widgets.length, u: res.Copied || 0, r: res.Reused || 0 }))
+        const failed = [...(res.Failed || []), ...(res.Missing || [])].map(url => ({ file: '', url }))
+        emit('imported', { layout, uploaded: res.Copied || 0, reused: res.Reused || 0, inlined: 0, failed })
+      } catch (err: any) {
+        console.error('[scada] host import failed', err)
+        state.error = String((err && err.message) || '') === 'invalid-layout' ? tt('scada.pkg.invalid') : tt('scada.pkg.importFailed')
+        state.phase = 'error'
+      }
+    }
+
     const confirm = async () => {
+      if (state.host) return confirmHost()
       if (!state.pkg || !state.plan || state.phase !== 'ready') return
       state.phase = 'importing'
       state.progress = { done: 0, total: state.plan.toUpload.length }
@@ -130,7 +180,20 @@ export default defineComponent({
         return (
           <div class={'py-6 flex items-center justify-center gap-3 text-sm text-gray-500'} data-import-phase="importing">
             <NSpin size="small" />
-            {fmt('scada.pkg.importing', { done: state.progress.done, total: state.progress.total })}
+            {state.host ? tt('scada.pkg.hostImporting') : fmt('scada.pkg.importing', { done: state.progress.done, total: state.progress.total })}
+          </div>
+        )
+      }
+      if (p === 'done' && state.hostResult) {
+        const r = state.hostResult
+        const failed = (r.Failed || []).length
+        const missing = (r.Missing || []).length
+        return (
+          <div class={'flex flex-col gap-1'} data-import-phase="done">
+            <div class={'text-sm text-green-700'}>{fmt('scada.pkg.hostDone', { w: r.Widgets, u: r.Copied || 0, r: r.Reused || 0 })}</div>
+            {failed ? <div class={'text-xs text-orange-600'}>{fmt('scada.pkg.failedCount', { n: failed })}</div> : null}
+            {missing ? <div class={'text-xs text-orange-600'}>{fmt('scada.pkg.missingCount', { n: missing })}</div> : null}
+            {scada.editing ? <div class={'text-xs text-gray-500'}>{tt('scada.pkg.draftNote')}</div> : null}
           </div>
         )
       }
@@ -142,6 +205,24 @@ export default defineComponent({
             {r.failed.length ? <div class={'text-xs text-orange-600'}>{fmt('scada.pkg.failedCount', { n: r.failed.length })}</div> : null}
             {r.inlined ? <div class={'text-xs text-gray-500'}>{tt('scada.pkg.inlinedNote')}</div> : null}
             {scada.editing ? <div class={'text-xs text-gray-500'}>{tt('scada.pkg.draftNote')}</div> : null}
+          </div>
+        )
+      }
+      if (p === 'ready' && state.host) {
+        const h = state.host
+        const total = h.Resources || 0
+        const missing = (h.Missing || []).length
+        return (
+          <div class={'flex flex-col gap-1.5'} data-import-phase="ready" data-import-source="host">
+            {row(tt('scada.pkg.file'), h.FileName || h.Path || '')}
+            {row(tt('scada.panel.widgetCount'), h.Widgets || 0)}
+            {row(tt('scada.panel.canvas'), h.Canvas ? `${h.Canvas.Width} × ${h.Canvas.Height}` : '-')}
+            {row(
+              tt('scada.pkg.resources'),
+              total ? `${total}（${fmt('scada.pkg.hostResourceDetail', { u: h.ToCopy || 0, r: h.Reusable || 0, m: missing })}）` : tt('scada.pkg.noResources')
+            )}
+            {missing ? <div class={'text-xs text-orange-600 mt-1'}>{fmt('scada.pkg.missingCount', { n: missing })}</div> : null}
+            <div class={'text-xs text-gray-500 mt-1'}>{scada.editing ? tt('scada.pkg.replaceDraftHint') : tt('scada.pkg.replaceHint')}</div>
           </div>
         )
       }
