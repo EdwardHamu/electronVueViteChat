@@ -59,6 +59,12 @@ export const PortNameList = [
   value: e
 }))
 
+/** 超声波偏心仪壁厚点数可选值（后端 WALL01 ~ WALL08） */
+export const WallNumList = [1, 2, 3, 4, 5, 6, 7, 8].map(e => ({
+  label: String(e),
+  value: e
+}))
+
 export const PlcModelList = [
   "S200Smart", "S200", "S1200", "S1500", "S300", "S400"
 ].map(e => ({
@@ -242,7 +248,10 @@ export enum propNameEnum {
   CreateTime = 'CreateTime',
 
   Exchange = 'Exchange',
-  Rate = 'Rate'
+  Rate = 'Rate',
+
+  /** 超声波偏心仪：壁厚点数（SPC.Driver.Beta ConnectTcpModel.WallNum，1 ~ 8） */
+  WallNum = 'WallNum'
 }
 export const getPropNameMap = (): Record<string, string> => {
   const map: Record<string, string> = {}
@@ -289,6 +298,7 @@ export const getPropNameMap = (): Record<string, string> => {
 
   map[propNameEnum.Exchange] = t('config.dataConversion')
   map[propNameEnum.Rate] = t('config.dataMultiplier')
+  map[propNameEnum.WallNum] = t('config.wallNum')
   map[propNameEnum.Name] = map[propNameEnum.DataName]
 
   return map
@@ -348,6 +358,8 @@ commonFormItemListMap[propNameEnum.Unit] = { type: 'input', ...mapLabelAndProp(p
 commonFormItemListMap[propNameEnum.Exchange] = { type: 'select', ...mapLabelAndProp(propNameEnum.Exchange), width: 12, rule: ['mustNum'] }
 commonFormItemListMap[propNameEnum.Rate] = { type: 'input', ...mapLabelAndProp(propNameEnum.Rate), width: 12, rule: ['must'] }
 commonFormItemListMap[propNameEnum.Precision] = { type: 'input', ...mapLabelAndProp(propNameEnum.Precision), width: 12, rule: ['must'] }
+// 下拉 1 ~ 8（选项见 WallNumList），不用 numInput：项目里没有其它地方用它，样式也未与 input/select 对齐
+commonFormItemListMap[propNameEnum.WallNum] = { type: 'select', ...mapLabelAndProp(propNameEnum.WallNum), width: 12, rule: ['mustNum'] }
 
 // 刷新 propNameMap 和 commonFormItemListMap 的国际化文本
 export const refreshCommonFormItemListMap = () => {

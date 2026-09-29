@@ -5,7 +5,7 @@ import { useConfigStore } from "@/store/config";
 import { formListItem, MyFormWrap, MyFormWrapIns } from "@/components/MyFormWrap/MyFormWrap";
 import { callBrige } from "@/utils/callm";
 import { callFnName } from "@/utils/enum";
-import { } from "./enum";
+import { driverNameEnum } from "./enum";
 import { defaultConnectComModel } from "../devConfig/enum";
 import { useMyI18n } from "@/hooks/useMyI18n";
 
@@ -30,6 +30,7 @@ export default defineComponent({
           { label: t('config.opcDaClient'), value: 'OPC DA Client' },
           { label: t('config.opcUaClient'), value: 'OPC UA Client' },
           { label: t('config.siemensTcpClient'), value: 'Siemens Tcp Client' },
+          { label: t('config.betaUltrasonicClient'), value: driverNameEnum.betaUltrasonic },
         ], radioType: 'def', rule: ['must']
       },
     ]

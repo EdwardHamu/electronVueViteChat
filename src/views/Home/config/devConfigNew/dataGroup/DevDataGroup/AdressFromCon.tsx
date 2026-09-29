@@ -8,6 +8,7 @@ import { MyFormWrapIns } from "@/components/MyFormWrap/MyFormWrap";
 import { callBrige } from "@/utils/callm";
 import { callFnName } from "@/utils/enum";
 import { useMyI18n } from "@/hooks/useMyI18n";
+import { driverNameEnum } from "../../enum";
 
 export default defineComponent({
   name: 'AdressFormCon',
@@ -59,6 +60,7 @@ export default defineComponent({
     const getAdressForm = (driveName: string) => {
       switch (driveName) {
         case 'Modbus Tcp Client':
+        case driverNameEnum.betaUltrasonic: // 超声波偏心仪的地址模型与 Modbus 相同
           return <ModbusForm {...formCfg} ></ModbusForm>
         default:
           break;

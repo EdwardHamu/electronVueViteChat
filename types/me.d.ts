@@ -134,6 +134,8 @@ type ConnectTcpModel = {
   Endian32Bit: string;
   Endian16Bit: string;
   EndianString?: string;
+  /** 仅超声波偏心仪驱动（SPC.Driver.Beta）：壁厚点数 1 ~ 8 */
+  WallNum?: number;
 }
 
 type ConnectFFTModel = {

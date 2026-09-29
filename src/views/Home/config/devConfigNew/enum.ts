@@ -63,6 +63,16 @@ export enum DataClassEnum {
   /** 导体线径 */
   CUOD = 304,
 
+  /** 壁厚01 ~ 壁厚08（超声波偏心仪实测壁厚，后端 DataClassEnum.WALL01..WALL08，属于偏心仪数据） */
+  WALL01 = 311,
+  WALL02 = 312,
+  WALL03 = 313,
+  WALL04 = 314,
+  WALL05 = 315,
+  WALL06 = 316,
+  WALL07 = 317,
+  WALL08 = 318,
+
   /** 凹凸总数 */
   CON = 401,
 
@@ -110,6 +120,28 @@ export enum ParamClassEnum {
   Ltol = 4,
 }
 
+/** 壁厚数据类型列表（按 01..08 顺序） */
+export const WALL_DATA_CLASSES = [
+  DataClassEnum.WALL01, DataClassEnum.WALL02, DataClassEnum.WALL03, DataClassEnum.WALL04,
+  DataClassEnum.WALL05, DataClassEnum.WALL06, DataClassEnum.WALL07, DataClassEnum.WALL08,
+]
+
+/**
+ * 后端 IDeviceDriver.GetDriverName() 返回的驱动名；前端据此决定连接表单 / 地址表单（ConForm、AdressForm、addForm）。
+ * betaUltrasonic 对应 SPC.Driver.Beta.UltrasonicWave（超声波偏心仪 / 壁厚，Modbus TCP）。
+ * 注意：后端 c41cddf 里它的 DriverName 仍是 "Modbus Tcp Client"（与 Modbus 驱动同名，DriverHelper 按名去重会被覆盖），
+ * 待后端改成唯一名称后只需同步这里的字符串。
+ */
+export const driverNameEnum = {
+  modbusTcp: 'Modbus Tcp Client',
+  modbusRtu: 'Modbus Rtu Client',
+  modbusAscii: 'Modbus Ascii Client',
+  opcDa: 'OPC DA Client',
+  opcUa: 'OPC UA Client',
+  siemensTcp: 'Siemens Tcp Client',
+  betaUltrasonic: 'Beta Ultrasonic Client',
+} as const
+
 export const getDeviceClassNameMap = (): Record<number, string> => ({
   [DeviceClassEnum.OD]: t('config.diameterGauge'),
   [DeviceClassEnum.Cap]: t('config.capacitanceMeter'),
@@ -132,6 +164,7 @@ export const getDataClassNameMap = (): Record<number, string> => ({
   [DataClassEnum.CONCEN]: t('config.concentricity'),
   [DataClassEnum.CON]: t('config.convexConcaveTotal'),
   [DataClassEnum.CUOD]: t('config.conductorDiameter'),
+  ...Object.fromEntries(WALL_DATA_CLASSES.map((dc, i) => [dc, t('config.wallThicknessN', { n: String(i + 1).padStart(2, '0') })])),
   [DataClassEnum.CONC]: t('config.concaveCount'),
   [DataClassEnum.CONV]: t('config.convexCount'),
   [DataClassEnum.LENGTH]: t('config.meter'),

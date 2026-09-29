@@ -11,6 +11,8 @@ import ConnectOpcUaForm from "./connect/ConnectOpcUaForm";
 import ConnectSiemensForm from "./connect/ConnectSiemensForm";
 import ConnectModbusRtuForm from "./connect/ConnectModbusRtuForm";
 import ConnectModbusAsciiForm from "./connect/ConnectModbusAsciiForm";
+import ConnectBetaTcpForm from "./connect/ConnectBetaTcpForm";
+import { driverNameEnum } from "./enum";
 import { useMyI18n } from "@/hooks/useMyI18n";
 
 export default defineComponent({
@@ -53,6 +55,10 @@ export default defineComponent({
           break;
         case 'Modbus Ascii Client':
           res = ConnectModbusAsciiForm
+          break;
+        case driverNameEnum.betaUltrasonic:
+          // 超声波偏心仪：Modbus TCP 连接参数 + 壁厚点数
+          res = ConnectBetaTcpForm
           break;
         default:
           res = ConnectComForm
