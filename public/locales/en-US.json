@@ -530,6 +530,10 @@
       "pieDesc": "Shares of the current values of several items from one data source",
       "meter": "Meter",
       "meterDesc": "Half-circle dial with ticks and a needle; can show tolerance zones",
+      "custom": "Custom",
+      "customDesc": "Write your own HTML / CSS / JS; runs in an isolated iframe, receives data via scada.onData and writes via scada.write",
+      "customPlaceholder": "Edit HTML / CSS / JS in the property panel",
+      "customError": "Script error",
       "textLabel": "Text",
       "textLabelDesc": "Static text; shows the value or transform output when bound",
       "unbound": "Unbound",
@@ -538,6 +542,9 @@
       "unknown": "Unknown widget"
     },
     "prop": {
+      "html": "HTML",
+      "css": "CSS",
+      "js": "JavaScript",
       "showScale": "Show scale",
       "trackColor": "Track color",
       "thumbColor": "Thumb color",
@@ -675,7 +682,16 @@
       "border": "Border",
       "radius": "Corner Radius"
     },
+    "custom": {
+      "htmlHint": "Placed inside the <body> of an isolated iframe; inline <script> is allowed (the scada runtime is injected in <head>). Give the root element height: 100% to fill the widget.",
+      "cssHint": "Applies only to this widget's iframe. html / body are already 100% wide/high, no margin, transparent background; widget background / border / radius are set in the fields below.",
+      "jsHint": "Runs as a normal script inside the iframe. Global object scada:\nscada.onData(fn): called as fn(point, state) whenever data changes; point has value / text / name / unit / precision / standard / upper / lower / status / time, undefined when unbound\nscada.point / scada.value / scada.history / scada.widget / scada.editing: current point / value / last 60 values / widget info (size, title, binding) / edit mode flag\nscada.write(value): write back to the bound data source (must be writable, e.g. internal variables)\nscada.format(v, digits) / scada.statusColor(status): number formatting / status colors\nScript errors show at the widget's bottom-left in edit mode; right-click / long-press inside the iframe still opens the page menu"
+    },
     "panel": {
+      "codeEdit": "Edit",
+      "codeChars": "{n} chars",
+      "codeExample": "Insert example",
+      "codeClear": "Clear",
       "imageTooLargeMb": "Image must not exceed {mb} MB",
       "uploadFailed": "Image upload failed",
       "imageInline": "embedded",

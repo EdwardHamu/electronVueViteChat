@@ -103,8 +103,11 @@ export interface WidgetInstance extends WidgetRect {
   props: Record<string, any>
 }
 
-/** textarea：多行文本（选项列表等）；image：图片地址 + 选择本地文件（存为 data URL）；multiselect：多选（值为数组） */
-export type PropFieldType = 'text' | 'textarea' | 'number' | 'color' | 'boolean' | 'select' | 'multiselect' | 'image'
+/**
+ * textarea：多行文本（选项列表等）；image：图片地址 + 选择本地文件（存为 data URL）；multiselect：多选（值为数组）；
+ * code：代码（HTML / CSS / JS），面板里只显示一个按钮，点开 CodeDialog 弹窗编辑
+ */
+export type PropFieldType = 'text' | 'textarea' | 'number' | 'color' | 'boolean' | 'select' | 'multiselect' | 'image' | 'code'
 
 /** 属性面板的声明式字段描述，通用编辑器据此渲染 */
 export interface PropField {
@@ -118,6 +121,10 @@ export interface PropField {
   placeholder?: string | (() => string)
   /** select / multiselect 的选项；会传入当前组件，选项可依赖其它属性（如饼图按所选数据源列出数据项） */
   options?: (widget?: WidgetInstance) => { label: string; value: any }[]
+  /** code 字段：语言（只影响弹窗里的占位 / 提示）、示例代码、弹窗底部的说明 */
+  language?: 'html' | 'css' | 'js'
+  example?: () => string
+  hint?: () => string
 }
 
 /** 组件渲染时收到的 props */

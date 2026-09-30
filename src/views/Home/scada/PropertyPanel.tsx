@@ -13,6 +13,7 @@ import { hasHostBridge, INLINE_MAX_BYTES, isDataUrl, isResourceUrl, readBlobAsDa
 import { useScadaStore } from './store'
 import { transformErrors } from './transform'
 import TransformDialog from './TransformDialog'
+import CodeDialog from './CodeDialog'
 import type { PropField, WidgetInstance } from './types'
 import { tt } from './widgets/common'
 
@@ -43,6 +44,8 @@ export default defineComponent({
     const selected = computed(() => scada.selected)
     const definition = computed(() => (selected.value ? getWidgetDefinition(selected.value.type) : undefined))
     const transformShow = ref(false)
+    /** 正在用弹窗编辑的代码字段（自定义组件的 HTML / CSS / JS） */
+    const codeField = ref<{ widgetId: string; field: PropField } | null>(null)
     // 选中项变化 / 退出编辑时关掉弹窗，避免弹窗里的草稿写到别的组件上
     watch(
       () => `${selected.value?.id || ''}|${scada.editing}`,
@@ -171,6 +174,14 @@ export default defineComponent({
           return <NSelect size="small" value={value ?? null} options={f.options ? f.options(w) : []} onUpdateValue={set} />
         case 'multiselect':
           return <NSelect size="small" multiple clearable maxTagCount="responsive" value={Array.isArray(value) ? value : []} options={f.options ? f.options(w) : []} placeholder={ph} onUpdateValue={(v: any[]) => set(v)} />
+        case 'code': {
+          const len = String(value || '').length
+          return (
+            <NButton class={'w-full'} size="small" secondary type={len ? 'primary' : 'default'} data-scada-code-field={f.key} onClick={() => (codeField.value = { widgetId: w.id, field: f })}>
+              {tt('scada.panel.codeEdit')}{len ? ` · ${tt('scada.panel.codeChars', { n: len })}` : ''}
+            </NButton>
+          )
+        }
         default:
           return <NInput size="small" value={value ?? ''} placeholder={ph} onUpdateValue={set} />
       }
@@ -329,6 +340,16 @@ export default defineComponent({
         </NScrollbar>
         {selected.value && renderFooter(selected.value)}
         <TransformDialog show={transformShow.value} widget={selected.value} onClose={() => (transformShow.value = false)} />
+        <CodeDialog
+          show={!!codeField.value && !!selected.value && codeField.value.widgetId === selected.value.id}
+          title={`${definition.value ? definition.value.label() : ''} · ${codeField.value ? codeField.value.field.label() : ''}`}
+          field={codeField.value?.field}
+          value={codeField.value && selected.value ? String(selected.value.props[codeField.value.field.key] ?? '') : ''}
+          onApply={(v: string) => {
+            if (codeField.value) scada.setWidgetProp(codeField.value.widgetId, codeField.value.field.key, v)
+          }}
+          onClose={() => (codeField.value = null)}
+        />
       </div>
     )
   }

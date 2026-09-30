@@ -530,6 +530,10 @@
       "pieDesc": "Proporción de los valores actuales de varios elementos de una fuente de datos",
       "meter": "Medidor",
       "meterDesc": "Cuadrante semicircular con marcas y aguja; puede mostrar zonas de tolerancia",
+      "custom": "Personalizado",
+      "customDesc": "Escribe tu propio HTML / CSS / JS; se ejecuta en un iframe aislado, recibe datos con scada.onData y escribe con scada.write",
+      "customPlaceholder": "Edita HTML / CSS / JS en el panel de propiedades",
+      "customError": "Error de script",
       "textLabel": "Texto",
       "textLabelDesc": "Texto estático; al vincular datos muestra el valor o la salida de la función",
       "unbound": "Sin vincular",
@@ -538,6 +542,9 @@
       "unknown": "Componente desconocido"
     },
     "prop": {
+      "html": "HTML",
+      "css": "CSS",
+      "js": "JavaScript",
       "showScale": "Mostrar escala",
       "trackColor": "Color de la pista",
       "thumbColor": "Color del control",
@@ -675,7 +682,16 @@
       "border": "Borde",
       "radius": "Radio de esquina"
     },
+    "custom": {
+      "htmlHint": "Se coloca dentro del <body> de un iframe aislado; se permite <script> en línea (el objeto scada se inyecta en <head>). Da al elemento raíz height: 100% para llenar el componente.",
+      "cssHint": "Solo se aplica al iframe de este componente. html / body ya tienen 100% de ancho/alto, sin márgenes y fondo transparente; el fondo / borde / radio del componente se configuran en los campos de abajo.",
+      "jsHint": "Se ejecuta como un script normal dentro del iframe. Objeto global scada:\nscada.onData(fn): llama a fn(point, state) cuando cambian los datos; point tiene value / text / name / unit / precision / standard / upper / lower / status / time, undefined si no hay vínculo\nscada.point / scada.value / scada.history / scada.widget / scada.editing: punto actual / valor / últimos 60 valores / info del componente (tamaño, título, vínculo) / modo edición\nscada.write(value): escribe en la fuente de datos vinculada (debe ser escribible, p. ej. variables internas)\nscada.format(v, digits) / scada.statusColor(status): formato numérico / colores de estado\nLos errores de script se muestran abajo a la izquierda del componente en modo edición; clic derecho / pulsación larga dentro del iframe sigue abriendo el menú de la página"
+    },
     "panel": {
+      "codeEdit": "Editar",
+      "codeChars": "{n} caracteres",
+      "codeExample": "Insertar ejemplo",
+      "codeClear": "Limpiar",
       "imageTooLargeMb": "La imagen no debe superar {mb} MB",
       "uploadFailed": "Error al subir la imagen",
       "imageInline": "incrustada",

@@ -198,6 +198,12 @@ export const icons: Record<string, () => VNodeChild> = {
       <circle cx="12" cy="16.5" r="1.5" fill="currentColor" stroke="none" />
       <path d="M4 20 H20" {...S} />
     </>
+  ),
+  custom: () => svg(
+    <>
+      <rect x="3" y="4.5" width="18" height="15" rx="1.5" {...S} />
+      <path d="M9.5 10 L7.5 12 L9.5 14 M14.5 10 L16.5 12 L14.5 14 M12.8 9 L11.2 15" {...S} />
+    </>
   )
 }
 

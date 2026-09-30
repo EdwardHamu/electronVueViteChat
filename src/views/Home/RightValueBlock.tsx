@@ -329,7 +329,8 @@ export const ValueRow = defineComponent({
             <span class={'text-2xl'}>{data.value.label || ''}</span>
             {renderAddOrDel()}
           </div>
-          <div class={'flex items-end w-full h-[76px]  border border-solid border-[#e4e4e5] shadow-inner'} style={{ backgroundImage: `linear-gradient(#cdcdcd, #f2f2f2 ,#cdcdcd)` }}>
+          {/* 数值行高度：横屏 80px，竖屏 76px */}
+          <div class={classNames('flex items-end w-full border border-solid border-[#e4e4e5] shadow-inner', store.isLandscape ? 'h-[80px]' : 'h-[76px]')} style={{ backgroundImage: `linear-gradient(#cdcdcd, #f2f2f2 ,#cdcdcd)` }}>
             {
 
             }

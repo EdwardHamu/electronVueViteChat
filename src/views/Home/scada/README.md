@@ -15,7 +15,7 @@
 | `dataSource/localSource.ts` | **内部变量数据源**（`local`，`var1` ~ `var16`）：目前唯一实现了 `write()` 的数据源，按钮 / 开关 / IO 域写进来的值立即被绑定同一变量的组件读到，并持久化到 localStorage `scadaLocalVars` |
 | `transform.ts` | 组件级**数据处理函数**：编译 / 执行用户写的 JS（三种写法、返回值合并规则、错误反馈），示例片段 `TRANSFORM_EXAMPLES` |
 | `registry.ts` | 组件注册表 |
-| `widgets/` | 内置组件，分三类（`WidgetDefinition.category`）：`shape` 基础图素（`shapes.tsx` 直线 / 折线 / 弧线 / 矩形 / 圆形 / 椭圆 / 扇形 / 弓形 / 多边形 / 管道，`TextLabel.tsx` 文本，`Image.tsx` 图片）、`control` 控制与显示（`controls.tsx` 数值 IO 域 / 字符 IO 域 / 日期时间域 / 按钮 / 位按钮 / 字按钮 / 位状态显示 / 字状态显示 / 文本列表 / 文本开关 / 单选框 / 复选框，`Table.tsx` 表格）、`data` 数据看板（数值卡片 / 仪表盘 / 迷你趋势 / 状态灯，以及 `visuals.tsx` 里的棒图 / 滑块 / 进度条 / 环形进度条 / 饼图 / 量表）。`icons.tsx` 是组件库用的 24×24 线条图标；`common.ts`（状态配色、`resolveRange` 量程推算）/ `controlCommon.ts`（`useControl` 写入封装、选项列表解析、共享秒表）为共用工具 |
+| `widgets/` | 内置组件，分三类（`WidgetDefinition.category`）：`shape` 基础图素（`shapes.tsx` 直线 / 折线 / 弧线 / 矩形 / 圆形 / 椭圆 / 扇形 / 弓形 / 多边形 / 管道，`TextLabel.tsx` 文本，`Image.tsx` 图片）、`control` 控制与显示（`controls.tsx` 数值 IO 域 / 字符 IO 域 / 日期时间域 / 按钮 / 位按钮 / 字按钮 / 位状态显示 / 字状态显示 / 文本列表 / 文本开关 / 单选框 / 复选框，`Table.tsx` 表格）、`data` 数据看板（数值卡片 / 仪表盘 / 迷你趋势 / 状态灯，以及 `visuals.tsx` 里的棒图 / 滑块 / 进度条 / 环形进度条 / 饼图 / 量表，`Custom.tsx` 自定义组件——用户自写 HTML / CSS / JS，跑在 srcdoc iframe 里）。`icons.tsx` 是组件库用的 24×24 线条图标；`common.ts`（状态配色、`resolveRange` 量程推算）/ `controlCommon.ts`（`useControl` 写入封装、选项列表解析、共享秒表）为共用工具 |
 | `store.ts` | Pinia store：已保存布局 `layout`、编辑草稿 `draft`、选中项、增删改 / 层级 / 画布设置 |
 | `storage.ts` | 持久化抽象 `LayoutStorage`，默认 localStorage（key `scadaLayout`） |
 | `resource.ts` | **资源文件**（图片等）：有宿主时经 `JsBridge.SaveResourceFile(fileName, base64)` 存到运行目录 `Resources/pic/<GUID>.<ext>`，布局里只记返回的 `https://pic.nt.local/<GUID>.<ext>`（WebView2 虚拟主机映射到该目录，跨域 fetch 已放开）；没有宿主桥（纯浏览器调试）退回 data URL 内嵌（单张 ≤ `INLINE_MAX_BYTES` 300 KB）。还包括递归的引用收集 / 替换（`walkStrings`，嵌套属性也算）、`fetchResource` / `resourceExists`、`downloadBlob`（`a[download]` 触发浏览器下载）、宿主调用封装 `callHost`、`listResourceFiles` / `deleteResourceFile` 与 **`cleanupUnusedResources(layout)`**（删掉 `Resources/pic` 里布局不再引用的 `<32 位 hex>.<ext>` 文件，`store.save()` 与展示模式 `applyLayout()` 后自动调用） |
@@ -70,6 +70,13 @@ DataSourceProvider.read(key) ──► DataPoint ──► 数据处理函数（
 - 滑块是这组里唯一可写的组件：拖动时只改本地显示值，松手后经 `useControl().write()` 写回（按 `step` 取整、限制在 `min ~ max`），未绑定 / 数据源只读时点按给出与按钮相同的提示，`readOnly` 属性可让它只作显示；松手到数据源刷新之前先显示写入值（`pending`），避免闪回旧值。
 - 饼图不绑定单个数据项：像表格一样选一个数据源，`items`（multiselect，留空 = 全部）挑若干数据项，用它们的当前值算占比，负值 / 无值按 0；支持环形、图例位置、扇区百分比标注与自定义配色（一行一个颜色）。
 
+## 自定义组件（`widgets/Custom.tsx`）
+
+- 用户在属性面板里分别编辑 HTML / CSS / JS（`PropFieldType = 'code'`：面板只放一个「编辑 · N 字符」按钮，点开 `CodeDialog.tsx` 弹窗——大文本框、插入示例、清空、Ctrl + Enter 确定，确定才写回属性），三段代码由 `buildCustomDoc()` 拼成 `srcdoc` 放进 `<iframe sandbox="allow-scripts allow-same-origin allow-forms allow-modals">`：样式脚本与页面隔离，代码改了 iframe 自动重载。文档顺序是：基础样式（html/body 100%、无边距、透明背景）→ 运行时脚本（`CUSTOM_RUNTIME`，放 `<head>`，所以 HTML 里内联的 `<script>` 也能用 `scada`）→ 用户 CSS → 用户 HTML → 用户 JS；用户代码里的 `</script>` / `</style>` 会被转义成 `<\/…` 以免提前结束标签。
+- 宿主 ⇄ iframe 用 `postMessage`：iframe 解析完发 `scada:ready`，宿主随后（以及数据点 / 历史 / 编辑状态 / 尺寸 / 标题 / 绑定变化时）推 `{ type: 'scada:data', point, widget, history, editing }`（`widget.props` 里不含三段代码）。iframe 内全局 `scada`：`point` / `value` / `history`（`keepHistory: 60`）/ `widget` / `editing` 只读属性，`onData(cb)` 订阅（已有数据时立即回调一次），`write(value)` 发 `scada:write` → 宿主经 `useControl().write()` 写回（只接受数字 / 文本 / 布尔；未绑定 / 只读数据源给出与按钮相同的提示），`format(v, digits)` / `statusColor(status)` 小工具。宿主只处理 `e.source === iframe.contentWindow` 的消息。
+- iframe 里的右键 / 长按被运行时拦下（`preventDefault`）并转发 `scada:contextmenu {x, y}`，宿主按 `getBoundingClientRect / clientWidth` 换算画布缩放后在 iframe 元素上派发一个冒泡的 `contextmenu`，展示模式菜单照常弹出；脚本异常 / `unhandledrejection` 转发 `scada:error`，编辑模式下显示为组件左下角红色角标（`[data-custom-error]`）。编辑模式下 iframe `pointer-events: none`（和其它组件一致，拖动 / 选中不被 iframe 吃掉）；HTML 与 JS 都为空时编辑模式显示占位提示。
+- 默认属性带一份示例模板（`CUSTOM_TEMPLATE`：名称 + 按精度 / 状态色显示的数值 + 单位 + 公差范围），弹窗里「插入示例」随时可恢复。运行时是 ES5 字符串常量，不会被打包器改写；jsdom 不加载 `srcdoc`，冒烟测试用独立 `JSDOM(runScripts: 'dangerously')` 跑文档并伪造 `parent` 验证运行时，宿主侧则直接向 `window` 派发 `source = iframe.contentWindow` 的 `MessageEvent`。
+
 ## 新增一个组件
 
 1. 在 `widgets/` 写一个接收 `widgetProps`（`widget`、`point`、`editing`、`history`）的 `defineComponent`——收到的 `point` 已经过数据处理函数，组件不用关心；
@@ -115,4 +122,4 @@ DataSourceProvider.read(key) ──► DataPoint ──► 数据处理函数（
 
 ## 测试
 
-无需 WebView2 宿主：`npm i --no-save esbuild@0.21 jsdom@22 && node scripts/scada-smoke/run.mjs`（见脚本头部说明，目前 138 步；zip / 组态包 / 资源上传部分用 Node 20 自带的 `DecompressionStream` 与 jsdom 的 `File` / `FileReader`，宿主 `SaveResourceFile` / `ListResourceFiles` / `DeleteResourceFile` / `ExportScadaPackage` / `PreviewScadaPackage` / `ImportScadaPackage` 与 `https://pic.nt.local/` 静态目录都在脚本里模拟——前半段在没有打包接口的桥上跑（覆盖浏览器 / 老宿主流程），任务 42 一节再把新接口补进桩里）。宿主侧对应的自检是 `SPC.M.Test.exe --scada-package`。
+无需 WebView2 宿主：`npm i --no-save esbuild@0.21 jsdom@22 && node scripts/scada-smoke/run.mjs`（见脚本头部说明，目前 161 步；zip / 组态包 / 资源上传部分用 Node 20 自带的 `DecompressionStream` 与 jsdom 的 `File` / `FileReader`，宿主 `SaveResourceFile` / `ListResourceFiles` / `DeleteResourceFile` / `ExportScadaPackage` / `PreviewScadaPackage` / `ImportScadaPackage` 与 `https://pic.nt.local/` 静态目录都在脚本里模拟——前半段在没有打包接口的桥上跑（覆盖浏览器 / 老宿主流程），任务 42 一节再把新接口补进桩里）。宿主侧对应的自检是 `SPC.M.Test.exe --scada-package`。

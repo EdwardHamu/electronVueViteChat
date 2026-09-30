@@ -16,7 +16,7 @@
  * 说明：@/store、@/store/config 与 @/utils/callm 被 stubs/ 里的桩替换（真实模块会把 echarts 等整套依赖拉进来）。
  */
 import { build } from 'esbuild'
-import { JSDOM } from 'jsdom'
+import { JSDOM, VirtualConsole } from 'jsdom'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -47,6 +47,8 @@ export { normalizeHex, hexToHsv, hsvToHex, isLightColor, useColorPresets, DEFAUL
 import { createZip, readZip, zipEntryText, crc32 } from '@/views/Home/scada/zip'
 import { buildPackage, parsePackage, planImport, applyPackage, PACKAGE_REF_PREFIX } from '@/views/Home/scada/package'
 import { collectResourceRefs, RESOURCE_BASE_URL, RESOURCE_MAX_BYTES, INLINE_MAX_BYTES } from '@/views/Home/scada/resource'
+import { CUSTOM_TEMPLATE, CUSTOM_RUNTIME, buildCustomDoc } from '@/views/Home/scada/widgets/Custom'
+export { CUSTOM_TEMPLATE, CUSTOM_RUNTIME, buildCustomDoc }
 export { createZip, readZip, zipEntryText, crc32, buildPackage, parsePackage, planImport, applyPackage, PACKAGE_REF_PREFIX, collectResourceRefs, RESOURCE_BASE_URL, RESOURCE_MAX_BYTES, INLINE_MAX_BYTES }
 import { replaceResourceRefs, cleanupUnusedResources, listResourceFiles, deleteResourceFile, HOST_GENERATED_NAME } from '@/views/Home/scada/resource'
 import { exportPackageViaHost, previewPackageViaHost, importPackageViaHost, layoutFromHostImport } from '@/views/Home/scada/package'
@@ -130,6 +132,7 @@ const { createApp, nextTick, createPinia, i18n, Scada, useScadaStore, useConfigS
 const { canvasView, zoomCanvas, resetCanvasView, compileTransform, runTransform, mergeTransformResult, transformErrors, transformDebug } = m
 const { normalizeHex, hexToHsv, hsvToHex, isLightColor, useColorPresets, DEFAULT_COLOR_PRESETS, COLOR_PRESETS_KEY } = m
 const { createZip, readZip, zipEntryText, crc32, buildPackage, parsePackage, planImport, applyPackage, PACKAGE_REF_PREFIX, collectResourceRefs, RESOURCE_BASE_URL, RESOURCE_MAX_BYTES, INLINE_MAX_BYTES } = m
+const { CUSTOM_TEMPLATE, CUSTOM_RUNTIME, buildCustomDoc } = m
 i18n.global.setLocaleMessage('zh-CN', JSON.parse(fs.readFileSync(path.join(repo, 'public/locales/zh-CN.json'), 'utf8')))
 i18n.global.locale.value = 'zh-CN'
 
@@ -155,10 +158,11 @@ const SHAPES = ['line', 'polyline', 'arc', 'rect', 'circle', 'ellipse', 'sector'
 const CONTROLS = ['numericIO', 'stringIO', 'datetime', 'button', 'bitButton', 'wordButton', 'bitStatus', 'wordStatus', 'textList', 'textSwitch', 'radio', 'checkbox', 'table']
 const DATA = ['valueCard', 'gauge', 'sparkline', 'statusLamp']
 const VISUAL = ['barGauge', 'slider', 'progressBar', 'ringProgress', 'pie', 'meter']
-check('注册表：三类共 35 个组件，全部带图标与分类（可视化组件归入数据看板）', () => {
-  assert.deepEqual(widgetDefinitions().map(d => d.type), [...SHAPES, ...CONTROLS, ...DATA, ...VISUAL])
+const CUSTOM = ['custom']
+check('注册表：三类共 36 个组件，全部带图标与分类（可视化组件 + 自定义组件归入数据看板）', () => {
+  assert.deepEqual(widgetDefinitions().map(d => d.type), [...SHAPES, ...CONTROLS, ...DATA, ...VISUAL, ...CUSTOM])
   widgetDefinitions().forEach(d => { assert.equal(typeof d.icon, 'function', d.type); assert.ok(['shape', 'control', 'data'].includes(d.category), d.type) })
-  assert.ok([...DATA, ...VISUAL].every(t => widgetDefinitions().find(d => d.type === t).category === 'data'))
+  assert.ok([...DATA, ...VISUAL, ...CUSTOM].every(t => widgetDefinitions().find(d => d.type === t).category === 'data'))
   assert.deepEqual(dataSourceList().map(p => p.id), ['product', 'sim', 'local'])
 })
 const buttons = () => [...root.querySelectorAll('button')]
@@ -509,13 +513,13 @@ const bodyRow = () => canvasView.el.parentElement.parentElement.parentElement
 const paletteCol = () => bodyRow().children[0]
 const propsCol = () => bodyRow().children[bodyRow().children.length - 1]
 const inPalette = sel => [...paletteCol().querySelectorAll(sel)]
-check('组件库：按“基础图素 / 控制与显示 / 数据看板”分组的小图标网格，共 35 项（数据看板 10 项）；容器为 NScrollbar 悬浮轨道；顶栏无说明文字', () => {
+check('组件库：按“基础图素 / 控制与显示 / 数据看板”分组的小图标网格，共 36 项（数据看板 11 项）；容器为 NScrollbar 悬浮轨道；顶栏无说明文字', () => {
   assert.deepEqual(inPalette('[data-palette-group]').map(g => g.dataset.paletteGroup), ['shape', 'control', 'data'])
-  assert.equal(inPalette('[data-palette-item]').length, 35); assert.equal(inPalette('[data-palette-item] svg').length, 35)
+  assert.equal(inPalette('[data-palette-item]').length, 36); assert.equal(inPalette('[data-palette-item] svg').length, 36)
   assert.equal(inPalette('[data-palette-group="shape"] [data-palette-item]').length, 12)
   assert.equal(inPalette('[data-palette-group="control"] [data-palette-item]').length, 13)
-  assert.deepEqual(inPalette('[data-palette-group="data"] [data-palette-item]').map(e => e.dataset.paletteItem), [...DATA, ...VISUAL])
-  const dh = paletteCol().querySelector('[data-palette-category="data"]'); assert.ok(dh.textContent.includes('数据看板') && dh.textContent.includes('10'), dh.textContent)
+  assert.deepEqual(inPalette('[data-palette-group="data"] [data-palette-item]').map(e => e.dataset.paletteItem), [...DATA, ...VISUAL, ...CUSTOM])
+  const dh = paletteCol().querySelector('[data-palette-category="data"]'); assert.ok(dh.textContent.includes('数据看板') && dh.textContent.includes('11'), dh.textContent)
   assert.ok(!paletteCol().querySelector('[data-palette-category="visual"]'))
   assert.ok(inPalette('[data-palette-item="slider"]')[0].textContent.includes('滑块'))
   const hdr = paletteCol().querySelector('[data-palette-category="shape"]'); assert.ok(hdr.textContent.includes('基础图素') && hdr.textContent.includes('12'))
@@ -528,9 +532,9 @@ check('组件库：按“基础图素 / 控制与显示 / 数据看板”分组�
   assert.ok(!root.textContent.includes('滚轮缩放') && !root.textContent.includes('放到画布')); assert.ok(root.querySelector('[data-scada-help]'))
 })
 paletteCol().querySelector('[data-palette-category="shape"]').click(); await nextTick()
-check('点击分类标题折叠该组', () => { assert.equal(inPalette('[data-palette-group="shape"] [data-palette-item]').length, 0); assert.equal(inPalette('[data-palette-item]').length, 23) })
+check('点击分类标题折叠该组', () => { assert.equal(inPalette('[data-palette-group="shape"] [data-palette-item]').length, 0); assert.equal(inPalette('[data-palette-item]').length, 24) })
 paletteCol().querySelector('[data-palette-category="shape"]').click(); await nextTick()
-check('再次点击展开', () => assert.equal(inPalette('[data-palette-item]').length, 35))
+check('再次点击展开', () => assert.equal(inPalette('[data-palette-item]').length, 36))
 paletteCol().querySelector('[data-palette-view="list"]').click(); await nextTick()
 check('切换为列表视图（图标 + 名称 + 说明）并记住选择', () => {
   assert.equal(localStorage.getItem('scadaPaletteView'), 'list')
@@ -552,12 +556,12 @@ document.body.querySelector('.n-modal-container .n-card-header__close').click();
 check('关闭操作说明弹窗', () => assert.ok(!document.body.querySelector('[data-scada-help-content]')))
 
 const keepIds = new Set(scada.draft.widgets.map(e => e.id))
-const NEW_TYPES = [...SHAPES, ...CONTROLS, ...VISUAL].filter(t => t !== 'textLabel')
+const NEW_TYPES = [...SHAPES, ...CONTROLS, ...VISUAL, ...CUSTOM].filter(t => t !== 'textLabel')
 for (const type of NEW_TYPES) scada.addWidget(type)
 await nextTick()
 const byType = t => scada.draft.widgets.find(e => e.type === t && !keepIds.has(e.id))
 const hostOf = t => canvasView.el.querySelector(`[data-widget-id="${byType(t).id}"]`)
-check('新增 30 个组件全部渲染：图形为 SVG，控制 / 可视化组件各有标记，图片显示占位提示，日期时间域走时', () => {
+check('新增 31 个组件全部渲染：图形为 SVG，控制 / 可视化组件各有标记，自定义组件为 iframe，图片显示占位提示，日期时间域走时', () => {
   assert.equal(scada.draft.widgets.length, 4 + NEW_TYPES.length); assert.ok(!root.textContent.includes('未知组件')); assert.ok(!root.textContent.includes('false'), 'literal false in: ' + [...canvasView.el.querySelectorAll('[data-widget-type]')].filter(h => h.textContent.includes('false')).map(h => h.dataset.widgetType + '=' + h.innerHTML.slice(0, 300)).join(' | '))
   for (const t of ['line', 'polyline', 'arc', 'rect', 'circle', 'ellipse', 'sector', 'segment', 'polygon', 'pipe']) assert.ok(hostOf(t).querySelector('svg'), t)
   assert.ok(hostOf('polygon').querySelector('svg polygon')); assert.ok(hostOf('circle').querySelector('svg circle, svg ellipse')); assert.ok(hostOf('rect').querySelector('svg rect'))
@@ -572,6 +576,7 @@ check('新增 30 个组件全部渲染：图形为 SVG，控制 / 可视化组�
   assert.ok(hostOf('meter').querySelectorAll('svg line').length >= 6 && hostOf('meter').textContent.includes('100'))
   // 饼图默认取产品分类数据源的全部数据项（冒烟里有模拟值）：有扇区 + 图例
   assert.ok(hostOf('pie').querySelector('[data-pie-legend]') && hostOf('pie').querySelectorAll('[data-pie-slice]').length >= 2)
+  assert.ok(hostOf('custom').querySelector('[data-scada-custom] iframe'))
 })
 // 内部变量数据源：可写、响应式、持久化
 const local = getDataSource('local')
@@ -615,6 +620,75 @@ check('图片：属性面板有地址输入 + “选择图片”按钮', () => {
 const urlInput = [...propsCol().querySelectorAll('input')].find(i => (i.placeholder || '').includes('http') || (i.placeholder || '').includes('data:'))
 urlInput.value = 'https://example.com/a.png'; urlInput.dispatchEvent(new Event('input', { bubbles: true })); await nextTick()
 check('输入图片地址后渲染 <img>', () => { assert.equal(byType('image').props.src, 'https://example.com/a.png'); const img = hostOf('image').querySelector('img'); assert.ok(img); assert.equal(img.getAttribute('src'), 'https://example.com/a.png') })
+// 自定义组件（HTML / CSS / JS）：属性面板三个代码按钮 → CodeDialog 弹窗；iframe srcdoc = 运行时 + 用户代码
+scada.setBinding(byType('custom').id, { source: 'local', key: 'var5' })
+scada.select(byType('custom').id); await nextTick()
+const codeBtns = () => [...propsCol().querySelectorAll('[data-scada-code-field]')]
+const customFrame = () => hostOf('custom').querySelector('[data-scada-custom] iframe')
+const srcdocOf = f => f.getAttribute('srcdoc') || f.srcdoc || ''
+check('自定义组件：默认带示例模板；属性面板 HTML / CSS / JS 三个按钮显示字符数；iframe 带 sandbox、编辑模式不响应指针，srcdoc = 运行时(head) + 用户 CSS + HTML + JS', () => {
+  assert.deepEqual(codeBtns().map(b => b.dataset.scadaCodeField), ['html', 'css', 'js'])
+  assert.ok(codeBtns().every(b => /编辑 · \d+ 字符/.test(b.textContent.trim())), codeBtns().map(b => b.textContent).join())
+  const f = customFrame(); assert.ok(f); const d = srcdocOf(f)
+  assert.ok(d.includes('window.scada = {') && d.includes('scada.onData(function (point)') && d.includes('.card { height: 100%') && d.includes('id="value"'))
+  assert.ok(d.indexOf('window.scada = {') < d.indexOf('</head>') && d.indexOf('</head>') < d.indexOf('id="value"') && d.indexOf('id="value"') < d.indexOf('scada.onData(function (point)'))
+  assert.equal(f.getAttribute('sandbox'), 'allow-scripts allow-same-origin allow-forms allow-modals'); assert.equal(f.style.pointerEvents, 'none')
+  assert.ok(!hostOf('custom').textContent.includes('在属性面板编辑'))
+})
+window.dispatchEvent(new window.MessageEvent('message', { data: { type: 'scada:error', message: 'x is not defined' }, source: customFrame().contentWindow })); await nextTick()
+check('iframe 报 scada:error → 编辑模式下组件左下角显示红色角标', () => {
+  const e = hostOf('custom').querySelector('[data-custom-error]'); assert.ok(e); assert.ok(e.textContent.includes('脚本错误') && e.textContent.includes('x is not defined'), e.textContent)
+})
+codeBtns()[2].click(); await nextTick(); await sleep(60)
+const codeTa = () => document.body.querySelector('.n-modal-container [data-scada-code-dialog="js"] textarea')
+check('点 JS 按钮弹出代码编辑弹窗：多行文本框载入当前代码，有“插入示例 / 清空 / 确定 / 取消”与 scada API 说明', () => {
+  const ta = codeTa(); assert.ok(ta); assert.ok(ta.value.includes('scada.onData'))
+  const txt = ta.closest('.n-modal-container').textContent
+  assert.ok(txt.includes('自定义组件 · JavaScript') && txt.includes('插入示例') && txt.includes('清空') && txt.includes('确定') && txt.includes('取消') && txt.includes('scada.write(value)'), txt)
+})
+const NEW_JS = 'scada.onData(function (p) { document.body.textContent = p ? p.value : "--" })'
+codeTa().value = NEW_JS; codeTa().dispatchEvent(new Event('input', { bubbles: true })); await nextTick()
+check('弹窗里改代码只改草稿，组件属性未变', () => assert.ok(byType('custom').props.js.includes('scada.onData(function (point)')))
+okBtn().click(); await nextTick(); await sleep(60)
+check('确定后写回 props.js、iframe srcdoc 更新（错误角标清掉）、弹窗关闭、按钮字符数刷新', () => {
+  assert.equal(byType('custom').props.js, NEW_JS); assert.ok(srcdocOf(customFrame()).includes(NEW_JS)); assert.ok(!codeTa())
+  assert.ok(!hostOf('custom').querySelector('[data-custom-error]'), '代码改动后 iframe 重载，错误角标清掉')
+  assert.ok(codeBtns()[2].textContent.includes(`${NEW_JS.length} 字符`), codeBtns()[2].textContent)
+})
+scada.setWidgetProp(byType('custom').id, 'html', ''); scada.setWidgetProp(byType('custom').id, 'js', ''); await nextTick()
+check('HTML / JS 都为空：编辑模式显示占位提示，按钮不再显示字符数', () => {
+  assert.ok(hostOf('custom').textContent.includes('在属性面板编辑 HTML / CSS / JS')); assert.equal(codeBtns()[0].textContent.trim(), '编辑')
+})
+scada.setWidgetProp(byType('custom').id, 'js', 'var s = "</script>"; var t = "</SCRIPT>"'); scada.setWidgetProp(byType('custom').id, 'css', 'p { color: red } /* </style> */'); await nextTick()
+check('用户代码里的 </script> / </style> 被转义，不会提前结束标签', () => {
+  const d = srcdocOf(customFrame()); assert.ok(d.includes('var s = "<\\/script>"; var t = "<\\/SCRIPT>"')); assert.ok(d.includes('/* <\\/style> */'))
+  assert.equal((d.match(/<\/script>/g) || []).length, 2); assert.equal((d.match(/<\/style>/g) || []).length, 2)
+})
+scada.setWidgetProp(byType('custom').id, 'html', CUSTOM_TEMPLATE.html); scada.setWidgetProp(byType('custom').id, 'css', CUSTOM_TEMPLATE.css); scada.setWidgetProp(byType('custom').id, 'js', CUSTOM_TEMPLATE.js); await nextTick()
+// iframe 内的运行时：jsdom 不会加载 srcdoc，用独立 JSDOM 跑一遍文档（伪造 parent 收消息）
+const childMsgs = []
+const child = new JSDOM(buildCustomDoc(CUSTOM_TEMPLATE.html, CUSTOM_TEMPLATE.css, CUSTOM_TEMPLATE.js), { runScripts: 'dangerously', virtualConsole: new VirtualConsole(), beforeParse(win) { Object.defineProperty(win, 'parent', { configurable: true, get: () => ({ postMessage: m => childMsgs.push(m) }) }) } })
+for (let i = 0; i < 40 && !childMsgs.some(m => m.type === 'scada:ready'); i++) await sleep(25)
+const cw = child.window
+const sendData = point => cw.dispatchEvent(new cw.MessageEvent('message', { data: { type: 'scada:data', point, widget: { id: 'x', type: 'custom' }, history: [1, 2], editing: false } }))
+sendData({ value: 3.14159, name: '温度', unit: '℃', precision: 1, status: 'high', upper: 5, lower: 1 })
+check('iframe 运行时：DOMContentLoaded 后上报 ready；收到 scada:data 后示例模板渲染名称 / 数值（按精度、状态色）/ 单位 / 范围；scada.value / history / widget 可读', () => {
+  assert.ok(childMsgs.some(m => m.type === 'scada:ready')); const $ = id => cw.document.getElementById(id)
+  assert.equal($('name').textContent, '温度'); assert.equal($('value').textContent, '3.1'); assert.equal($('unit').textContent, '℃'); assert.equal($('range').textContent, '1.0 ~ 5.0')
+  assert.ok(['#ff8d3f', 'rgb(255, 141, 63)'].includes($('value').style.color), $('value').style.color)
+  assert.equal(cw.scada.value, 3.14159); assert.equal(JSON.stringify(cw.scada.history), '[1,2]'); assert.equal(cw.scada.editing, false); assert.equal(cw.scada.widget.type, 'custom')
+})
+sendData(undefined); cw.scada.write(7); cw.scada.onData(() => { throw new Error('boom') })
+const childCm = new cw.MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 12, clientY: 34 }); cw.document.body.dispatchEvent(childCm)
+check('iframe 运行时：未绑定显示 --；scada.write / 回调抛错 / 右键分别向父页面 postMessage（write / error / contextmenu，右键默认行为被取消）；format / statusColor 工具', () => {
+  assert.equal(cw.document.getElementById('value').textContent, '--'); assert.equal(cw.scada.value, null)
+  assert.equal(JSON.stringify(childMsgs.find(m => m.type === 'scada:write')), JSON.stringify({ type: 'scada:write', value: 7 }))  // 跨 realm 对象只比较结构
+  assert.ok(childMsgs.some(m => m.type === 'scada:error' && m.message === 'boom'), JSON.stringify(childMsgs))
+  assert.equal(JSON.stringify(childMsgs.find(m => m.type === 'scada:contextmenu')), JSON.stringify({ type: 'scada:contextmenu', x: 12, y: 34 })); assert.ok(childCm.defaultPrevented)
+  assert.equal(cw.scada.format(null), '--'); assert.equal(cw.scada.format('abc'), '--'); assert.equal(cw.scada.format(1.005, 0), '1'); assert.equal(cw.scada.format(2), '2.00')
+  assert.equal(cw.scada.statusColor('ok'), '#22c55e'); assert.equal(cw.scada.statusColor('zzz'), '#64748b')
+})
+cw.close()
 // 保存后进入展示模式，控制组件可操作
 await scada.save(); await nextTick()
 const hostL = t => canvasView.el.querySelector(`[data-widget-type="${t}"]`)
@@ -679,6 +753,35 @@ const sliderHost3 = hostL('slider'); const sliderArea3 = sliderHost3.querySelect
 sliderArea3.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 27, clientY: 4, pointerId: 34, button: 0 }))
 sliderArea3.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 27, clientY: 4, pointerId: 34, button: 0 })); await nextTick(); await sleep(20)
 check('滑块步长 0.5、量程 0~10：点在 13.5% 处 → 按步长取整写入 1.5', () => assert.equal(local.read('var4').value, 1.5))
+// 自定义组件：展示模式下宿主 ⇄ iframe 的消息（jsdom 不加载 srcdoc，直接模拟 iframe 发来的消息；contentWindow.postMessage 打桩收宿主推送）
+const customHostL = hostL('custom'); const customIframe = customHostL.querySelector('iframe'); const toChild = []
+customIframe.contentWindow.postMessage = m => toChild.push(m)
+const fromChild = data => window.dispatchEvent(new window.MessageEvent('message', { data, source: customIframe.contentWindow }))
+window.dispatchEvent(new window.MessageEvent('message', { data: { type: 'scada:ready' } })); await nextTick()
+check('自定义组件展示模式：iframe 可交互；来源不是本 iframe 的消息被忽略', () => { assert.equal(customIframe.style.pointerEvents, 'auto'); assert.equal(toChild.length, 0) })
+fromChild({ type: 'scada:ready' }); await nextTick()
+check('iframe 报 ready → 宿主推送 scada:data：绑定 var5 的数据点（未写过 → offline）+ 组件信息（不含三段代码）+ editing=false', () => {
+  assert.equal(toChild.length, 1); const m = toChild[0]; assert.equal(m.type, 'scada:data'); assert.equal(m.editing, false)
+  assert.equal(m.widget.type, 'custom'); assert.deepEqual(m.widget.binding, { source: 'local', key: 'var5' }); assert.ok(!('js' in m.widget.props) && 'radius' in m.widget.props)
+  assert.equal(m.point.status, 'offline'); assert.equal(m.point.value, null)
+})
+window.dispatchEvent(new window.MessageEvent('message', { data: { type: 'scada:write', value: 99 } })); await nextTick()
+fromChild({ type: 'scada:write', value: { evil: 1 } }); await nextTick()
+check('scada:write：来源不对或值不是数字 / 文本 / 布尔 → 不写', () => assert.equal(local.read('var5').value, null))
+fromChild({ type: 'scada:write', value: 8 }); await nextTick(); await sleep(20)
+check('iframe 发 scada:write 8 → 写入内部变量 var5 并把新数据点推回 iframe', () => {
+  assert.equal(local.read('var5').value, 8); const last = toChild[toChild.length - 1]; assert.equal(last.type, 'scada:data'); assert.equal(last.point.value, 8)
+})
+customIframe.getBoundingClientRect = () => ({ left: 100, top: 50, width: 120, height: 70, right: 220, bottom: 120 })
+Object.defineProperty(customIframe, 'clientWidth', { value: 240, configurable: true }); Object.defineProperty(customIframe, 'clientHeight', { value: 140, configurable: true })
+let forwarded = null; const onCm = e => { forwarded = e }; root.addEventListener('contextmenu', onCm)
+fromChild({ type: 'scada:contextmenu', x: 20, y: 40 }); await nextTick(); await sleep(30); root.removeEventListener('contextmenu', onCm)
+check('iframe 发 scada:contextmenu → 在 iframe 元素上派发 contextmenu（坐标按画布缩放换算）冒泡到页面根 → 弹出展示模式菜单', () => {
+  assert.ok(forwarded); assert.equal(forwarded.clientX, 110); assert.equal(forwarded.clientY, 70); assert.ok(forwarded.defaultPrevented)
+  assert.ok(menuItem('编辑') && menuItem('刷新数据源'))
+})
+menuItem('刷新数据源').click(); await nextTick(); await sleep(50)
+check('菜单关闭；仍是展示模式', () => { assert.equal(menuItems().length, 0); assert.ok(!scada.editing) })
 // 恢复到 4 个组件的版面，继续后面的用例
 scada.startEdit(); scada.draft.widgets = scada.draft.widgets.filter(e => keepIds.has(e.id)); await scada.save(); await nextTick()
 check('清理：恢复 4 个组件并退出编辑', () => { assert.equal(scada.layout.widgets.length, 4); assert.ok(!scada.editing) })

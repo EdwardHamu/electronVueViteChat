@@ -530,6 +530,10 @@
       "pieDesc": "Tỷ lệ giá trị hiện tại của nhiều mục dữ liệu trong một nguồn",
       "meter": "Đồng hồ đo",
       "meterDesc": "Mặt số bán nguyệt có vạch chia và kim; có thể hiển thị vùng dung sai",
+      "custom": "Tùy chỉnh",
+      "customDesc": "Tự viết HTML / CSS / JS; chạy trong iframe riêng, nhận dữ liệu qua scada.onData và ghi qua scada.write",
+      "customPlaceholder": "Sửa HTML / CSS / JS trong bảng thuộc tính",
+      "customError": "Lỗi script",
       "textLabel": "Văn bản",
       "textLabelDesc": "Chữ tĩnh; khi gắn dữ liệu sẽ hiển thị giá trị hoặc kết quả hàm xử lý",
       "unbound": "Chưa gắn dữ liệu",
@@ -538,6 +542,9 @@
       "unknown": "Thành phần không xác định"
     },
     "prop": {
+      "html": "HTML",
+      "css": "CSS",
+      "js": "JavaScript",
       "showScale": "Hiện thang đo",
       "trackColor": "Màu rãnh",
       "thumbColor": "Màu núm trượt",
@@ -675,7 +682,16 @@
       "border": "Viền",
       "radius": "Bo góc"
     },
+    "custom": {
+      "htmlHint": "Đặt trong <body> của một iframe riêng; được phép dùng <script> nội tuyến (đối tượng scada đã được chèn trong <head>). Đặt height: 100% cho phần tử gốc để lấp đầy thành phần.",
+      "cssHint": "Chỉ áp dụng cho iframe của thành phần này, không ảnh hưởng phần còn lại của trang. html / body đã có 100% rộng/cao, không lề, nền trong suốt; nền / viền / bo góc của thành phần đặt ở các trường bên dưới.",
+      "jsHint": "Chạy như script thường trong iframe. Đối tượng toàn cục scada:\nscada.onData(fn): gọi fn(point, state) khi dữ liệu thay đổi; point gồm value / text / name / unit / precision / standard / upper / lower / status / time, là undefined khi chưa gắn\nscada.point / scada.value / scada.history / scada.widget / scada.editing: điểm dữ liệu hiện tại / giá trị / 60 giá trị gần nhất / thông tin thành phần (kích thước, tiêu đề, gắn kết) / đang ở chế độ sửa\nscada.write(value): ghi về nguồn dữ liệu đã gắn (phải ghi được, ví dụ biến nội bộ)\nscada.format(v, digits) / scada.statusColor(status): định dạng số / màu trạng thái\nLỗi script hiển thị ở góc dưới trái thành phần khi đang sửa; chuột phải / nhấn giữ trong iframe vẫn mở menu của trang"
+    },
     "panel": {
+      "codeEdit": "Sửa",
+      "codeChars": "{n} ký tự",
+      "codeExample": "Chèn ví dụ",
+      "codeClear": "Xóa",
       "imageTooLargeMb": "Ảnh không được vượt quá {mb} MB",
       "uploadFailed": "Tải ảnh lên thất bại",
       "imageInline": "nhúng",
