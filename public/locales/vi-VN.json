@@ -495,7 +495,7 @@
       "canvas": "Khung vẽ",
       "canvasText": "Con lăn / chụm hai ngón: thu phóng quanh con trỏ\nGiữ Space và kéo, hoặc kéo bằng nút giữa chuột: di chuyển\nPhím + / - / 0: phóng to / thu nhỏ / đặt lại; thanh công cụ － 100% ＋ cũng dùng được",
       "widget": "Thao tác thành phần",
-      "widgetText": "Kéo để di chuyển, kéo 8 tay cầm trên khung chọn để đổi kích thước theo mọi hướng (Shift + kéo góc: giữ tỷ lệ)\nCtrl (⌘ trên Mac) hoặc Shift + nhấp: thêm / bớt vào vùng chọn; Ctrl + A chọn tất cả; nhấp vào thành phần trong nhóm sẽ chọn cả nhóm (Alt + nhấp: chỉ chọn một)\nPhím mũi tên dịch 1px, Shift + mũi tên theo lưới\nDelete xóa thành phần đang chọn; bảng thuộc tính cho nhập vị trí / kích thước chính xác",
+      "widgetText": "Kéo để di chuyển, kéo 8 tay cầm trên khung chọn để đổi kích thước theo mọi hướng (Shift + kéo góc: giữ tỷ lệ)\nCtrl (⌘ trên Mac) hoặc Shift + nhấp: thêm / bớt vào vùng chọn; Ctrl + A chọn tất cả; nhấp vào thành phần trong nhóm sẽ chọn cả nhóm (Alt + nhấp: chỉ chọn một)\nPhím mũi tên dịch 1px, Shift + mũi tên theo lưới\nDelete xóa thành phần đang chọn; bảng thuộc tính cho nhập vị trí / kích thước chính xác\nBấm vào tiêu đề từng mục trong bảng thuộc tính để thu gọn / mở rộng (lựa chọn được ghi nhớ); xoay / lật nằm ở hàng công cụ thứ hai",
       "arrange": "Sắp xếp và lớp",
       "arrangeText": "Thanh công cụ hàng thứ hai: căn chỉnh / phân bố / cùng kích thước / xoay / lật / nhóm / khóa / thứ tự / lưới; căn chỉnh và cùng kích thước lấy 'đối tượng tham chiếu' (thành phần chọn đầu tiên, khung cam) làm chuẩn\nBảng Lớp bên trái: từ trên xuống = lớp trên đến lớp dưới của khung vẽ; nhấp để chọn (Ctrl / Shift: chọn nhiều), kéo tay cầm ⋮⋮ hoặc dùng các nút phía trên để đổi thứ tự, biểu tượng mắt / khóa để ẩn / khóa\nNút toàn màn hình: tạm thời cho trình chỉnh sửa chiếm toàn bộ màn hình (thoát bằng Esc, nhấp lần nữa hoặc khi lưu / hủy chỉnh sửa)\nBảng chọn màu mở lên phía trên dạng khung nổi: nhấp ra ngoài, nhấn Esc hoặc ✕ để đóng",
       "shortcuts": "Phím tắt",
@@ -868,10 +868,8 @@
       "grid": "Lưới",
       "lock": "Khóa",
       "lockedHint": "Đã khóa: không thể di chuyển, đổi kích thước hoặc xóa; hãy mở khóa để sửa vị trí / kích thước",
-      "rotate": "Xoay",
-      "flip": "Lật",
-      "flipH": "Ngang",
-      "flipV": "Dọc",
+      "collapse": "Thu gọn {title}",
+      "expand": "Mở rộng {title}",
       "widgetCount": "Số thành phần",
       "noneSelected": "Chạm vào thành phần trên canvas để chỉnh thuộc tính; nhấn Delete để xóa thành phần đang chọn"
     }

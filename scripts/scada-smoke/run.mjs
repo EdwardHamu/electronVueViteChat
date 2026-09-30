@@ -16,6 +16,7 @@
  *       任务 59：排列运算纯函数（对齐 / 居中 / 分布 / 等宽高 / 旋转 / 翻转 / 八点缩放 / 图层顺序 / 旋转几何 / 布局反序列化 / 指针落点换算）、Ctrl·⌘·Shift 多选与参考对象、八个缩放手柄（单个 / 多选 / Shift 等比 / 边界 / 最小尺寸）、网格开关、
  *       排列工具栏（按钮状态 / 对齐 / 画面居中下拉 / 分布 / 等宽高 / 旋转 / 翻转 / 组合 / 锁定 / 层次）、图层栏（选择同步 / 拖动排序 / 眼睛 / 挂锁 / 旗标 / 显隐开关 / 竖屏位置）、全屏（冻结整页尺寸 / Esc / Fullscreen API 桩）、属性面板（多选面板 / 锁定 / 旋转 / 翻转）、保存与读回。
  *       任务 60：撤销 / 重做（历史栈纯函数：最多 10 步 / 同键 1 秒窗口合并 / 撤销后不再合并；按钮与角标、一次拖动 / 连续打字 / 方向键连按各算一步、batch、没有实际改动不占步数、选中项与 dirty 回溯、退出编辑清空）、Ctrl+S 保存并继续（留在编辑、历史保留、延后清理资源、输入框先失焦、弹窗 / 非编辑状态不响应）+「保存并继续」按钮、组件库点按放到视野正中央（量不出尺寸退画布中心 / 缩放平移后换算 / 中心在画布外时夹紧 / 连续点按错开两格 / 拖放不变）、内部变量管理（变量定义进布局、弹窗增删改名查重、被引用时确认删除并解绑、撤销 / 取消 / Ctrl+Enter、key 不复用、随保存落盘并在退出保存时清值、属性面板入口）、快捷键（Ctrl+C/X/V/D/L、Ctrl+] [、Tab、Esc、F11、F1；输入框 / 弹窗里不拦截）
+ *       任务 61：属性面板去掉旋转下拉 / 翻转开关（顶部工具栏翻转仍有效）、区块折叠（状态纯函数 parseCollapsed、单选五个区块 / 多选三个 / 画布一个的标题按钮、折叠 / 展开、全局共享与 localStorage 持久化、「操作」在单选多选间共用、不进撤销历史、mousedown 不抢焦点、折叠时颜色浮层随之卸载、箭头方向）
  * 说明：@/store、@/store/config 与 @/utils/callm 被 stubs/ 里的桩替换（真实模块会把 echarts 等整套依赖拉进来）。
  */
 import { build } from 'esbuild'
@@ -73,6 +74,8 @@ import * as vars from '@/views/Home/scada/variables'
 import { viewCenterInCanvas, canvasFocused } from '@/views/Home/scada/Canvas'
 import { localDataSource, pruneLocalVarValues, resetLocalVars, LOCAL_VARS_KEY } from '@/views/Home/scada/dataSource/localSource'
 export { hist, sc, vars, viewCenterInCanvas, canvasFocused, localDataSource, pruneLocalVarValues, resetLocalVars, LOCAL_VARS_KEY }
+import * as panelState from '@/views/Home/scada/panelSections'
+export { panelState }
 `)
 const stubs = {
   '@/store': path.join(here, 'stubs', 'store.ts'),
@@ -1686,7 +1689,7 @@ tool('rotateCw').click(); await nextTick()
 check('顺时针旋转 90°：组件 rotate = 90，x / y / w / h 不变（中心不变）；wrapper 带 CSS rotate(90deg)；手柄围着画面上的外框（宽高互换）；位置尺寸输入框显示画面上的 x / y / w / h', () => {
   assert.equal(widgetOf(B.id).rotate, 90); assert.deepEqual(rectOf(B.id), INIT[B.id]); assert.equal(wrapTransform(B.id), 'rotate(90deg)')
   const se = handleEl('se'); assert.ok(Math.abs(parseFloat(se.style.left) + parseFloat(se.style.width) / 2 - 360) < 0.01, se.style.left); assert.ok(Math.abs(parseFloat(se.style.top) + parseFloat(se.style.height) / 2 - 260) < 0.01, se.style.top)   // 视觉外框 (320, 180, 40, 80)
-  assert.deepEqual(geoInputs(), ['320', '180', '40', '80']); assert.ok(propsCol().querySelector('[data-scada-rotate]').textContent.includes('90°'))
+  assert.deepEqual(geoInputs(), ['320', '180', '40', '80'])
 })
 dragEl(handleEl('se'), 30, 20); await nextTick()
 check('旋转后拖右下角手柄：改的是画面上的宽高（视觉 40×80 → 70×100），换算回布局外框 100×70（w = 视觉高，h = 视觉宽）；视觉左上角不动', () => {
@@ -1776,9 +1779,9 @@ check('拖动被锁定的组件：不动并提示「已锁定」（每次拖动�
   key('Delete'); assert.ok(widgetOf(A.id) && widgetOf(B.id)); assert.equal(warns.length, 3)
 })
 scada.select(A.id); await nextTick()
-check('属性面板：锁定的组件位置 / 尺寸 / 旋转 / 翻转输入框全部禁用，显示锁定提示，删除按钮禁用，锁定开关为开', () => {
+check('属性面板：锁定的组件位置 / 尺寸输入框全部禁用，显示锁定提示，删除按钮禁用，锁定开关为开', () => {
   const inputs = [...propsCol().querySelectorAll('.n-input-number')].filter(el => !el.querySelector('.n-input-number-suffix, .n-button')); assert.equal(inputs.length, 4); assert.ok(inputs.every(el => el.classList.contains('n-input-number--disabled') || el.querySelector('input').disabled), 'geometry disabled')
-  assert.ok(propsCol().textContent.includes('已锁定：不能移动、缩放或删除')); assert.ok(propsCol().querySelector('[data-scada-rotate]').classList.contains('n-select--disabled') || propsCol().querySelector('[data-scada-rotate] .n-base-selection--disabled'))
+  assert.ok(propsCol().textContent.includes('已锁定：不能移动、缩放或删除'))
   assert.ok([...propsCol().querySelectorAll('button')].find(b => b.textContent.trim() === '删除').disabled); assert.ok(propsCol().querySelector('[data-scada-lock-switch]').classList.contains('n-switch--active'))
 })
 scada.setLocked([B.id], false); scada.setSelection([A.id, B.id]); await nextTick()
@@ -2000,25 +2003,25 @@ const dW2 = scada.addWidget('rect'); scada.setSelection([A.id, dW2.id]); scada.g
 scada.removeWidgets([dW2.id]); await nextTick()
 check('组合里的成员被删到只剩一个：落单的 groupId 自动清掉（取消组合按钮不会误亮）', () => { assert.ok(!('groupId' in widgetOf(A.id))); scada.select(A.id); assert.ok(tool('ungroup').disabled) })
 scada.select(A.id); await nextTick()
-check('单个组件面板：有「锁定」开关、旋转下拉（0°）、左右 / 上下翻转开关；位置 / 尺寸四个输入框', () => {
-  assert.ok(propsCol().querySelector('[data-scada-lock-switch]') && propsCol().querySelector('[data-scada-rotate]') && propsCol().querySelector('[data-scada-flip-x]') && propsCol().querySelector('[data-scada-flip-y]'))
-  assert.ok(propsCol().querySelector('[data-scada-rotate]').textContent.includes('0°')); assert.deepEqual(geoInputs(), ['100', '100', '100', '60'])
-  assert.ok(propsCol().textContent.includes('旋转') && propsCol().textContent.includes('翻转') && propsCol().textContent.includes('锁定'))
+check('单个组件面板：有「锁定」开关、位置 / 尺寸四个输入框；没有旋转下拉和翻转开关（旋转 / 翻转只在顶部排列工具栏里，任务 61）', () => {
+  assert.ok(propsCol().querySelector('[data-scada-lock-switch]')); assert.ok(!propsCol().querySelector('[data-scada-rotate]') && !propsCol().querySelector('[data-scada-flip-x]') && !propsCol().querySelector('[data-scada-flip-y]'))
+  assert.deepEqual(geoInputs(), ['100', '100', '100', '60'])
+  assert.ok(propsCol().textContent.includes('锁定') && !propsCol().textContent.includes('旋转') && !propsCol().textContent.includes('翻转'), propsCol().textContent)
 })
 propsCol().querySelector('[data-scada-lock-switch]').click(); await nextTick()
 check('锁定开关：打开 → 组件 locked、位置输入框禁用；关闭 → 解除', () => {
   assert.equal(widgetOf(A.id).locked, true); assert.ok(propsCol().querySelector('[data-scada-lock-switch]').classList.contains('n-switch--active')); propsCol().querySelector('[data-scada-lock-switch]').click()
 })
 await nextTick()
-propsCol().querySelector('[data-scada-flip-x]').click(); propsCol().querySelector('[data-scada-flip-y]').click(); await nextTick()
-check('翻转开关：flipX / flipY 直接写进组件（位置不变），wrapper 带 scale(-1, -1)；关掉后移除', () => {
+tool('flipH').click(); tool('flipV').click(); await nextTick()
+check('翻转（顶部工具栏）：flipX / flipY 直接写进组件（位置不变），wrapper 带 scale(-1, -1)；再翻一次后移除', () => {
   assert.ok(!('locked' in widgetOf(A.id))); assert.equal(widgetOf(A.id).flipX, true); assert.equal(widgetOf(A.id).flipY, true); assert.equal(wrapTransform(A.id), 'scale(-1, -1)'); assert.deepEqual(rectOf(A.id), INIT[A.id])
-  propsCol().querySelector('[data-scada-flip-x]').click(); propsCol().querySelector('[data-scada-flip-y]').click()
+  tool('flipH').click(); tool('flipV').click()
 })
 await nextTick()
 scada.setRotation(A.id, 90); await nextTick()
-check('旋转 90° 后面板显示画面上的外框：x / y / w / h = 120 / 80 / 60 / 100（布局外框 100×60 → 视觉 60×100）；下拉显示 90°', () => {
-  assert.ok(!('flipX' in widgetOf(A.id)) && !('flipY' in widgetOf(A.id))); assert.deepEqual(geoInputs(), ['120', '80', '60', '100']); assert.ok(propsCol().querySelector('[data-scada-rotate]').textContent.includes('90°'))
+check('旋转 90° 后面板显示画面上的外框：x / y / w / h = 120 / 80 / 60 / 100（布局外框 100×60 → 视觉 60×100）', () => {
+  assert.ok(!('flipX' in widgetOf(A.id)) && !('flipY' in widgetOf(A.id))); assert.deepEqual(geoInputs(), ['120', '80', '60', '100'])
 })
 await typeInto([...propsCol().querySelectorAll('.n-input-number')].filter(el => !el.querySelector('.n-input-number-suffix, .n-button'))[2].querySelector('input'), 80)
 check('在面板里改画面宽度 60 → 80：按视觉外框换算回布局外框（100 × 80），视觉左上角 (120, 80) 不动', () => {
@@ -2603,6 +2606,126 @@ scada.cancelEdit(); await nextTick()
 window.$message = prevMsg
 }
 // <<< 任务 60 测试结束（后面的用例追加在这一行之前的块里）
+
+
+
+
+// >>> 任务 61 测试开始
+
+// ---------------- 任务 61：属性面板去掉旋转 / 翻转配置项 · 每个区块可折叠 ----------------
+{
+const { panelState } = m
+const sec = id => propsCol().querySelector(`[data-scada-section="${id}"]`)
+const tog = id => propsCol().querySelector(`[data-scada-section-toggle="${id}"]`)
+const secIds = () => [...propsCol().querySelectorAll('[data-scada-section]')].map(e => e.dataset.scadaSection)
+const hasBody = id => !!sec(id) && sec(id).children.length > 1
+const geoInputs = () => [...propsCol().querySelectorAll('.n-input-number')].filter(el => !el.querySelector('.n-input-number-suffix, .n-button') && !el.hasAttribute('data-multi-bounds')).map(el => el.querySelector('input').value)
+const tool = k => root.querySelector(`[data-tool="${k}"]`)
+const widgetOf = id => scada.draft.widgets.find(w => w.id === id)
+const fresh61 = async () => {
+  if (scada.editing) scada.cancelEdit()
+  await nextTick()
+  await scada.applyLayout(normalizeLayout({ canvas: { width: 1000, height: 600, grid: 10 }, widgets: [] }))
+  panelState.expandAllSections()
+  scada.startEdit(); await nextTick(); await nextTick()
+}
+
+check('折叠状态（纯函数）：空 / 损坏 / 不是数组当作没有；字符串 id 去重，丢掉非字符串、空串和过长的', () => {
+  assert.deepEqual(panelState.parseCollapsed(null), []); assert.deepEqual(panelState.parseCollapsed(''), []); assert.deepEqual(panelState.parseCollapsed('not json'), []); assert.deepEqual(panelState.parseCollapsed('{"a":1}'), []); assert.deepEqual(panelState.parseCollapsed('"binding"'), [])
+  assert.deepEqual(panelState.parseCollapsed(JSON.stringify(['a', 'b', 'a', 3, '', 'x'.repeat(41), null, 'c'])), ['a', 'b', 'c'])
+  assert.equal(panelState.PANEL_COLLAPSED_KEY, 'scadaPanelCollapsed')
+})
+
+// ---- 单个组件：没有旋转 / 翻转配置项，五个区块都有折叠标题 ----
+await fresh61()
+const R = scada.addWidget('rect', { x: 300, y: 200 }), Q = scada.addWidget('circle', { x: 600, y: 300 }); scada.select(R.id); await nextTick()
+check('单个组件面板：区块依次为 组件 / 数据绑定 / 位置尺寸 / 组件属性 / 操作，每个都有折叠标题（展开状态、aria-expanded=true、提示「收起「…」」）', () => {
+  assert.deepEqual(secIds(), ['widget', 'binding', 'geometry', 'props', 'actions'])
+  for (const id of secIds()) { const t = tog(id); assert.ok(t, id); assert.equal(t.getAttribute('aria-expanded'), 'true'); assert.ok(t.title.startsWith('收起「') && t.title.endsWith('」'), t.title); assert.equal(t.tabIndex, -1); assert.ok(hasBody(id), id); assert.ok(!sec(id).dataset.collapsed); assert.equal(t.querySelector('svg').style.transform, 'rotate(90deg)', '展开时箭头朝下（内联样式，本应用没有 tailwind base，rotate-90 不生效）') }
+  assert.equal(tog('binding').title, '收起「数据绑定（可选）」'); assert.ok(tog('geometry').textContent.includes('位置 / 尺寸'), tog('geometry').textContent)
+})
+check('旋转 / 翻转配置项已去掉：面板里没有旋转下拉和左右 / 上下翻转开关，也没有「旋转」「翻转」字样；位置 / 尺寸四个输入框和锁定开关还在', () => {
+  assert.ok(!propsCol().querySelector('[data-scada-rotate]') && !propsCol().querySelector('[data-scada-flip-x]') && !propsCol().querySelector('[data-scada-flip-y]'))
+  assert.ok(!propsCol().textContent.includes('旋转') && !propsCol().textContent.includes('翻转')); assert.equal(geoInputs().length, 4); assert.ok(propsCol().querySelector('[data-scada-lock-switch]'))
+  assert.ok(tool('rotateCw') && tool('rotateCcw') && tool('flipH') && tool('flipV'), '顶部排列工具栏里的旋转 / 翻转按钮还在')
+})
+
+// ---- 点标题折叠 / 展开 ----
+const u0 = scada.historyUndo, dirty0 = scada.dirty
+tog('binding').click(); await nextTick()
+check('点「数据绑定」标题：内容收起（数据源 / 数据项下拉都不渲染）、标题行和箭头还在、aria-expanded=false、提示变成「展开「…」」；别的区块不受影响', () => {
+  assert.equal(tog('binding').getAttribute('aria-expanded'), 'false'); assert.equal(sec('binding').dataset.collapsed, '1'); assert.ok(!hasBody('binding')); assert.ok(!sec('binding').querySelector('.n-select')); assert.equal(tog('binding').title, '展开「数据绑定（可选）」')
+  assert.ok(sec('binding').textContent.includes('数据绑定')); assert.ok(!sec('binding').textContent.includes('数据源')); assert.equal(tog('binding').querySelector('svg').style.transform, 'none', '折叠时箭头朝右')
+  for (const id of ['widget', 'geometry', 'props', 'actions']) { assert.ok(hasBody(id), id); assert.equal(tog(id).getAttribute('aria-expanded'), 'true') }
+  assert.equal(geoInputs().length, 4)
+})
+check('折叠只是界面状态：不进撤销历史、不弄脏草稿；记进 localStorage scadaPanelCollapsed', () => {
+  assert.equal(scada.historyUndo, u0); assert.equal(scada.dirty, dirty0); assert.deepEqual(JSON.parse(localStorage.getItem('scadaPanelCollapsed')), ['binding']); assert.deepEqual(panelState.collapsedSections(), ['binding'])
+})
+scada.select(Q.id); await nextTick()
+check('选中另一个组件：「数据绑定」仍是折叠的（状态全局共享，不随组件走）', () => { assert.ok(!hasBody('binding')); assert.equal(sec('binding').dataset.collapsed, '1'); assert.ok(hasBody('geometry')) })
+scada.select(R.id); tog('binding').click(); await nextTick()
+check('再点一下展开：内容回来（数据源下拉在），localStorage 里的折叠列表清空', () => {
+  assert.equal(tog('binding').getAttribute('aria-expanded'), 'true'); assert.ok(hasBody('binding')); assert.ok(sec('binding').querySelector('.n-select')); assert.ok(!sec('binding').dataset.collapsed); assert.deepEqual(JSON.parse(localStorage.getItem('scadaPanelCollapsed')), [])
+})
+{
+  const t = tog('geometry'); const ev = new window.MouseEvent('mousedown', { bubbles: true, cancelable: true }); t.dispatchEvent(ev)
+  check('点标题不抢键盘焦点（mousedown 被 preventDefault、按钮 tabindex=-1）：折叠之后仍能直接按 Delete / 方向键 / Ctrl+Z 操作画布', () => { assert.ok(ev.defaultPrevented); assert.equal(t.tabIndex, -1) })
+}
+// 全部折叠 → 只剩标题行；数据处理函数按钮不是区块，仍在面板底部
+for (const id of ['widget', 'binding', 'geometry', 'props', 'actions']) tog(id).click()
+await nextTick()
+check('五个区块全部折叠：只剩五行标题（没有输入框 / 下拉 / 开关）；底部「数据处理函数」按钮不受影响；折叠列表 = 五个 id', () => {
+  assert.deepEqual(panelState.collapsedSections().sort(), ['actions', 'binding', 'geometry', 'props', 'widget'])
+  for (const id of secIds()) assert.ok(!hasBody(id), id)
+  assert.equal(propsCol().querySelectorAll('.n-input, .n-select, .n-switch, .n-input-number').length, 0)
+  assert.ok([...propsCol().querySelectorAll('button')].some(b => b.textContent.includes('数据处理函数')))
+})
+for (const id of ['widget', 'binding', 'geometry', 'props', 'actions']) tog(id).click()
+await nextTick()
+check('再全部展开：内容都回来了，组件数据没变', () => {
+  assert.deepEqual(panelState.collapsedSections(), []); for (const id of secIds()) assert.ok(hasBody(id), id); assert.equal(geoInputs().length, 4); const w = widgetOf(R.id); assert.deepEqual(geoInputs(), [w.x, w.y, w.w, w.h].map(String)); assert.equal(w.x, 300 - w.w / 2)
+})
+
+// ---- 折叠时里面的浮层随之关闭 ----
+{
+  const f = sec('props').querySelector('[data-color-field] [data-color-trigger]'); f.click(); await nextTick(); await sleep(30)
+  const opened = document.body.querySelectorAll('[data-color-popup]').length
+  tog('props').click(); await nextTick(); await sleep(30)
+  check('「组件属性」里的颜色浮层开着时折叠该区块：浮层随颜色框一起卸载（不会悬在半空）', () => { assert.equal(opened, 1); assert.equal(document.body.querySelectorAll('[data-color-popup]').length, 0) })
+  tog('props').click(); await nextTick()
+}
+
+// ---- 多选面板：区块可折叠，「操作」与单选面板共用一份状态 ----
+tog('actions').click(); await nextTick()
+scada.setSelection([R.id, Q.id]); await nextTick()
+check('多选面板：区块 多选 / 选区位置尺寸 / 操作 都可折叠；「操作」沿用单选面板里的折叠（同一个 id）', () => {
+  assert.deepEqual(secIds(), ['multi', 'multiBounds', 'actions']); assert.equal(sec('actions').dataset.collapsed, '1'); assert.ok(!propsCol().querySelector('[data-multi-duplicate]')); assert.ok(hasBody('multi') && hasBody('multiBounds'))
+})
+tog('actions').click(); tog('multiBounds').click(); await nextTick()
+check('多选面板：展开「操作」→ 批量按钮回来；折叠「选区位置 / 尺寸」→ 四个外接框输入框不渲染', () => { assert.ok(propsCol().querySelector('[data-multi-duplicate]')); assert.ok(!propsCol().querySelector('[data-multi-bounds]')); assert.deepEqual(panelState.collapsedSections(), ['multiBounds']) })
+tog('multiBounds').click(); await nextTick()
+
+// ---- 画布面板 ----
+scada.select(null); await nextTick()
+check('未选中（画布面板）：「画布」区块可折叠，宽 / 高 / 背景色 / 网格输入框随之收起；下方的组件数量说明不是区块，始终显示', () => {
+  assert.deepEqual(secIds(), ['canvas']); assert.ok(propsCol().querySelectorAll('.n-input-number').length >= 3)
+  tog('canvas').click()
+})
+await nextTick()
+check('……折叠后：没有输入框、没有「适配当前屏幕」按钮；组件数量说明仍在；再点展开恢复', () => {
+  assert.ok(!hasBody('canvas')); assert.equal(propsCol().querySelectorAll('.n-input-number').length, 0); assert.ok(![...propsCol().querySelectorAll('button')].some(b => b.textContent.includes('适配当前屏幕'))); assert.ok(propsCol().textContent.includes('组件数量'))
+  tog('canvas').click()
+})
+await nextTick()
+check('……展开：画布尺寸输入框与「适配当前屏幕」「清空画布」按钮回来', () => { assert.ok(hasBody('canvas')); assert.ok(propsCol().querySelectorAll('.n-input-number').length >= 3); assert.ok([...propsCol().querySelectorAll('button')].some(b => b.textContent.includes('适配当前屏幕'))) })
+check('帮助说明里提到了属性面板区块可折叠、旋转 / 翻转在工具栏', () => {
+  const key = 'scada.help.widgetText'; const txt = i18n.global.t(key); assert.ok(txt.includes('折叠') && txt.includes('旋转 / 翻转在顶部第二行工具栏里'), txt)
+})
+scada.cancelEdit(); await nextTick()
+panelState.expandAllSections()
+}
+// <<< 任务 61 测试结束
 
 app.unmount()
 check('卸载后恢复虚拟键盘', () => assert.equal(main.globalKeyBoardBlocked, false))

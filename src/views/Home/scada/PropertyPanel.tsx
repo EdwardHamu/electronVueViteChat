@@ -1,5 +1,6 @@
 /**
- * 属性面板：选中一个组件时编辑标题 / 锁定 / 数据绑定 / 位置尺寸旋转翻转 / 组件自定义属性（按 propSchema 通用渲染）；
+ * 属性面板：选中一个组件时编辑标题 / 锁定 / 数据绑定 / 位置尺寸 / 组件自定义属性（按 propSchema 通用渲染）；
+ * 旋转 / 翻转只在顶部排列工具栏里（任务 61 起面板里不再有旋转下拉和翻转开关）；每个区块都可以点标题折叠 / 展开（panelSections.ts，记在 localStorage）；
  * 选中多个时显示多选面板（数量、参考对象、选区外接框的位置尺寸、复制 / 置顶 / 置底 / 删除）；未选中时编辑画布本身（尺寸、背景、网格）。
  * 位置尺寸显示的是画面上看到的外框（旋转 90° / 270° 时宽高互换），输入后换算回组件的 x / y / w / h。
  * columns = 2 时（竖屏放在画布下方）各区块分两栏排布。
@@ -11,7 +12,8 @@ import { computed, defineComponent, ref, watch, type PropType } from 'vue'
 import ColorField from './ColorField'
 import { visualMin } from './arrange'
 import { dataSourceList, getDataSource } from './dataSource'
-import { layoutFromVisual, normRotate, unionRect, visualRect } from './geometry'
+import { layoutFromVisual, unionRect, visualRect } from './geometry'
+import { isSectionCollapsed, toggleSection } from './panelSections'
 import { getWidgetDefinition, widgetName } from './registry'
 import { hasHostBridge, INLINE_MAX_BYTES, isDataUrl, isResourceUrl, readBlobAsDataUrl, RESOURCE_MAX_BYTES, resourceFileName, uploadResource } from './resource'
 import { useScadaStore } from './store'
@@ -29,12 +31,36 @@ const Row = (props: { label: string }, { slots }: { slots: any }) => (
   </div>
 )
 
-const Section = (props: { title: string }, { slots }: { slots: any }) => (
-  <div class={'px-3 py-2 border-0 border-b border-solid border-gray-200 break-inside-avoid'}>
-    <div class={'text-xs font-bold text-gray-500 mb-1'}>{props.title}</div>
-    {slots.default && slots.default()}
-  </div>
-)
+const prevent = (e: Event) => e.preventDefault()
+
+/**
+ * 面板区块：标题行可点击折叠 / 展开（折叠时内容不渲染——里面的颜色浮层之类随之关闭），sid = 折叠状态的键（panelSections.ts）。
+ * 标题按钮 tabindex = -1 + mousedown preventDefault：点它不抢键盘焦点，折叠之后仍可直接按 Delete / 方向键 / Ctrl + Z 操作画布。
+ */
+const Section = (props: { sid: string; title: string }, { slots }: { slots: any }) => {
+  const closed = isSectionCollapsed(props.sid)
+  return (
+    <div class={'px-3 py-2 border-0 border-b border-solid border-gray-200 break-inside-avoid'} data-scada-section={props.sid} data-collapsed={closed ? '1' : undefined}>
+      <button
+        type="button"
+        tabindex={-1}
+        aria-expanded={!closed}
+        title={tt(closed ? 'scada.panel.expand' : 'scada.panel.collapse', { title: props.title })}
+        data-scada-section-toggle={props.sid}
+        class={'w-full min-h-[20px] p-0 border-0 bg-transparent flex items-center gap-1 text-left text-xs font-bold text-gray-500 hover:text-gray-800 cursor-pointer select-none outline-none'}
+        onMousedown={prevent}
+        onClick={() => toggleSection(props.sid)}
+      >
+        {/* 箭头旋转写成内联样式：本应用的 style.scss 只有 `@tailwind utilities`（没有 base 里的 --tw-* 变量初值），rotate-90 这类 transform 工具类不生效 */}
+        <svg viewBox="0 0 12 12" class={'w-3 h-3 shrink-0'} style={{ transform: closed ? 'none' : 'rotate(90deg)', transition: 'transform 0.15s' }} aria-hidden="true">
+          <path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class={'truncate'}>{props.title}</span>
+      </button>
+      {closed ? null : <div class={'mt-1'}>{slots.default && slots.default()}</div>}
+    </div>
+  )
+}
 
 export default defineComponent({
   name: 'ScadaPropertyPanel',
@@ -102,7 +128,6 @@ export default defineComponent({
       if (!u) return
       scada.resizeSelectionTo({ ...u, [key]: Math.max(key === 'w' || key === 'h' ? 1 : 0, Math.round(v)) })
     }
-    const ROTATE_OPTIONS = [0, 90, 180, 270].map(d => ({ label: `${d}°`, value: d }))
 
     /**
      * 图片字段：选择本地文件。有宿主桥时经 JsBridge.SaveResourceFile 存到运行目录 Resources/pic，
@@ -209,7 +234,7 @@ export default defineComponent({
       const vmin = visualMin({ rotate: w.rotate, min: def?.minSize || { w: 20, h: 20 } })
       return (
         <>
-          <Section title={`${tt('scada.panel.widget')} · ${def ? def.label() : w.type}`}>
+          <Section sid="widget" title={`${tt('scada.panel.widget')} · ${def ? def.label() : w.type}`}>
             <Row label={tt('scada.panel.title')}>
               <NInput size="small" value={w.title || ''} placeholder={tt('scada.panel.titlePlaceholder')} onUpdateValue={(v: string) => scada.updateWidget(w.id, { title: v })} />
             </Row>
@@ -217,7 +242,7 @@ export default defineComponent({
               <NSwitch size="small" value={!!w.locked} data-scada-lock-switch onUpdateValue={(v: boolean) => scada.setLocked([w.id], v)} />
             </Row>
           </Section>
-          <Section title={tt('scada.panel.binding') + (optionalBinding ? tt('scada.panel.optional') : '')}>
+          <Section sid="binding" title={tt('scada.panel.binding') + (optionalBinding ? tt('scada.panel.optional') : '')}>
             <Row label={tt('scada.panel.source')}>
               <NSelect
                 size="small"
@@ -258,7 +283,7 @@ export default defineComponent({
               </div>
             ) : null}
           </Section>
-          <Section title={tt('scada.panel.geometry')}>
+          <Section sid="geometry" title={tt('scada.panel.geometry')}>
             {/* 两列紧凑排布：标签只占 1 个字符宽、不显示 +/- 按钮，否则 300px 侧栏里每格只剩 40px，数字显示不出来 */}
             <div class={'grid grid-cols-2 gap-x-3 gap-y-1.5 py-1'}>
               {(['x', 'y', 'w', 'h'] as const).map(k => (
@@ -277,25 +302,10 @@ export default defineComponent({
                 </div>
               ))}
             </div>
-            <Row label={tt('scada.panel.rotate')}>
-              <NSelect size="small" value={normRotate(w.rotate)} options={ROTATE_OPTIONS} disabled={!!w.locked} data-scada-rotate onUpdateValue={(v: number) => scada.setRotation(w.id, v)} />
-            </Row>
-            <Row label={tt('scada.panel.flip')}>
-              <div class={'flex items-center gap-3 text-xs text-gray-600'}>
-                <label class={'flex items-center gap-1 cursor-pointer'}>
-                  <NSwitch size="small" value={!!w.flipX} disabled={!!w.locked} data-scada-flip-x onUpdateValue={(v: boolean) => scada.setFlip(w.id, 'x', v)} />
-                  {tt('scada.panel.flipH')}
-                </label>
-                <label class={'flex items-center gap-1 cursor-pointer'}>
-                  <NSwitch size="small" value={!!w.flipY} disabled={!!w.locked} data-scada-flip-y onUpdateValue={(v: boolean) => scada.setFlip(w.id, 'y', v)} />
-                  {tt('scada.panel.flipV')}
-                </label>
-              </div>
-            </Row>
             {w.locked ? <div class={'text-[11px] text-orange-500 leading-4'}>{tt('scada.panel.lockedHint')}</div> : null}
           </Section>
           {def?.propSchema && def.propSchema.length > 0 && (
-            <Section title={tt('scada.panel.props')}>
+            <Section sid="props" title={tt('scada.panel.props')}>
               {def.propSchema.map(f =>
                 f.type === 'color' ? (
                   <ColorField key={f.key} label={f.label()} value={w.props[f.key] || ''} clearable onUpdateValue={(v: string) => scada.setWidgetProp(w.id, f.key, v)} />
@@ -305,7 +315,7 @@ export default defineComponent({
               )}
             </Section>
           )}
-          <Section title={tt('scada.panel.actions')}>
+          <Section sid="actions" title={tt('scada.panel.actions')}>
             <div class={'flex flex-wrap gap-2'}>
               <NButton size="small" onClick={() => scada.bringToFront(w.id)}>{tt('scada.panel.front')}</NButton>
               <NButton size="small" onClick={() => scada.sendToBack(w.id)}>{tt('scada.panel.back')}</NButton>
@@ -330,7 +340,7 @@ export default defineComponent({
       const ids = scada.selectedIds.slice()
       return (
         <>
-          <Section title={tt('scada.multi.title')}>
+          <Section sid="multi" title={tt('scada.multi.title')}>
             <div class={'text-xs text-gray-600 leading-5'} data-multi-info>
               <div>{tt('scada.multi.count', { n: list.length })}</div>
               <div>{tt('scada.multi.reference')}：{list[0] ? widgetName(list[0]) : ''}</div>
@@ -339,7 +349,7 @@ export default defineComponent({
             <div class={'text-[11px] text-gray-400 mt-1 leading-4'}>{tt('scada.multi.hint')}</div>
           </Section>
           {u ? (
-            <Section title={tt('scada.multi.bounds')}>
+            <Section sid="multiBounds" title={tt('scada.multi.bounds')}>
               <div class={'grid grid-cols-2 gap-x-3 gap-y-1.5 py-1'}>
                 {(['x', 'y', 'w', 'h'] as const).map(k => (
                   <div key={k} class={'flex items-center gap-1.5'}>
@@ -350,7 +360,7 @@ export default defineComponent({
               </div>
             </Section>
           ) : null}
-          <Section title={tt('scada.panel.actions')}>
+          <Section sid="actions" title={tt('scada.panel.actions')}>
             <div class={'flex flex-wrap gap-2'}>
               <NButton size="small" onClick={() => scada.bringToFront(ids)}>{tt('scada.panel.front')}</NButton>
               <NButton size="small" onClick={() => scada.sendToBack(ids)}>{tt('scada.panel.back')}</NButton>
@@ -377,7 +387,7 @@ export default defineComponent({
       const l = scada.current
       return (
         <>
-          <Section title={tt('scada.panel.canvas')}>
+          <Section sid="canvas" title={tt('scada.panel.canvas')}>
             <Row label={tt('scada.panel.width')}>
               <NInputNumber size="small" value={l.canvas.width} min={100} max={10000} step={10} onUpdateValue={(v: number | null) => v && scada.setCanvas({ width: Math.round(v) })} />
             </Row>

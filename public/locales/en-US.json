@@ -495,7 +495,7 @@
       "canvas": "Canvas view",
       "canvasText": "Wheel / pinch: zoom around the pointer\nHold Space and drag, or drag with the middle mouse button: pan\nKeys + / - / 0: zoom in / out / reset; the toolbar － 100% ＋ works too",
       "widget": "Widgets",
-      "widgetText": "Drag to move; drag the 8 handles on the selection frame to resize in any direction (Shift + corner: keep the aspect ratio)\nCtrl (⌘ on Mac) or Shift + click: add / remove from the selection; Ctrl + A selects all; clicking a grouped widget selects the whole group (Alt + click: just one)\nArrow keys nudge 1px, Shift + arrows step by the grid\nDelete removes the selection; the property panel accepts exact position / size",
+      "widgetText": "Drag to move; drag the 8 handles on the selection frame to resize in any direction (Shift + corner: keep the aspect ratio)\nCtrl (⌘ on Mac) or Shift + click: add / remove from the selection; Ctrl + A selects all; clicking a grouped widget selects the whole group (Alt + click: just one)\nArrow keys nudge 1px, Shift + arrows step by the grid\nDelete removes the selection; the property panel accepts exact position / size\nClick a section title in the properties panel to collapse / expand it (your choice is remembered); rotate / flip are in the second toolbar row",
       "arrange": "Arrange and layers",
       "arrangeText": "Second toolbar row: align / distribute / same size / rotate / flip / group / lock / order / grid; align and same size use the 'reference object' (the first widget selected, orange frame) as the standard\nLayers panel on the left: top to bottom = upper to lower layer on the canvas; click to select (Ctrl / Shift for several), drag the ⋮⋮ handle or use the buttons above to reorder, the eye / padlock hide / lock\nFullscreen button: the editor temporarily fills the whole screen (leave with Esc, by clicking again, or by saving / cancelling the edit)\nThe color picker opens upward as a floating panel: click outside, press Esc or click ✕ to close it",
       "shortcuts": "Keyboard shortcuts",
@@ -868,10 +868,8 @@
       "grid": "Grid",
       "lock": "Lock",
       "lockedHint": "Locked: it cannot be moved, resized or deleted; unlock it to change position / size",
-      "rotate": "Rotation",
-      "flip": "Flip",
-      "flipH": "Horiz.",
-      "flipV": "Vert.",
+      "collapse": "Collapse {title}",
+      "expand": "Expand {title}",
       "widgetCount": "Widgets",
       "noneSelected": "Tap a widget on the canvas to edit it; press Delete to remove the selected widget"
     }
