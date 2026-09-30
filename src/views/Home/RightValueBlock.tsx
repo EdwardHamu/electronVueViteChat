@@ -323,9 +323,8 @@ export const ValueRow = defineComponent({
 
 
     return () => {
-      // 横屏时 pane 已无上内边距（right-value-pane），最顶部的一块自己留 6px 与 tab 栏隔开，并用 #f8f8f8 底色；竖屏两列布局不加
       return (
-        <div class={classNames(' shrink mb-1', { 'w-full': store.isLandscape, 'w-1/2 pr-1': !store.isLandscape, 'pt-[6px] bg-[#f8f8f8]': store.isLandscape && props.y == 0 })}>
+        <div class={classNames(' shrink mb-1', { 'w-full': store.isLandscape, 'w-1/2 pr-1': !store.isLandscape })}>
           <div class={classNames('flex items-center w-full  py-1', { 'pt-0': props.y == 0 || (!store.isLandscape && props.y == 1) })}>
             <span class={'text-2xl'}>{data.value.label || ''}</span>
             {renderAddOrDel()}
@@ -488,11 +487,16 @@ export default defineComponent({
       startLoop = false
     })
 
+    // 横屏时 pane 已无上内边距（right-value-pane），在内容最顶部放一条 4px 高、#f8f8f8 的分隔条；
+    // 容器有 px-2，用 -mx-2 抵消掉让它占满整个 pane 宽度。竖屏两列布局不加。
+    const renderTopBar = () => store.isLandscape ? <div class={'h-[4px] shrink-0 -mx-2 bg-[#f8f8f8]'}></div> : null
+
     return () => {
       return (
         <NTabs type="card" animated size="large" barWidth={1148} value={curTabValue.value} pane-class={'shrink-0 h-full right-value-pane'} class={'home-tab h-full w-full'} onUpdateValue={handleTabChange} defaultValue={'value1'} >
           <NTabPane displayDirective="if" name="value1" tab={t('menu.measureValue') + '1'} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'value1' ? activeStyle : {} } }}>
             <div class={classNames(' h-full px-2 flex  overflow-y-auto', { 'flex-col': store.isLandscape, 'flex-wrap': !store.isLandscape })}>
+              {renderTopBar()}
               {/* <NScrollbar> */}
               {infoList.value.slice(0, 6).map((e, i) => {
                 return <ValueRow key={i} x={0} y={i} data={e} i={i} fixNum={fixNumRef.value} />
@@ -506,6 +510,7 @@ export default defineComponent({
               <RightOtherValue />
             </div> */}
             <div class={classNames(' h-full px-2 flex  overflow-y-auto', { 'flex-col': store.isLandscape, 'flex-wrap items-start justify-center': !store.isLandscape })}>
+              {renderTopBar()}
               {/* <NScrollbar> */}
               {infoList.value.slice(6, 12).map((e, i) => {
                 return <ValueRow key={i} x={0} y={i} data={e} i={6 + i} fixNum={fixNumRef.value} />
@@ -529,6 +534,7 @@ export default defineComponent({
               })}
             </div> */}
             <div class={classNames(' h-full px-2 flex  overflow-y-auto', { 'flex-col': store.isLandscape, 'flex-wrap': !store.isLandscape })}>
+              {renderTopBar()}
               {/* <NScrollbar> */}
               {infoList.value.slice(12, 18).map((e, i) => {
                 return <ValueRow key={i} x={0} y={i} data={e} i={12 + i} fixNum={fixNumRef.value} />
