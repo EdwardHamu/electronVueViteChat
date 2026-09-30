@@ -152,9 +152,11 @@ const check = (name, fn) => { step++; fn(); console.log(`  ✓ ${step}. ${name}`
 const SHAPES = ['line', 'polyline', 'arc', 'rect', 'circle', 'ellipse', 'sector', 'segment', 'polygon', 'textLabel', 'image', 'pipe']
 const CONTROLS = ['numericIO', 'stringIO', 'datetime', 'button', 'bitButton', 'wordButton', 'bitStatus', 'wordStatus', 'textList', 'textSwitch', 'radio', 'checkbox', 'table']
 const DATA = ['valueCard', 'gauge', 'sparkline', 'statusLamp']
-check('注册表：三类共 29 个组件，全部带图标与分类', () => {
-  assert.deepEqual(widgetDefinitions().map(d => d.type), [...SHAPES, ...CONTROLS, ...DATA])
-  widgetDefinitions().forEach(d => { assert.equal(typeof d.icon, 'function', d.type); assert.ok(['shape', 'control', 'data'].includes(d.category), d.type) })
+const VISUAL = ['barGauge', 'slider', 'progressBar', 'ringProgress', 'pie', 'meter']
+check('注册表：四类共 35 个组件，全部带图标与分类', () => {
+  assert.deepEqual(widgetDefinitions().map(d => d.type), [...SHAPES, ...CONTROLS, ...DATA, ...VISUAL])
+  widgetDefinitions().forEach(d => { assert.equal(typeof d.icon, 'function', d.type); assert.ok(['shape', 'control', 'data', 'visual'].includes(d.category), d.type) })
+  assert.ok(VISUAL.every(t => widgetDefinitions().find(d => d.type === t).category === 'visual'))
   assert.deepEqual(dataSourceList().map(p => p.id), ['product', 'sim', 'local'])
 })
 const buttons = () => [...root.querySelectorAll('button')]
@@ -504,11 +506,14 @@ const bodyRow = () => canvasView.el.parentElement.parentElement.parentElement
 const paletteCol = () => bodyRow().children[0]
 const propsCol = () => bodyRow().children[bodyRow().children.length - 1]
 const inPalette = sel => [...paletteCol().querySelectorAll(sel)]
-check('组件库：按“基础图素 / 控制与显示 / 数据看板”分组的小图标网格，共 29 项；容器为 NScrollbar 悬浮轨道；顶栏无说明文字', () => {
-  assert.deepEqual(inPalette('[data-palette-group]').map(g => g.dataset.paletteGroup), ['shape', 'control', 'data'])
-  assert.equal(inPalette('[data-palette-item]').length, 29); assert.equal(inPalette('[data-palette-item] svg').length, 29)
+check('组件库：按“基础图素 / 控制与显示 / 数据看板 / 数据可视化”分组的小图标网格，共 35 项；容器为 NScrollbar 悬浮轨道；顶栏无说明文字', () => {
+  assert.deepEqual(inPalette('[data-palette-group]').map(g => g.dataset.paletteGroup), ['shape', 'control', 'data', 'visual'])
+  assert.equal(inPalette('[data-palette-item]').length, 35); assert.equal(inPalette('[data-palette-item] svg').length, 35)
   assert.equal(inPalette('[data-palette-group="shape"] [data-palette-item]').length, 12)
   assert.equal(inPalette('[data-palette-group="control"] [data-palette-item]').length, 13)
+  assert.deepEqual(inPalette('[data-palette-group="visual"] [data-palette-item]').map(e => e.dataset.paletteItem), VISUAL)
+  const vh = paletteCol().querySelector('[data-palette-category="visual"]'); assert.ok(vh.textContent.includes('数据可视化') && vh.textContent.includes('6'), vh.textContent)
+  assert.ok(inPalette('[data-palette-item="slider"]')[0].textContent.includes('滑块'))
   const hdr = paletteCol().querySelector('[data-palette-category="shape"]'); assert.ok(hdr.textContent.includes('基础图素') && hdr.textContent.includes('12'))
   assert.ok(paletteCol().querySelector('.n-scrollbar')); assert.ok(!paletteCol().querySelector('.overflow-y-auto'))
   assert.ok(propsCol().querySelector('.n-scrollbar'), 'property panel should use NScrollbar too')
@@ -517,9 +522,9 @@ check('组件库：按“基础图素 / 控制与显示 / 数据看板”分组�
   assert.ok(!root.textContent.includes('滚轮缩放') && !root.textContent.includes('放到画布')); assert.ok(root.querySelector('[data-scada-help]'))
 })
 paletteCol().querySelector('[data-palette-category="shape"]').click(); await nextTick()
-check('点击分类标题折叠该组', () => { assert.equal(inPalette('[data-palette-group="shape"] [data-palette-item]').length, 0); assert.equal(inPalette('[data-palette-item]').length, 17) })
+check('点击分类标题折叠该组', () => { assert.equal(inPalette('[data-palette-group="shape"] [data-palette-item]').length, 0); assert.equal(inPalette('[data-palette-item]').length, 23) })
 paletteCol().querySelector('[data-palette-category="shape"]').click(); await nextTick()
-check('再次点击展开', () => assert.equal(inPalette('[data-palette-item]').length, 29))
+check('再次点击展开', () => assert.equal(inPalette('[data-palette-item]').length, 35))
 paletteCol().querySelector('[data-palette-view="list"]').click(); await nextTick()
 check('切换为列表视图（图标 + 名称 + 说明）并记住选择', () => {
   assert.equal(localStorage.getItem('scadaPaletteView'), 'list')
@@ -541,12 +546,12 @@ document.body.querySelector('.n-modal-container .n-card-header__close').click();
 check('关闭操作说明弹窗', () => assert.ok(!document.body.querySelector('[data-scada-help-content]')))
 
 const keepIds = new Set(scada.draft.widgets.map(e => e.id))
-const NEW_TYPES = [...SHAPES, ...CONTROLS].filter(t => t !== 'textLabel')
+const NEW_TYPES = [...SHAPES, ...CONTROLS, ...VISUAL].filter(t => t !== 'textLabel')
 for (const type of NEW_TYPES) scada.addWidget(type)
 await nextTick()
 const byType = t => scada.draft.widgets.find(e => e.type === t && !keepIds.has(e.id))
 const hostOf = t => canvasView.el.querySelector(`[data-widget-id="${byType(t).id}"]`)
-check('新增 24 个组件全部渲染：图形为 SVG，控制组件各有标记，图片显示占位提示，日期时间域走时', () => {
+check('新增 30 个组件全部渲染：图形为 SVG，控制 / 可视化组件各有标记，图片显示占位提示，日期时间域走时', () => {
   assert.equal(scada.draft.widgets.length, 4 + NEW_TYPES.length); assert.ok(!root.textContent.includes('未知组件')); assert.ok(!root.textContent.includes('false'), 'literal false in: ' + [...canvasView.el.querySelectorAll('[data-widget-type]')].filter(h => h.textContent.includes('false')).map(h => h.dataset.widgetType + '=' + h.innerHTML.slice(0, 300)).join(' | '))
   for (const t of ['line', 'polyline', 'arc', 'rect', 'circle', 'ellipse', 'sector', 'segment', 'polygon', 'pipe']) assert.ok(hostOf(t).querySelector('svg'), t)
   assert.ok(hostOf('polygon').querySelector('svg polygon')); assert.ok(hostOf('circle').querySelector('svg circle, svg ellipse')); assert.ok(hostOf('rect').querySelector('svg rect'))
@@ -554,6 +559,13 @@ check('新增 24 个组件全部渲染：图形为 SVG，控制组件各有标�
   for (const sel of ['[data-scada-button]', '[data-scada-bit-button]', '[data-scada-word-button]', '[data-scada-text-list]', '[data-scada-text-switch]', '[data-scada-radio]', '[data-scada-checkbox]', '[data-scada-table]']) assert.ok(canvasView.el.querySelector(sel), sel)
   assert.ok(hostOf('image').textContent.includes('在属性面板设置图片'))
   assert.match(hostOf('datetime').textContent, /\d{2}:\d{2}:\d{2}/)
+  for (const sel of ['[data-scada-bar-gauge]', '[data-scada-slider] [data-slider-track]', '[data-scada-progress] [data-progress-fill]', '[data-scada-ring]', '[data-scada-pie] svg', '[data-scada-meter] [data-meter-needle]']) assert.ok(canvasView.el.querySelector(sel), sel)
+  assert.ok(hostOf('barGauge').textContent.includes('未绑定数据') && hostOf('barGauge').querySelector('svg rect'))
+  assert.ok(hostOf('slider').textContent.includes('--') && hostOf('slider').textContent.includes('100'))
+  assert.ok(hostOf('progressBar').textContent.includes('--'))
+  assert.ok(hostOf('meter').querySelectorAll('svg line').length >= 6 && hostOf('meter').textContent.includes('100'))
+  // 饼图默认取产品分类数据源的全部数据项（冒烟里有模拟值）：有扇区 + 图例
+  assert.ok(hostOf('pie').querySelector('[data-pie-legend]') && hostOf('pie').querySelectorAll('[data-pie-slice]').length >= 2)
 })
 // 内部变量数据源：可写、响应式、持久化
 const local = getDataSource('local')
@@ -568,9 +580,19 @@ scada.setBinding(byType('checkbox').id, { source: 'local', key: 'var2' })
 scada.setBinding(byType('wordButton').id, { source: 'local', key: 'var3' }); scada.setWidgetProp(byType('wordButton').id, 'value', 42)
 scada.setBinding(byType('button').id, { source: 'product', key: 'd_od' })
 scada.setWidgetProp(byType('table').id, 'source', 'local'); scada.setWidgetProp(byType('table').id, 'maxRows', 3)
+// 数据可视化组件：滑块写 var4，进度条 / 环形 / 量表读 var3，棒图读产品分类（带公差），饼图取内部变量 var1 + var3
+scada.setBinding(byType('slider').id, { source: 'local', key: 'var4' })
+scada.setBinding(byType('progressBar').id, { source: 'local', key: 'var3' })
+scada.setBinding(byType('ringProgress').id, { source: 'local', key: 'var3' })
+scada.setBinding(byType('meter').id, { source: 'local', key: 'var3' })
+scada.setBinding(byType('barGauge').id, { source: 'product', key: 'd_od' })
+scada.setWidgetProp(byType('pie').id, 'source', 'local'); scada.setWidgetProp(byType('pie').id, 'items', ['var1', 'var3'])
 await nextTick()
 hostOf('bitButton').querySelector('[data-scada-bit-button]').click(); await nextTick()
-check('编辑模式下点击位按钮不写值', () => assert.equal(local.read('var1').value, null))
+const sliderArea0 = hostOf('slider').querySelector('[data-slider-area]')
+sliderArea0.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 50, clientY: 4, pointerId: 31, button: 0 }))
+sliderArea0.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 50, clientY: 4, pointerId: 31, button: 0 })); await nextTick()
+check('编辑模式下点击位按钮 / 按下滑块都不写值', () => { assert.equal(local.read('var1').value, null); assert.equal(local.read('var4').value, null) })
 // 属性面板：多行文本字段与图片字段
 scada.select(byType('textList').id); await nextTick()
 const itemsTa = propsCol().querySelector('textarea')
@@ -611,6 +633,46 @@ check('表格：列出内部变量前 3 行（含刚写入的值）', () => {
   const rows = [...hostL('table').querySelectorAll('tbody tr')]; assert.equal(rows.length, 3)
   assert.ok(rows[0].textContent.includes('变量 1') && rows[0].textContent.includes('2.00'), rows[0].textContent)
 })
+check('进度条 / 环形进度条 / 量表：var3 = 42 按默认量程 0~100 显示 42%', () => {
+  assert.ok(hostL('progressBar').textContent.includes('42%'), hostL('progressBar').textContent)
+  assert.equal(hostL('progressBar').querySelector('[data-progress-fill]').style.width, '42%')
+  assert.equal(hostL('ringProgress').querySelector('[data-ring-value]').dataset.ringValue, '0.4200'); assert.ok(hostL('ringProgress').textContent.includes('42%'))
+  assert.equal(hostL('meter').querySelector('[data-meter-needle]').dataset.meterNeedle, '0.4200'); assert.ok(hostL('meter').textContent.includes('42'))
+})
+scada.startEdit(); scada.setWidgetProp(byType('progressBar').id, 'textMode', 'value'); scada.setWidgetProp(byType('progressBar').id, 'max', 84); scada.setWidgetProp(byType('ringProgress').id, 'max', 21); await scada.save(); await nextTick()
+check('进度条改量程 0~84 + 显示数值 → 50% 宽、文字为数值；环形量程 0~21 → 满环', () => {
+  assert.equal(hostL('progressBar').querySelector('[data-progress-fill]').style.width, '50%'); assert.ok(hostL('progressBar').textContent.includes('42') && !hostL('progressBar').textContent.includes('%'))
+  assert.equal(hostL('ringProgress').querySelector('[data-ring-value]').dataset.ringValue, '1.0000'); assert.ok(hostL('ringProgress').textContent.includes('100%'))
+})
+check('饼图：内部变量 var1 = 2、var3 = 42 → 两个扇区，图例显示 5% / 95%', () => {
+  const slices = [...hostL('pie').querySelectorAll('[data-pie-slice]')]; assert.deepEqual(slices.map(e => e.dataset.pieSlice), ['var1', 'var3'])
+  const legend = hostL('pie').querySelector('[data-pie-legend]').textContent; assert.ok(legend.includes('变量 1') && legend.includes('(5%)') && legend.includes('(95%)'), legend)
+  assert.ok(hostL('pie').querySelector('svg text').textContent.includes('%'))
+})
+check('棒图绑定产品分类数据（有公差）：画出公差带与刻度', () => {
+  const bar = hostL('barGauge'); assert.ok(bar.querySelectorAll('svg rect').length >= 3, 'rects'); assert.ok(bar.querySelectorAll('svg text').length >= 3, 'scale labels')
+})
+// 滑块：展示模式拖动写入内部变量 var4（轨道矩形需要 mock）
+const sliderHost = hostL('slider'); const sliderTrack = sliderHost.querySelector('[data-slider-track]'); const sliderArea = sliderHost.querySelector('[data-slider-area]')
+sliderTrack.getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 8, right: 200, bottom: 8 })
+sliderArea.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 50, clientY: 4, pointerId: 32, button: 0 })); await nextTick()
+check('滑块按下：本地显示值跟随指针（25），尚未写入', () => { assert.ok(sliderHost.querySelector('[data-slider-value]').textContent.includes('25'), sliderHost.textContent); assert.equal(local.read('var4').value, null) })
+sliderArea.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 150, clientY: 4, pointerId: 32, button: 0 })); await nextTick()
+sliderArea.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 150, clientY: 4, pointerId: 32, button: 0 })); await nextTick(); await sleep(20)
+check('滑块拖到 75% 松手：写入 var4 = 75 并持久化，显示值 75', () => {
+  assert.equal(local.read('var4').value, 75); assert.equal(JSON.parse(localStorage.getItem('scadaLocalVars')).var4.value, 75)
+  assert.ok(sliderHost.querySelector('[data-slider-value]').textContent.includes('75'))
+})
+scada.startEdit(); scada.setWidgetProp(byType('slider').id, 'step', 0.5); scada.setWidgetProp(byType('slider').id, 'max', 10); scada.setWidgetProp(byType('slider').id, 'readOnly', true); await scada.save(); await nextTick()
+const sliderHost2 = hostL('slider'); const sliderArea2 = sliderHost2.querySelector('[data-slider-area]'); sliderHost2.querySelector('[data-slider-track]').getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 8, right: 200, bottom: 8 })
+sliderArea2.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 20, clientY: 4, pointerId: 33, button: 0 }))
+sliderArea2.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 20, clientY: 4, pointerId: 33, button: 0 })); await nextTick(); await sleep(20)
+check('滑块只读属性：不响应拖动，var4 仍为 75；量程 0~10 时显示上限 10', () => { assert.equal(local.read('var4').value, 75); assert.ok(sliderHost2.textContent.includes('10')) })
+scada.startEdit(); scada.setWidgetProp(byType('slider').id, 'readOnly', false); await scada.save(); await nextTick()
+const sliderHost3 = hostL('slider'); const sliderArea3 = sliderHost3.querySelector('[data-slider-area]'); sliderHost3.querySelector('[data-slider-track]').getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 8, right: 200, bottom: 8 })
+sliderArea3.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 27, clientY: 4, pointerId: 34, button: 0 }))
+sliderArea3.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 27, clientY: 4, pointerId: 34, button: 0 })); await nextTick(); await sleep(20)
+check('滑块步长 0.5、量程 0~10：点在 13.5% 处 → 按步长取整写入 1.5', () => assert.equal(local.read('var4').value, 1.5))
 // 恢复到 4 个组件的版面，继续后面的用例
 scada.startEdit(); scada.draft.widgets = scada.draft.widgets.filter(e => keepIds.has(e.id)); await scada.save(); await nextTick()
 check('清理：恢复 4 个组件并退出编辑', () => { assert.equal(scada.layout.widgets.length, 4); assert.ok(!scada.editing) })

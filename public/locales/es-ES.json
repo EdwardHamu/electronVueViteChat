@@ -373,7 +373,8 @@
     "category": {
       "shape": "Figuras básicas",
       "control": "Control y visualización",
-      "data": "Panel de datos"
+      "data": "Panel de datos",
+      "visual": "Visualización de datos"
     },
     "help": {
       "title": "Instrucciones",
@@ -386,7 +387,7 @@
       "display": "Modo de visualización",
       "displayText": "Al guardar se sale de la edición y el lienzo ocupa toda la página\nClic derecho en la página (pulsación larga en táctil): Editar / Actualizar fuentes de datos / Exportar, Importar diseño\nLa exportación empaqueta el diseño y sus imágenes en un zip (diálogo Guardar como); para importar elija ese zip (el anfitrión guarda las imágenes en Resources/pic; las imágenes que ya no se usan se limpian al guardar)",
       "control": "Componentes de control",
-      "controlText": "Botones / interruptores / campos IO necesitan una fuente de datos escribible: por ahora solo «Variables internas» es escribible, los datos de producto son de solo lectura\nLos botones también pueden ejecutar los comandos iniciar / detener / poner a cero / cambio de eje"
+      "controlText": "Botones / interruptores / campos IO / deslizadores necesitan una fuente de datos escribible: por ahora solo «Variables internas» es escribible, los datos de producto son de solo lectura\nLos botones también pueden ejecutar los comandos iniciar / detener / poner a cero / cambio de eje"
     },
     "table": {
       "name": "Nombre",
@@ -518,6 +519,18 @@
       "sparklineDesc": "Línea de los últimos N valores con líneas de límite opcionales",
       "statusLamp": "Lámpara de estado",
       "statusLampDesc": "Indicador coloreado según el estado de tolerancia",
+      "barGauge": "Barra de nivel",
+      "barGaugeDesc": "Barra de nivel vertical u horizontal con escala y banda de tolerancia",
+      "slider": "Deslizador",
+      "sliderDesc": "Arrastre para escribir un valor; requiere una fuente de datos escribible",
+      "progressBar": "Barra de progreso",
+      "progressBarDesc": "Barra lineal que muestra el porcentaje o el valor del rango",
+      "ringProgress": "Progreso circular",
+      "ringProgressDesc": "Anillo de progreso con porcentaje o valor en el centro",
+      "pie": "Gráfico circular",
+      "pieDesc": "Proporción de los valores actuales de varios elementos de una fuente de datos",
+      "meter": "Medidor",
+      "meterDesc": "Cuadrante semicircular con marcas y aguja; puede mostrar zonas de tolerancia",
       "textLabel": "Texto",
       "textLabelDesc": "Texto estático; al vincular datos muestra el valor o la salida de la función",
       "unbound": "Sin vincular",
@@ -526,6 +539,28 @@
       "unknown": "Componente desconocido"
     },
     "prop": {
+      "showScale": "Mostrar escala",
+      "trackColor": "Color de la pista",
+      "thumbColor": "Color del control",
+      "textMode": "Texto",
+      "textPercent": "Porcentaje",
+      "textValue": "Valor",
+      "textNone": "Ninguno",
+      "ringWidth": "Grosor del anillo",
+      "roundCap": "Extremos redondeados",
+      "sliceItems": "Elementos de datos",
+      "sliceItemsPlaceholder": "Vacío = todos los elementos",
+      "maxSlices": "Máx. porciones",
+      "legend": "Leyenda",
+      "legendRight": "Derecha",
+      "legendBottom": "Abajo",
+      "showLabels": "Etiquetas de porciones",
+      "donut": "Anillo",
+      "colors": "Colores",
+      "colorsPlaceholder": "Un color por línea, vacío = paleta predeterminada\nej.: #2563eb",
+      "divisions": "Divisiones de escala",
+      "needleColor": "Color de la aguja",
+      "showZones": "Mostrar zonas de tolerancia",
       "dash": "Discontinua",
       "fillColor": "Color de relleno",
       "statusFill": "Color según estado",

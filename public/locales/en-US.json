@@ -373,7 +373,8 @@
     "category": {
       "shape": "Basic shapes",
       "control": "Controls & display",
-      "data": "Data dashboard"
+      "data": "Data dashboard",
+      "visual": "Data visualization"
     },
     "help": {
       "title": "How to use",
@@ -386,7 +387,7 @@
       "display": "Display mode",
       "displayText": "Saving leaves edit mode and the canvas fills the whole page\nRight-click the page (long-press on touch screens): Edit / Refresh data sources / Export, Import layout\nExport packs the layout and its images into one zip (Save As dialog); pick that zip to import (images are stored by the host under Resources/pic; images no longer referenced are cleaned up after saving)",
       "control": "Control widgets",
-      "controlText": "Buttons / switches / IO fields need a writable data source: currently only \"Internal variables\" is writable, product data is read-only\nButtons can also run the start / stop / clear / shaft collect commands"
+      "controlText": "Buttons / switches / IO fields / sliders need a writable data source: currently only \"Internal variables\" is writable, product data is read-only\nButtons can also run the start / stop / clear / shaft collect commands"
     },
     "table": {
       "name": "Name",
@@ -518,6 +519,18 @@
       "sparklineDesc": "Line of the last N values with optional limit lines",
       "statusLamp": "Status Lamp",
       "statusLampDesc": "Indicator colored by tolerance status",
+      "barGauge": "Bar Gauge",
+      "barGaugeDesc": "Vertical or horizontal level bar with scale and tolerance band",
+      "slider": "Slider",
+      "sliderDesc": "Drag to write a value; needs a writable data source",
+      "progressBar": "Progress Bar",
+      "progressBarDesc": "Linear bar showing percent or value of the range",
+      "ringProgress": "Ring Progress",
+      "ringProgressDesc": "Circular progress ring with percent or value in the center",
+      "pie": "Pie Chart",
+      "pieDesc": "Shares of the current values of several items from one data source",
+      "meter": "Meter",
+      "meterDesc": "Half-circle dial with ticks and a needle; can show tolerance zones",
       "textLabel": "Text",
       "textLabelDesc": "Static text; shows the value or transform output when bound",
       "unbound": "Unbound",
@@ -526,6 +539,28 @@
       "unknown": "Unknown widget"
     },
     "prop": {
+      "showScale": "Show scale",
+      "trackColor": "Track color",
+      "thumbColor": "Thumb color",
+      "textMode": "Text",
+      "textPercent": "Percent",
+      "textValue": "Value",
+      "textNone": "None",
+      "ringWidth": "Ring width",
+      "roundCap": "Round cap",
+      "sliceItems": "Data items",
+      "sliceItemsPlaceholder": "Empty = all items",
+      "maxSlices": "Max slices",
+      "legend": "Legend",
+      "legendRight": "Right",
+      "legendBottom": "Bottom",
+      "showLabels": "Slice labels",
+      "donut": "Donut",
+      "colors": "Colors",
+      "colorsPlaceholder": "One color per line, empty = default palette\ne.g. #2563eb",
+      "divisions": "Scale divisions",
+      "needleColor": "Needle color",
+      "showZones": "Show tolerance zones",
       "dash": "Dashed",
       "fillColor": "Fill color",
       "statusFill": "Color by status",

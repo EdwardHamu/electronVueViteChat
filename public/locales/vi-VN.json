@@ -373,7 +373,8 @@
     "category": {
       "shape": "Hình cơ bản",
       "control": "Điều khiển & hiển thị",
-      "data": "Bảng dữ liệu"
+      "data": "Bảng dữ liệu",
+      "visual": "Trực quan hóa dữ liệu"
     },
     "help": {
       "title": "Hướng dẫn thao tác",
@@ -386,7 +387,7 @@
       "display": "Chế độ hiển thị",
       "displayText": "Lưu xong sẽ thoát chỉnh sửa, khung vẽ chiếm toàn trang\nNhấp chuột phải (nhấn giữ trên màn hình cảm ứng): Chỉnh sửa / Làm mới nguồn dữ liệu / Xuất, Nhập bố cục\nXuất sẽ đóng gói bố cục và ảnh vào một tệp zip (hộp thoại Lưu thành); khi nhập chỉ cần chọn tệp zip đó (ảnh được máy chủ lưu vào Resources/pic; ảnh không còn được dùng sẽ tự dọn sau khi lưu)",
       "control": "Thành phần điều khiển",
-      "controlText": "Nút / công tắc / ô IO cần gắn nguồn dữ liệu ghi được: hiện chỉ «Biến nội bộ» ghi được, dữ liệu sản phẩm chỉ đọc\nNút còn có thể chạy lệnh bắt đầu / dừng / xóa / đổi trục thu thập"
+      "controlText": "Nút / công tắc / ô IO / thanh trượt cần gắn nguồn dữ liệu ghi được: hiện chỉ «Biến nội bộ» ghi được, dữ liệu sản phẩm chỉ đọc\nNút còn có thể chạy lệnh bắt đầu / dừng / xóa / đổi trục thu thập"
     },
     "table": {
       "name": "Tên",
@@ -518,6 +519,18 @@
       "sparklineDesc": "Đường N giá trị gần nhất, có thể kèm đường giới hạn",
       "statusLamp": "Đèn trạng thái",
       "statusLampDesc": "Đèn báo đổi màu theo trạng thái dung sai",
+      "barGauge": "Biểu đồ thanh",
+      "barGaugeDesc": "Thanh mức dọc hoặc ngang có thang đo và dải dung sai",
+      "slider": "Thanh trượt",
+      "sliderDesc": "Kéo để ghi giá trị; cần nguồn dữ liệu ghi được",
+      "progressBar": "Thanh tiến trình",
+      "progressBarDesc": "Thanh tuyến tính hiển thị phần trăm hoặc giá trị của dải đo",
+      "ringProgress": "Vòng tiến trình",
+      "ringProgressDesc": "Vòng tiến trình tròn, hiển thị phần trăm hoặc giá trị ở giữa",
+      "pie": "Biểu đồ tròn",
+      "pieDesc": "Tỷ lệ giá trị hiện tại của nhiều mục dữ liệu trong một nguồn",
+      "meter": "Đồng hồ đo",
+      "meterDesc": "Mặt số bán nguyệt có vạch chia và kim; có thể hiển thị vùng dung sai",
       "textLabel": "Văn bản",
       "textLabelDesc": "Chữ tĩnh; khi gắn dữ liệu sẽ hiển thị giá trị hoặc kết quả hàm xử lý",
       "unbound": "Chưa gắn dữ liệu",
@@ -526,6 +539,28 @@
       "unknown": "Thành phần không xác định"
     },
     "prop": {
+      "showScale": "Hiện thang đo",
+      "trackColor": "Màu rãnh",
+      "thumbColor": "Màu núm trượt",
+      "textMode": "Chữ",
+      "textPercent": "Phần trăm",
+      "textValue": "Giá trị",
+      "textNone": "Không",
+      "ringWidth": "Độ dày vòng",
+      "roundCap": "Đầu bo tròn",
+      "sliceItems": "Mục dữ liệu",
+      "sliceItemsPlaceholder": "Để trống = tất cả các mục",
+      "maxSlices": "Số phần tối đa",
+      "legend": "Chú giải",
+      "legendRight": "Bên phải",
+      "legendBottom": "Bên dưới",
+      "showLabels": "Nhãn phần",
+      "donut": "Dạng vòng",
+      "colors": "Bảng màu",
+      "colorsPlaceholder": "Mỗi dòng một màu, để trống = bảng màu mặc định\nvd: #2563eb",
+      "divisions": "Số khoảng chia",
+      "needleColor": "Màu kim",
+      "showZones": "Hiện vùng dung sai",
       "dash": "Nét đứt",
       "fillColor": "Màu tô",
       "statusFill": "Đổi màu theo trạng thái",

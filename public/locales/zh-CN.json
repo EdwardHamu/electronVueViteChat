@@ -373,7 +373,8 @@
     "category": {
       "shape": "基础图素",
       "control": "控制与显示",
-      "data": "数据看板"
+      "data": "数据看板",
+      "visual": "数据可视化"
     },
     "help": {
       "title": "操作说明",
@@ -386,7 +387,7 @@
       "display": "展示模式",
       "displayText": "保存后退出编辑，画布占满整页\n在页面上点击右键（触摸屏长按）：进入编辑 / 刷新数据源 / 导出、导入组态\n导出会把布局和用到的图片打成一个 zip（弹出另存为），导入时选择该 zip 即可（图片经宿主存到 Resources/pic，保存后不再引用的图片会自动清理）",
       "control": "控制类组件",
-      "controlText": "按钮 / 开关 / IO 域等需要绑定可写的数据源：目前只有「内部变量」可写，产品分类数据为只读\n按钮还可以执行开始 / 停止 / 清零 / 换轴采集命令"
+      "controlText": "按钮 / 开关 / IO 域 / 滑块等需要绑定可写的数据源：目前只有「内部变量」可写，产品分类数据为只读\n按钮还可以执行开始 / 停止 / 清零 / 换轴采集命令"
     },
     "table": {
       "name": "名称",
@@ -518,6 +519,18 @@
       "sparklineDesc": "最近 N 个值的折线，可叠加公差线",
       "statusLamp": "状态灯",
       "statusLampDesc": "按公差状态变色的指示灯",
+      "barGauge": "棒图",
+      "barGaugeDesc": "竖向 / 横向柱状量程条，可显示刻度与公差带",
+      "slider": "滑块",
+      "sliderDesc": "拖动写入数值，需绑定可写的数据源",
+      "progressBar": "进度条",
+      "progressBarDesc": "按量程显示百分比或数值的条形进度",
+      "ringProgress": "环形进度条",
+      "ringProgressDesc": "圆环形进度，中间显示百分比或数值",
+      "pie": "饼图",
+      "pieDesc": "按同一数据源中多个数据项的当前值绘制占比",
+      "meter": "量表",
+      "meterDesc": "半圆刻度表盘，指针随数值转动，可显示公差区间",
       "textLabel": "文本",
       "textLabelDesc": "静态文字；绑定数据后显示数值或处理函数输出",
       "unbound": "未绑定数据",
@@ -526,6 +539,28 @@
       "unknown": "未知组件"
     },
     "prop": {
+      "showScale": "显示刻度",
+      "trackColor": "轨道颜色",
+      "thumbColor": "滑块颜色",
+      "textMode": "文字内容",
+      "textPercent": "百分比",
+      "textValue": "数值",
+      "textNone": "不显示",
+      "ringWidth": "环宽",
+      "roundCap": "圆头",
+      "sliceItems": "数据项",
+      "sliceItemsPlaceholder": "留空 = 全部数据项",
+      "maxSlices": "最多项数",
+      "legend": "图例",
+      "legendRight": "右侧",
+      "legendBottom": "下方",
+      "showLabels": "扇区标注",
+      "donut": "环形",
+      "colors": "配色",
+      "colorsPlaceholder": "一行一个颜色，留空用默认配色\n例：#2563eb",
+      "divisions": "刻度分段",
+      "needleColor": "指针颜色",
+      "showZones": "显示公差区",
       "dash": "虚线",
       "fillColor": "填充色",
       "statusFill": "随状态变色",

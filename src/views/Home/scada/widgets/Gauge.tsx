@@ -4,7 +4,7 @@
 import { computed, defineComponent } from 'vue'
 import { formatValue } from '../geometry'
 import type { WidgetDefinition } from '../types'
-import { displayName, pointText, statusColor, tt, widgetProps } from './common'
+import { displayName, fractionOf, pointText, resolveRange, statusColor, tt, widgetProps } from './common'
 import { icons } from './icons'
 
 const CX = 50
@@ -30,43 +30,15 @@ const arcPath = (r: number, f0: number, f1: number) => {
   const large = a0 - a1 > 180 ? 1 : 0
   return `M ${p0.x.toFixed(2)} ${p0.y.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${p1.x.toFixed(2)} ${p1.y.toFixed(2)}`
 }
-const toNum = (v: any): number | null => {
-  if (v === null || v === undefined || v === '') return null
-  const n = Number(v)
-  return Number.isFinite(n) ? n : null
-}
-
 const Gauge = defineComponent({
   name: 'ScadaGauge',
   props: widgetProps,
   setup(props) {
     const p = computed(() => props.widget.props)
     const color = computed(() => statusColor(props.point))
-    /** 量程：优先组件属性，其次按公差带外扩 50%，再次 0 ~ 2×标准值，最后 0 ~ 100 */
-    const range = computed(() => {
-      const point = props.point
-      let min = toNum(p.value.min)
-      let max = toNum(p.value.max)
-      if (min === null || max === null || max <= min) {
-        if (point && point.lower !== undefined && point.upper !== undefined && point.upper > point.lower) {
-          const span = point.upper - point.lower
-          min = point.lower - span * 0.5
-          max = point.upper + span * 0.5
-        } else if (point && point.standard) {
-          min = 0
-          max = point.standard * 2
-        } else {
-          min = 0
-          max = 100
-        }
-      }
-      return { min, max }
-    })
-    const frac = (v: number | null | undefined) => {
-      if (v === null || v === undefined) return null
-      const { min, max } = range.value
-      return clamp01((v - min) / (max - min))
-    }
+    /** 量程：优先组件属性，其次按公差带外扩 50%，再次 0 ~ 2×标准值，最后 0 ~ 100（common.resolveRange） */
+    const range = computed(() => resolveRange(props.point, p.value.min, p.value.max))
+    const frac = (v: number | null | undefined) => fractionOf(v, range.value)
     return () => {
       const point = props.point
       const name = displayName(props.widget, point)

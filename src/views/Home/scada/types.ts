@@ -103,8 +103,8 @@ export interface WidgetInstance extends WidgetRect {
   props: Record<string, any>
 }
 
-/** textarea：多行文本（选项列表等）；image：图片地址 + 选择本地文件（存为 data URL） */
-export type PropFieldType = 'text' | 'textarea' | 'number' | 'color' | 'boolean' | 'select' | 'image'
+/** textarea：多行文本（选项列表等）；image：图片地址 + 选择本地文件（存为 data URL）；multiselect：多选（值为数组） */
+export type PropFieldType = 'text' | 'textarea' | 'number' | 'color' | 'boolean' | 'select' | 'multiselect' | 'image'
 
 /** 属性面板的声明式字段描述，通用编辑器据此渲染 */
 export interface PropField {
@@ -116,7 +116,8 @@ export interface PropField {
   step?: number
   /** 占位文字；传函数可延迟到渲染时取 i18n（模块加载时语言包可能还没就绪） */
   placeholder?: string | (() => string)
-  options?: () => { label: string; value: any }[]
+  /** select / multiselect 的选项；会传入当前组件，选项可依赖其它属性（如饼图按所选数据源列出数据项） */
+  options?: (widget?: WidgetInstance) => { label: string; value: any }[]
 }
 
 /** 组件渲染时收到的 props */
@@ -128,8 +129,8 @@ export interface WidgetRenderProps {
   history?: number[]
 }
 
-/** 组件库分类：shape 基础图素 / control 控制与显示 / data 数据看板 */
-export type WidgetCategory = 'shape' | 'control' | 'data'
+/** 组件库分类：shape 基础图素 / control 控制与显示 / data 数据看板 / visual 数据可视化 */
+export type WidgetCategory = 'shape' | 'control' | 'data' | 'visual'
 
 export interface WidgetDefinition {
   type: string

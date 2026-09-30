@@ -155,6 +155,49 @@ export const icons: Record<string, () => VNodeChild> = {
       <circle cx="12" cy="12" r="5.5" fill="currentColor" fill-opacity="0.35" stroke="currentColor" stroke-width="1.5" />
       <circle cx="12" cy="12" r="8.5" {...S} stroke-opacity={0.35} />
     </>
+  ),
+  // ---------------- 数据可视化
+  barGauge: () => svg(
+    <>
+      <rect x="6" y="3.5" width="7" height="17" rx="0.5" {...S} />
+      <rect x="6" y="11" width="7" height="9.5" fill="currentColor" fill-opacity="0.45" stroke="none" />
+      <path d="M16 5 H19 M16 9 H18 M16 13 H19 M16 17 H18" {...S} />
+    </>
+  ),
+  slider: () => svg(
+    <>
+      <path d="M3 12 H21" {...S} />
+      <path d="M3 12 H13" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none" />
+      <circle cx="13" cy="12" r="3.5" fill="#ffffff" stroke="currentColor" stroke-width="1.5" />
+    </>
+  ),
+  progressBar: () => svg(
+    <>
+      <rect x="3" y="9" width="18" height="6" rx="3" {...S} />
+      <rect x="3" y="9" width="11" height="6" rx="3" fill="currentColor" fill-opacity="0.45" stroke="none" />
+    </>
+  ),
+  ringProgress: () => svg(
+    <>
+      <circle cx="12" cy="12" r="8" {...S} stroke-opacity={0.35} />
+      <path d="M12 4 A8 8 0 1 1 4 12" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" />
+    </>
+  ),
+  pie: () => svg(
+    <>
+      <circle cx="12" cy="12" r="8.5" {...S} />
+      <path d="M12 12 V3.5 A8.5 8.5 0 0 1 20.2 14.3 Z" fill="currentColor" fill-opacity="0.45" stroke="none" />
+      <path d="M12 12 L4.8 16.5" {...S} />
+    </>
+  ),
+  meter: () => svg(
+    <>
+      <path d="M3.5 16.5 A8.5 8.5 0 0 1 20.5 16.5" {...S} />
+      <path d="M12 8 V10.2 M6 10.5 L7.5 12 M18 10.5 L16.5 12" {...S} />
+      <path d="M12 16.5 L15.8 10.8" {...S} />
+      <circle cx="12" cy="16.5" r="1.5" fill="currentColor" stroke="none" />
+      <path d="M4 20 H20" {...S} />
+    </>
   )
 }
 

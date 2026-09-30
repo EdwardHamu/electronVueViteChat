@@ -168,7 +168,9 @@ export default defineComponent({
             />
           )
         case 'select':
-          return <NSelect size="small" value={value ?? null} options={f.options ? f.options() : []} onUpdateValue={set} />
+          return <NSelect size="small" value={value ?? null} options={f.options ? f.options(w) : []} onUpdateValue={set} />
+        case 'multiselect':
+          return <NSelect size="small" multiple clearable maxTagCount="responsive" value={Array.isArray(value) ? value : []} options={f.options ? f.options(w) : []} placeholder={ph} onUpdateValue={(v: any[]) => set(v)} />
         default:
           return <NInput size="small" value={value ?? ''} placeholder={ph} onUpdateValue={set} />
       }

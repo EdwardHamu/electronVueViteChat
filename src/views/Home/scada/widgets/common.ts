@@ -36,6 +36,39 @@ export const pointText = (point: DataPoint | undefined, decimals?: number | null
   return formatValue(point.value, p)
 }
 
+/** 宽松的数字解析：空串 / null / 非数字返回 null */
+export const toNum = (v: unknown): number | null => {
+  if (v === null || v === undefined || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+/**
+ * 量程：组件属性 min / max 可以只填一个（另一个取自动值）；自动值依次按公差带外扩 50%、0 ~ 2×标准值、0 ~ 100。
+ * 填的上限不大于下限时整体回退到自动量程。（仪表盘 / 棒图 / 进度条 / 环形进度条 / 量表等按量程作图的组件共用）
+ */
+export const resolveRange = (point: DataPoint | undefined, minProp: unknown, maxProp: unknown) => {
+  let autoMin = 0
+  let autoMax = 100
+  if (point && point.lower !== undefined && point.upper !== undefined && point.upper > point.lower) {
+    const span = point.upper - point.lower
+    autoMin = point.lower - span * 0.5
+    autoMax = point.upper + span * 0.5
+  } else if (point && point.standard) {
+    autoMax = point.standard * 2
+  }
+  const min = toNum(minProp) ?? autoMin
+  const max = toNum(maxProp) ?? autoMax
+  return max > min ? { min, max } : { min: autoMin, max: autoMax }
+}
+
+/** 值在量程内的比例（0~1）；无值返回 null */
+export const fractionOf = (v: number | null | undefined, range: { min: number; max: number }) => {
+  if (v === null || v === undefined || !Number.isFinite(v)) return null
+  const f = (v - range.min) / (range.max - range.min)
+  return f < 0 ? 0 : f > 1 ? 1 : f
+}
+
 /** 根据可用宽高和字符数估算字号 */
 export const autoFontSize = (w: number, h: number, chars: number, ratio = 0.6, max = 200) => {
   const byHeight = h
