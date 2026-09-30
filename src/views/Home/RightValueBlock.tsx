@@ -323,9 +323,9 @@ export const ValueRow = defineComponent({
 
 
     return () => {
-      // 横屏时 pane 已无上内边距（right-value-pane），最顶部的一块自己留 6px 与 tab 栏隔开；竖屏两列布局不加
+      // 横屏时 pane 已无上内边距（right-value-pane），最顶部的一块自己留 6px 与 tab 栏隔开，并用 #f8f8f8 底色；竖屏两列布局不加
       return (
-        <div class={classNames(' shrink mb-1', { 'w-full': store.isLandscape, 'w-1/2 pr-1': !store.isLandscape, 'pt-[6px]': store.isLandscape && props.y == 0 })}>
+        <div class={classNames(' shrink mb-1', { 'w-full': store.isLandscape, 'w-1/2 pr-1': !store.isLandscape, 'pt-[6px] bg-[#f8f8f8]': store.isLandscape && props.y == 0 })}>
           <div class={classNames('flex items-center w-full  py-1', { 'pt-0': props.y == 0 || (!store.isLandscape && props.y == 1) })}>
             <span class={'text-2xl'}>{data.value.label || ''}</span>
             {renderAddOrDel()}
