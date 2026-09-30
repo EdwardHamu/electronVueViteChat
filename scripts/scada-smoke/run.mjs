@@ -76,6 +76,8 @@ import { localDataSource, pruneLocalVarValues, resetLocalVars, LOCAL_VARS_KEY } 
 export { hist, sc, vars, viewCenterInCanvas, canvasFocused, localDataSource, pruneLocalVarValues, resetLocalVars, LOCAL_VARS_KEY }
 import * as panelState from '@/views/Home/scada/panelSections'
 export { panelState }
+import * as fonts from '@/views/Home/scada/fonts'
+export { fonts }
 `)
 const stubs = {
   '@/store': path.join(here, 'stubs', 'store.ts'),
@@ -511,7 +513,11 @@ space('keyup'); await nextTick()
 container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 0, clientY: 0, pointerId: 10, button: 0 }))
 container.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 100, clientY: 100, pointerId: 10 }))
 container.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 100, clientY: 100, pointerId: 10 })); await nextTick()
-check('松开空格后普通拖动空白处 → 不平移', () => { assert.equal(canvasView.spaceDown, false); assert.equal(canvasView.panX, 70); assert.equal(canvasView.panY, 30) })
+check('松开空格后普通拖动空白处 → 不平移（改为框选：框里没有组件 → 取消选择）', () => {
+  assert.equal(canvasView.spaceDown, false); assert.equal(canvasView.panX, 70); assert.equal(canvasView.panY, 30)
+  assert.equal(scada.selectedIds.length, 0); assert.equal(root.querySelector('[data-marquee]'), null)
+})
+scada.select(w.id); await nextTick()
 const dummyBtn = document.createElement('button'); document.body.appendChild(dummyBtn); dummyBtn.focus()
 space('keydown'); await nextTick()
 check('焦点在按钮上时空格不作为平移修饰键', () => assert.equal(canvasView.spaceDown, false))
@@ -2726,6 +2732,221 @@ scada.cancelEdit(); await nextTick()
 panelState.expandAllSections()
 }
 // <<< 任务 61 测试结束
+
+// >>> 任务 62 测试开始
+// ---------------- 任务 62：带文字的组件可选系统字体 · 画布框选 ----------------
+{
+const { fonts, panelState } = m
+const widgetOf = id => scada.draft.widgets.find(w => w.id === id)
+const hostOf = id => root.querySelector(`[data-widget-id="${id}"]`)
+const fontLayer = id => hostOf(id).firstElementChild
+const fresh62 = async () => {
+  if (scada.editing) scada.cancelEdit()
+  await nextTick()
+  await scada.applyLayout(normalizeLayout({ canvas: { width: 1000, height: 600, grid: 10 }, widgets: [] }))
+  panelState.expandAllSections()
+  scada.startEdit(); await nextTick(); await nextTick()
+}
+if (!window.Element.prototype.scrollTo) window.Element.prototype.scrollTo = function () {}
+// jsdom 没有 canvas 实现（getContext 会打印 Not implemented）：直接返回 null，探测按「测不了」处理
+window.HTMLCanvasElement.prototype.getContext = () => null
+
+check('字体（纯函数）：空值不设置；选中的字体在前、默认字体栈兜底；去掉引号 / 分号 / 花括号等危险字符', () => {
+  assert.equal(fonts.fontFamilyCss(''), ''); assert.equal(fonts.fontFamilyCss(null), ''); assert.equal(fonts.fontFamilyCss('  '), '')
+  assert.equal(fonts.fontFamilyCss('SimHei'), '"SimHei", ' + fonts.FONT_FALLBACK)
+  assert.equal(fonts.fontFamilyCss('Bad"; } body{x'), '"Bad  bodyx", ' + fonts.FONT_FALLBACK)
+  assert.equal(fonts.fontLabel('SimHei'), '黑体 (SimHei)'); assert.equal(fonts.fontLabel('Foo'), 'Foo')
+})
+check('注册表：带文字的组件（hasText）都有「字体」属性（紧跟字号，没有字号放最后，默认空）；纯图形没有', () => {
+  const defs = widgetDefinitions()
+  const withText = defs.filter(d => d.hasText).map(d => d.type)
+  for (const t of ['textLabel', 'valueCard', 'gauge', 'sparkline', 'statusLamp', 'table', 'custom', 'qrCode', 'barcode', 'numericIO', 'stringIO', 'button', 'textList', 'radio', 'checkbox', 'barGauge', 'pie', 'meter']) assert.ok(withText.includes(t), t)
+  for (const t of ['rect', 'circle', 'line', 'pipe', 'image']) assert.ok(!withText.includes(t), t)
+  for (const d of defs) {
+    const keys = d.propSchema.map(f => f.key)
+    const n = keys.filter(k => k === 'fontFamily').length
+    assert.equal(n, d.hasText ? 1 : 0, d.type)
+    if (!d.hasText) continue
+    const f = d.propSchema.find(f => f.key === 'fontFamily'); assert.equal(f.type, 'font'); assert.equal(f.label(), '字体'); assert.equal(f.placeholder(), '默认字体')
+    assert.equal(d.defaultProps().fontFamily, '', d.type)
+    const i = keys.indexOf('fontFamily'); const sizeAt = Math.max(...['fontSize', 'textSize', 'captionSize'].map(k => keys.lastIndexOf(k)))
+    assert.equal(i, sizeAt > -1 ? sizeAt + 1 : keys.length - 1, d.type)
+  }
+})
+
+await fresh62()
+const T = scada.addWidget('textLabel', { x: 200, y: 100 }), V = scada.addWidget('valueCard', { x: 500, y: 100 }), Rc = scada.addWidget('rect', { x: 800, y: 100 })
+scada.select(T.id); await nextTick()
+check('单选带文字的组件：「组件属性」里有字体下拉（占位「默认字体」）；画布上没设字体时组件外层不带 data-scada-font', () => {
+  const ff = propsCol().querySelector('[data-scada-font-field]'); assert.ok(ff); assert.ok(ff.textContent.includes('默认字体'), ff.textContent)
+  assert.equal(fontLayer(T.id).hasAttribute('data-scada-font'), false); assert.equal(fontLayer(T.id).style.fontFamily, '')
+})
+scada.select(Rc.id); await nextTick()
+check('单选纯图形（矩形）：没有字体下拉', () => assert.equal(propsCol().querySelector('[data-scada-font-field]'), null))
+scada.select(T.id); await nextTick()
+{
+  const ff = propsCol().querySelector('[data-scada-font-field]')
+  window.queryLocalFonts = async () => [{ family: 'Zeta Sans' }, { family: 'SimHei' }, { family: 'Zeta Sans' }]
+  ff.querySelector('.n-base-selection').click(); await nextTick(); await sleep(60)
+  const opts = [...document.body.querySelectorAll('.n-base-select-option')]
+  check('点开字体下拉：探测常见字体（测试环境无 canvas → 候选全部列出）+ 在这次点击里请求本机字体（去重合并）；每个选项用它自己的字体显示', () => {
+    assert.equal(fonts.fontState.detected, true); assert.equal(fonts.fontState.local, 'granted')
+    assert.ok(fonts.fontState.list.includes('Zeta Sans') && fonts.fontState.list.includes('Microsoft YaHei'))
+    assert.equal(fonts.fontState.list.filter(n => n === 'SimHei').length, 1)
+    assert.ok(opts.length >= 10, String(opts.length))
+    const yh = opts.find(o => o.textContent.includes('微软雅黑')); assert.ok(yh); assert.ok(yh.querySelector('span').style.fontFamily.includes('Microsoft YaHei'))
+  })
+  const yh = opts.find(o => o.textContent.includes('微软雅黑')); yh.click(); await nextTick(); await sleep(20)
+  check('选中「微软雅黑」→ props.fontFamily 写入；画布上组件外层带 data-scada-font 与 font-family（内部文字经 style.scss 继承）', () => {
+    assert.equal(widgetOf(T.id).props.fontFamily, 'Microsoft YaHei'); assert.equal(fontLayer(T.id).getAttribute('data-scada-font'), 'Microsoft YaHei')
+    assert.ok(fontLayer(T.id).style.fontFamily.includes('Microsoft YaHei'), fontLayer(T.id).style.fontFamily)
+    const scss = fs.readFileSync(path.join(repo, 'src/style.scss'), 'utf8'); assert.ok(/\[data-scada-font\] \*\s*\{\s*font-family: inherit !important;/.test(scss))
+  })
+  scada.undo(); await nextTick()
+  check('撤销：字体恢复为默认，外层不再带 data-scada-font', () => { assert.equal(widgetOf(T.id).props.fontFamily, ''); assert.equal(fontLayer(T.id).hasAttribute('data-scada-font'), false) })
+  delete window.queryLocalFonts
+}
+scada.setWidgetProp(T.id, 'fontFamily', 'Other Machine Font'); await nextTick(); await nextTick()
+check('当前字体本机没装（布局来自别的电脑）：下拉里保留为一个选项，标「未安装」', () => {
+  const ff = propsCol().querySelector('[data-scada-font-field]'); assert.ok(ff.textContent.includes('Other Machine Font') && ff.textContent.includes('未安装'), ff.textContent)
+})
+{
+  fonts.fontState.local = 'idle'; await fonts.requestLocalFonts(); const a = fonts.fontState.local
+  fonts.fontState.local = 'idle'; window.queryLocalFonts = async () => { throw new Error('NotAllowedError') }; await fonts.requestLocalFonts(); const b = fonts.fontState.local
+  fonts.fontState.local = 'idle'; window.queryLocalFonts = async () => []; await fonts.requestLocalFonts(); const c = fonts.fontState.local
+  delete window.queryLocalFonts
+  check('requestLocalFonts 不报错：没有 queryLocalFonts → unsupported；抛错 → denied；返回空数组 → denied；列表不变', () => { assert.equal(a, 'unsupported'); assert.equal(b, 'denied'); assert.equal(c, 'denied'); assert.ok(fonts.fontState.list.includes('Zeta Sans')) })
+}
+scada.setSelection([T.id, V.id, Rc.id]); await nextTick()
+check('多选：「字体」区块给选中的带文字组件（2 个，矩形不算）统一设置；各组件字体不同 → 占位「多个字体」', () => {
+  const sec = propsCol().querySelector('[data-scada-section="multiFont"]'); assert.ok(sec); assert.ok(sec.textContent.includes('字体 (2)'), sec.textContent)
+  assert.ok(sec.querySelector('[data-scada-font-field]').textContent.includes('多个字体'))
+})
+{
+  const sec = propsCol().querySelector('[data-scada-section="multiFont"]')
+  sec.querySelector('.n-base-selection').click(); await nextTick(); await sleep(60)
+  const opt = [...document.body.querySelectorAll('.n-base-select-option')].find(o => o.textContent.startsWith('黑体 (SimHei)')); opt.click(); await nextTick(); await sleep(20)
+  check('多选里选「黑体」→ 两个带文字组件都改为 SimHei，矩形不加 fontFamily；下拉显示该字体', () => {
+    assert.equal(widgetOf(T.id).props.fontFamily, 'SimHei'); assert.equal(widgetOf(V.id).props.fontFamily, 'SimHei'); assert.equal(widgetOf(Rc.id).props.fontFamily, undefined)
+    assert.ok(propsCol().querySelector('[data-scada-section="multiFont"] [data-scada-font-field]').textContent.includes('黑体'))
+  })
+  scada.undo(); await nextTick()
+  check('……一步撤销：两个组件一起恢复', () => { assert.equal(widgetOf(T.id).props.fontFamily, 'Other Machine Font'); assert.equal(widgetOf(V.id).props.fontFamily, '') })
+}
+scada.setSelection([Rc.id]); await nextTick()
+check('只选纯图形：多选面板不出现「字体」区块（单选时也没有字体下拉）', () => assert.equal(propsCol().querySelector('[data-scada-section="multiFont"]'), null))
+check('自定义组件（iframe）：字体写进 iframe 自己的基础样式；没选字体用原来的系统字体栈', () => {
+  const d1 = buildCustomDoc('<b>x</b>', '', '', 'KaiTi'); assert.ok(d1.includes('font-family:"KaiTi", '), d1.slice(0, 400))
+  const d0 = buildCustomDoc('<b>x</b>', '', ''); assert.ok(d0.includes('font-family:system-ui,-apple-system,"Segoe UI"'))
+  assert.ok(d1.indexOf('KaiTi') < d1.indexOf('<script>'))
+})
+
+// ---- 框选 ----
+const container62 = () => canvasView.el.parentElement
+await fresh62()
+const A = scada.addWidget('rect', { x: 100, y: 100 }), B = scada.addWidget('rect', { x: 300, y: 100 }), C = scada.addWidget('rect', { x: 600, y: 400 }), D = scada.addWidget('rect', { x: 800, y: 400 })
+scada.setSelection([C.id, D.id]); scada.groupSelection(); scada.select(null); await nextTick()
+const s62 = () => canvasView.scale || 1
+const cr = () => canvasView.el.getBoundingClientRect()
+/** 画布逻辑坐标 → 屏幕坐标 */
+const cx = x => cr().left + x * s62(), cy = y => cr().top + y * s62()
+const box = (ws, pad = 5) => { const u = unionRect(ws.map(visualRect)); return { x0: u.x - pad, y0: u.y - pad, x1: u.x + u.w + pad, y1: u.y + u.h + pad } }
+let pid = 600
+const down = (target, x, y, opt = {}) => { const id = opt.pointerId || ++pid; target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: cx(x), clientY: cy(y), pointerId: id, button: 0, ...opt })); return id }
+const move = (id, x, y) => container62().dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: cx(x), clientY: cy(y), pointerId: id }))
+const up = (id, x, y, type = 'pointerup') => container62().dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: cx(x), clientY: cy(y), pointerId: id }))
+const mq = () => root.querySelector('[data-marquee]')
+const drag62 = async (b, opt = {}, target = canvasView.el) => { const id = down(target, b.x0, b.y0, opt); move(id, (b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2); move(id, b.x1, b.y1); await nextTick(); const shown = mq(); up(id, b.x1, b.y1); await nextTick(); return shown }
+
+{
+  const b = box([A, B])
+  const id = down(canvasView.el, b.x0, b.y0); move(id, b.x1, b.y1); await nextTick()
+  check('在画布空白处按住拖动：出现框选矩形（逻辑坐标 = 拖动范围），完全在框内的 A、B 实时选中', () => {
+    const el = mq(); assert.ok(el); assert.equal(parseFloat(el.style.left), b.x0); assert.equal(parseFloat(el.style.top), b.y0); assert.equal(parseFloat(el.style.width), b.x1 - b.x0)
+    assert.deepEqual(scada.selectedIds, [A.id, B.id])
+  })
+  up(id, b.x1, b.y1); await nextTick()
+  check('松开：框选矩形消失，选择保留（A 为参考对象）', () => { assert.equal(mq(), null); assert.deepEqual(scada.selectedIds, [A.id, B.id]); assert.equal(scada.referenceId, A.id) })
+}
+{
+  const u = unionRect([visualRect(A), visualRect(B)])
+  await drag62({ x0: u.x - 5, y0: u.y - 5, x1: u.x + u.w - 10, y1: u.y + u.h + 5 })
+  check('只框住一部分的组件不选：框到 B 的一半 → 只有 A；不带修饰键时原来的选择被替换', () => assert.deepEqual(scada.selectedIds, [A.id]))
+}
+await drag62(box([C]))
+check('组合：只框住组合里的 C（D 在框外）→ 不选；这次框里没有组件 → 选择清空', () => assert.deepEqual(scada.selectedIds, []))
+await drag62(box([C, D]))
+check('……框住整个组合 → C、D 都选中', () => assert.deepEqual([...scada.selectedIds].sort(), [C.id, D.id].sort()))
+scada.select(A.id); await nextTick()
+await drag62(box([C, D]), { shiftKey: true })
+check('Shift + 框选：追加到当前选择（A 仍是参考对象）', () => { assert.deepEqual(scada.selectedIds.slice(0, 1), [A.id]); assert.equal(scada.selectedIds.length, 3); assert.equal(scada.referenceId, A.id) })
+scada.select(B.id); await nextTick()
+await drag62(box([A]), { ctrlKey: true })
+check('Ctrl + 框选同样追加', () => assert.deepEqual(scada.selectedIds, [B.id, A.id]))
+{
+  // 从画布外的灰色区域开始（画布左上角外面），拖进画布
+  const b = box([A, B]); b.x0 = -40; b.y0 = -30
+  const shown = await drag62(b, {}, container62())
+  check('从画布外的灰色区域开始拖：同样框选（框可以伸出画布）', () => { assert.ok(shown); assert.equal(parseFloat(shown.style.left), -40); assert.deepEqual(scada.selectedIds, [A.id, B.id]) })
+}
+{
+  scada.select(C.id); await nextTick()
+  const before = [...scada.selectedIds]
+  const b = box([A, B]); const id = down(canvasView.el, b.x0, b.y0); move(id, b.x1, b.y1); await nextTick()
+  const during = [...scada.selectedIds]
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await nextTick()
+  const afterEsc = [...scada.selectedIds], mqAfter = mq()
+  move(id, b.x1 + 50, b.y1 + 50); up(id, b.x1 + 50, b.y1 + 50); await nextTick()
+  check('框选中按 Esc：取消框选，恢复开始前的选择（之后继续拖动 / 松开不再改变选择）', () => {
+    assert.deepEqual(during, [A.id, B.id]); assert.deepEqual(afterEsc, before); assert.equal(mqAfter, null); assert.deepEqual(scada.selectedIds, before)
+  })
+}
+{
+  scada.select(A.id); await nextTick()
+  const b = box([A, B, C, D]); const id = down(canvasView.el, b.x0, b.y0); move(id, b.x1, b.y1); await nextTick()
+  window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', key: ' ', bubbles: true, cancelable: true })); await nextTick()
+  check('框选中按下空格（平移修饰键）：取消框选并恢复原选择', () => { assert.equal(mq(), null); assert.deepEqual(scada.selectedIds, [A.id]); assert.equal(canvasView.spaceDown, true) })
+  up(id, b.x1, b.y1); window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space', key: ' ', bubbles: true })); await nextTick()
+}
+{
+  scada.select(B.id); await nextTick()
+  const b = box([A, B]); const id1 = down(canvasView.el, b.x0, b.y0, { pointerType: 'touch' }); move(id1, b.x1, b.y1); await nextTick()
+  const during = [...scada.selectedIds]
+  const id2 = down(canvasView.el, b.x1 + 100, b.y1, { pointerType: 'touch' }); await nextTick()
+  check('触摸：单指拖动框选；第二根手指按下（捏合）→ 取消框选、恢复原选择', () => { assert.deepEqual(during, [A.id, B.id]); assert.equal(mq(), null); assert.deepEqual(scada.selectedIds, [B.id]) })
+  up(id1, b.x1, b.y1); up(id2, b.x1 + 100, b.y1); await nextTick()
+}
+{
+  scada.select(A.id); await nextTick()
+  const id = down(canvasView.el, 500, 50); move(id, 501, 51); await nextTick()
+  const shown = mq(); up(id, 501, 51); await nextTick()
+  check('点空白处（移动不到阈值）：不显示框选矩形，只取消选择', () => { assert.equal(shown, null); assert.deepEqual(scada.selectedIds, []) })
+}
+{
+  scada.select(A.id); await nextTick()
+  const w = hostOf(B.id); const x0 = widgetOf(B.id).x
+  const id = down(w, 300, 100); move(id, 340, 100); canvasView.el.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: cx(340), clientY: cy(100), pointerId: id })); await nextTick()
+  const shown = mq()
+  canvasView.el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: cx(340), clientY: cy(100), pointerId: id })); await nextTick()
+  check('在组件上按下拖动：照旧移动组件，不会开始框选', () => { assert.equal(shown, null); assert.ok(widgetOf(B.id).x > x0); assert.deepEqual(scada.selectedIds, [B.id]) })
+}
+{
+  const id = down(canvasView.el, 0, 0, { button: 2 }); move(id, 900, 500); await nextTick()
+  const shown = mq(); up(id, 900, 500); await nextTick()
+  check('右键拖动：不框选、不改变选择', () => { assert.equal(shown, null); assert.deepEqual(scada.selectedIds, [B.id]) })
+}
+scada.cancelEdit(); await nextTick()
+{
+  const id = down(canvasView.el, 0, 0); move(id, 900, 500); await nextTick()
+  const shown = mq(); up(id, 900, 500); await nextTick()
+  check('展示模式（非编辑）：拖动不框选', () => { assert.equal(shown, null); assert.equal(scada.editing, false) })
+}
+check('帮助说明里写了框选（空白处拖动、组合要整个框住、Ctrl / Shift 追加）', () => {
+  const txt = i18n.global.t('scada.help.widgetText'); assert.ok(txt.includes('框选') && txt.includes('Ctrl / Shift'), txt)
+})
+panelState.expandAllSections()
+}
+// <<< 任务 62 测试结束
 
 app.unmount()
 check('卸载后恢复虚拟键盘', () => assert.equal(main.globalKeyBoardBlocked, false))

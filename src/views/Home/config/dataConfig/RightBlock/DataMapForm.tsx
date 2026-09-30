@@ -22,7 +22,7 @@ export default defineComponent({
     const loading = ref(false)
     const isAddMore = ref(false)
     let curProtoRegiDataList: any[] = []
-    const legnthItem = { type: 'input', label: '数据长度', prop: 'Length', width: 6, rule: 'must' }
+    const legnthItem = { type: 'numInput', label: '数据长度', prop: 'Length', numAsString: true, width: 6, rule: 'must' }
     const remarkItem = { type: 'input', label: '通道备注', prop: 'Remark', width: 6, }
     const itemList = ref<formListItem[]>([
       { type: 'input', label: '连接变量', prop: 'Code', width: 6, rule: 'must' },

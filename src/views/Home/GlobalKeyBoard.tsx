@@ -1,205 +1,208 @@
-import { NIcon, NInput, NInputNumber } from "naive-ui";
-import { defineComponent, onMounted, onUnmounted, watch, ref, Transition, Teleport, nextTick, computed, reactive } from "vue";
+/**
+ * 应用内虚拟键盘。
+ *
+ * 输入方式：键盘顶部有一个自己的输入区。点击页面上的输入框弹出键盘时（src/utils/utils.ts 的 listenAllInputFocus，
+ * 是否弹出由系统配置 InputType 决定），把该输入框现有的内容带入输入区；之后所有按键（以及实体键盘 / 输入法）只编辑输入区，
+ * 按回车（键盘上的 ↩︎ 或实体键盘 Enter）才把输入区的内容覆盖写入真正的输入框（writeValueToInput），✕ / Esc 放弃修改。
+ * 目标输入框是数字输入框（NInputNumber 内部 <input> 带 data-num-input 标记，见 utils/virtualKeyboard.ts）时自动切到数字键盘。
+ *
+ * 以前的做法是每按一个键就经宿主 JsBridge 模拟一次系统按键（KeyPress）打到目标输入框里，现在不再调用宿主。
+ */
+import { NIcon } from "naive-ui";
+import { defineComponent, onMounted, onBeforeUnmount, watch, ref, Transition, nextTick, computed, reactive } from "vue";
 import { useMain } from "@/store";
+import { useConfigStore } from "@/store/config";
 import Keyboard from "simple-keyboard";
 import "simple-keyboard/build/css/index.css";
-import { focusToInput, isSingleLetter, multiPressKey, simulateKeyPress, sleep } from "@/utils/utils";
-import { commonKeyCodeSpecCharMap, keyCodeMap, keyCodeUpSpecCharMap, keyCodeUpSpecList } from "@/utils/keyCode";
-import { callSpc } from "@/utils/call";
-import { callFnName } from "@/utils/enum";
 import classnames from "classnames";
-import { CloseTwotone, DragIndicatorFilled } from "@vicons/material";
-import { callBrige } from "@/utils/callm";
-import { useCurcevInnerDataStore } from "./curcev/innerData";
-// import { Drag24Filled } from "@vicons/fluent";
+import { CloseTwotone } from "@vicons/material";
+import { isNumberInput, isTouchKeyboardEnabled, KEYBOARD_ROOT_CLASS, writeValueToInput } from "@/utils/virtualKeyboard";
 
-type InputType = InstanceType<typeof NInputNumber> | null
+type AreaEl = HTMLInputElement | HTMLTextAreaElement
+
 export default defineComponent({
   name: 'GlobalKeyBoard',
-  setup(props, ctx) {
+  setup() {
     const store = useMain()
-    const angle = ref(0)
+    const configStore = useConfigStore()
     const commonData = reactive({
       isCapLock: false,
+      /** Shift：只对下一个字符生效 */
+      isShift: false,
       isNum: false,
+      /** 目标是密码框：输入区也遮住 */
+      isPassword: false,
+      /** 目标是多行文本框：输入区用 textarea（保留换行） */
+      isTextarea: false,
+      /** 目标输入框的 maxlength（没有 = undefined） */
+      maxLength: undefined as number | undefined,
     })
-    const keyBoardAngle = ref<string | number>('')
+    /** 输入区的内容（回车时写回目标输入框） */
+    const areaValue = ref('')
     const keyborardShow = computed(() => store.globalKeyBoardShow)
-    const keyBoardWidth = computed(() => commonData.isNum ? "80px" : "40px")
-    // ref(false)
     const isMounted = ref(false)
-    const inputRef = ref<InputType>()
-    const showTextRef = ref<HTMLDivElement>()
-    let keyboardIns: Keyboard
+    const areaRef = ref<AreaEl>()
+    let keyboardIns: Keyboard | undefined
 
-
-
-    const handleDragEnd = () => {
-      // console.log(angle.value)
-      store.setEccAngle(angle.value)
+    const layoutName = () => (commonData.isNum ? 'num' : commonData.isCapLock !== commonData.isShift ? 'lock' : 'default')
+    const applyLayout = () => {
+      keyboardIns?.setOptions({ layoutName: layoutName() })
     }
 
-    const valueClick = () => {
-      // keyborardShow.value = !keyborardShow.value
-      store.setGlobalKeyBoardShow(!keyborardShow.value)
+    /** 输入区当前的选区（没聚焦 / 取不到时视为光标在末尾） */
+    const areaSelection = () => {
+      const el = areaRef.value
+      const len = areaValue.value.length
+      if (!el || document.activeElement !== el) return { start: len, end: len }
+      const start = el.selectionStart ?? len
+      const end = el.selectionEnd ?? start
+      return { start: Math.min(start, end), end: Math.max(start, end) }
     }
-    const onChange = (value: string) => {
-      // console.log("🚀 ~ onChange ~ value:", value)
-      // let num = Number(value)
-      // if (num >= 359) {
-      //   num = 359
-      // }
-      keyBoardAngle.value = value
-      // keyboardIns.setInput(String(num))
-    }
-    const onKeyPress = (button: string) => {
-      // console.log("🚀 ~ file: GlobalKeyBoard.tsx:41 ~ onKeyPress ~ button:", button)
-      if (button == '{bksp2}') {
-        focusToInput(store).then(() => {
-          return callBrige(callFnName.KeyPress, keyCodeMap.BACKSPACE)
-        }).then(() => {
-          // refreshVal()
-          keyboardIns.setCaretPosition(String(keyBoardAngle.value).length);
-        })
-        return
-      }
-      if (button == `{bksp}`) {
-        keyBoardAngle.value = String(keyBoardAngle.value).slice(0, -1)
-        keyboardIns.setInput(keyBoardAngle.value)
-        return
-      }
-      if (button == '{enter}') {
-        store.setGlobalKeyBoardShow(false)
-      }
-      // if (button == '{enter}') {
-      //   // angle.value = Number(keyBoardAngle.value)
-      //   // store.setEccAngle(angle.value)
-      //   // store.setGlobalKeyBoardShow(false
-      //   focusToInput(store).then(async () => {
-      //     // store.lastFocusedInput!.value +=  keyBoardAngle.value
-      //     let str = String(keyBoardAngle.value)
-      //     let strList: string[] = []
-      //     for (let i = 0; i < str.length; i++) {
-      //       strList[i] = str[i]
-      //     }
-      //     //(isSingleLetter(str)) 
-      //     for await (str of strList) {
-      //       await sleep(16)
-      //       let code = 0
-      //       if (keyCodeUpSpecList.find(e => e == str)) {
-      //         await multiPressKey(keyCodeMap.SHIFT, keyCodeUpSpecCharMap[str])
-      //       }
-      //       else if (commonKeyCodeSpecCharMap[str]) {
-      //         await callSpc(callFnName.keyPress, commonKeyCodeSpecCharMap[str])
-      //       }
-      //       else {
-      //         code = str.toUpperCase().charCodeAt(0)
-      //         await callSpc(callFnName.keyPress, code)
-      //       }
-      //     }
-
-      //     // simulateKeyPress(),
-      //     resetVal()
-      //   })
-      //   return
-      // }
-      if (button == '{123}') {
-        commonData.isNum = !commonData.isNum
-        keyboardIns.setOptions({
-          layoutName: commonData.isNum ? 'num' : 'default'
-        })
-        return
-      }
-      if (button == '{abc}') {
-        commonData.isNum = !commonData.isNum
-        keyboardIns.setOptions({
-          layoutName: !commonData.isNum ? 'default' : 'num'
-        })
-        return
-      }
-      if (button == '{lock}') {
-        commonData.isCapLock = !commonData.isCapLock
-        keyboardIns.setOptions({
-          layoutName: commonData.isCapLock ? 'lock' : 'default'
-        })
-        callBrige(callFnName.KeyPress, keyCodeMap.CAPSLOCK)
-        return
-      }
-      if (button == '{tab}') {
-        focusToInput(store).then(() => {
-          callBrige(callFnName.KeyPress, keyCodeMap.TAB)
-        })
-        return
-      }
-      if (button == '{shift}') {
-        callBrige(callFnName.KeyPress, keyCodeMap.SHIFT)
-        return
-      }
-      // if (button == '0' && keyBoardAngle.value == 0) {  //该组件有个bug,开头狂按0会正常写入组件内部, 需要手动清空
-      //   keyboardIns.clearInput()
-      // }
-
-      // if (button == '{bksp}') {
-      //   focusToInput(store).then(() => {
-      //     callSpc(callFnName.keyPress, keyCodeMap['bksp'.toUpperCase()])
-      //   })
-      // }
-      if (button == '{esc}') {
-        closeKeyboard()
-        return
-      }
-      if (button == '{reset}' || button == '{clear}') {
-        resetVal()
-        return
-      }
-
-      // if (keyCodeUpSpecList.find(e => e == button)) {
-      //   multiPressKey(keyCodeMap.SHIFT, keyCodeUpSpecCharMap[button])
-      //   return
-      // }
-      if (button) {
-        focusToInput(store).then(async () => {
-          // store.lastFocusedInput!.value +=  keyBoardAngle.value
-          let str = String(keyBoardAngle.value)
-          let strList: string[] = []
-          for (let i = 0; i < str.length; i++) {
-            strList[i] = str[i]
+    /** 更新输入区内容与光标，并同步给 simple-keyboard（它按自己记录的光标位置插入字符） */
+    const setArea = (value: string, caret: number = value.length) => {
+      areaValue.value = value
+      const el = areaRef.value
+      if (el) {
+        if (el.value !== value) el.value = value
+        if (document.activeElement === el) {
+          try {
+            el.setSelectionRange(caret, caret)
+          } catch {
+            /* 个别 input type 不支持选区 */
           }
-          //(isSingleLetter(str)) 
-          for await (str of strList) {
-            await sleep(8)
-            let code = 0
-            if (keyCodeUpSpecList.find(e => e == str)) {
-              await multiPressKey(keyCodeMap.SHIFT, keyCodeUpSpecCharMap[str])
-            }
-            else if (commonKeyCodeSpecCharMap[str]) {
-              await callBrige(callFnName.KeyPress, commonKeyCodeSpecCharMap[str])
-            }
-            else {
-              code = str.toUpperCase().charCodeAt(0)
-              await callBrige(callFnName.KeyPress, code)
-            }
-          }
-          // simulateKeyPress(),
-          resetVal()
-        })
-        return
+        }
       }
-      // callSpc(callFnName.keyPress, button.toUpperCase().charCodeAt(0))
+      if (keyboardIns) {
+        keyboardIns.setInput(value)
+        keyboardIns.setCaretPosition(caret)
+      }
     }
-    const resetVal = () => {
-      keyboardIns.clearInput()
-      keyBoardAngle.value = ''
-      keyboardIns.setInput('')
+    const focusArea = () => {
+      const el = areaRef.value
+      if (!el || !keyborardShow.value) return
+      el.focus({ preventScroll: true })
+      const caret = areaValue.value.length
+      try {
+        el.setSelectionRange(caret, caret)
+      } catch {
+        /* ignore */
+      }
+      keyboardIns?.setCaretPosition(caret)
     }
-    const refreshVal = () => {
-      let temp = keyBoardAngle.value
-      resetVal()
-      keyboardIns.setInput(String(temp))
-      keyBoardAngle.value = temp
+
+    /** 打开键盘：把目标输入框现有的内容带入输入区，数字输入框切到数字键盘 */
+    const loadFromTarget = () => {
+      const target = store.keyboardTarget
+      commonData.isNum = !!target && isNumberInput(target)
+      commonData.isPassword = !!target && target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'password'
+      commonData.isTextarea = !!target && target.tagName === 'TEXTAREA'
+      commonData.isShift = false
+      // 只认显式的 maxlength 属性（没有属性时各环境的 maxLength 默认值不同：Chromium -1，部分实现 524288）
+      const maxAttr = target && target.hasAttribute('maxlength') ? Number(target.getAttribute('maxlength')) : NaN
+      commonData.maxLength = Number.isInteger(maxAttr) && maxAttr > 0 ? maxAttr : undefined
+      keyboardIns?.setOptions({ maxLength: commonData.maxLength })
+      applyLayout()
+      // 输入区的元素可能刚从 input 换成 textarea，等渲染完再写值、聚焦
+      nextTick(() => {
+        setArea(target ? String(target.value ?? '') : '')
+        focusArea()
+      })
     }
+
+    /** 回车：把输入区内容覆盖写入真正的输入框并收起键盘 */
+    const commit = () => {
+      const target = store.keyboardTarget
+      const value = areaValue.value
+      if (target && target.isConnected && !target.disabled && !target.readOnly) {
+        store.setKeyboardCommitting(true)
+        try {
+          writeValueToInput(target, value)
+        } finally {
+          store.setKeyboardCommitting(false)
+        }
+      }
+      closeKeyboard()
+    }
+    /** 放弃输入区的修改 */
     const closeKeyboard = () => {
       store.setGlobalKeyBoardShow(false)
+    }
+    const resetVal = () => {
+      setArea('')
+    }
+    /** 退格：有选区删选区，否则删光标前一个字符 */
+    const backspace = () => {
+      const { start, end } = areaSelection()
+      const v = areaValue.value
+      if (start !== end) setArea(v.slice(0, start) + v.slice(end), start)
+      else if (start > 0) setArea(v.slice(0, start - 1) + v.slice(start), start - 1)
+    }
+
+    const onChange = (value: string) => {
+      const caret = keyboardIns?.getCaretPosition()
+      setArea(value, typeof caret === 'number' ? caret : value.length)
+    }
+    const onKeyPress = (button: string) => {
+      switch (button) {
+        case '{enter}':
+          commit()
+          return
+        case '{esc}':
+          closeKeyboard()
+          return
+        case '{bksp2}':
+          backspace()
+          return
+        case '{reset}':
+        case '{clear}':
+          resetVal()
+          return
+        case '{123}':
+        case '{abc}':
+          commonData.isNum = !commonData.isNum
+          commonData.isShift = false
+          applyLayout()
+          return
+        case '{lock}':
+          commonData.isCapLock = !commonData.isCapLock
+          commonData.isShift = false
+          applyLayout()
+          return
+        case '{shift}':
+          commonData.isShift = !commonData.isShift
+          applyLayout()
+          return
+      }
+      // 普通字符（simple-keyboard 自己按光标位置插入，随后触发 onChange）；Shift 只管一个字符
+      if (commonData.isShift && !button.startsWith('{')) {
+        commonData.isShift = false
+        applyLayout()
+      }
+    }
+
+    /** 实体键盘 / 输入法直接在输入区里打字 */
+    const onAreaInput = (e: Event) => {
+      const el = e.target as AreaEl
+      areaValue.value = el.value
+      if (keyboardIns) {
+        keyboardIns.setInput(el.value)
+        keyboardIns.setCaretPosition(el.selectionStart ?? el.value.length)
+      }
+    }
+    const onAreaKeydown = (e: KeyboardEvent) => {
+      if (e.isComposing) return
+      if (e.key === 'Enter' && !(commonData.isTextarea && e.shiftKey)) {
+        e.preventDefault()
+        commit()
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        closeKeyboard()
+      }
+    }
+    /** 点输入区移动光标：同步给 simple-keyboard */
+    const syncCaretFromArea = () => {
+      const el = areaRef.value
+      if (el && keyboardIns) keyboardIns.setCaretPosition(el.selectionStart ?? areaValue.value.length, el.selectionEnd ?? undefined)
     }
 
     const winScale = computed(() => {
@@ -214,15 +217,17 @@ export default defineComponent({
     })
 
     const leftMove = computed(() => {
-      // let init = 440 / 1920
       let val = (window.innerWidth / 1920) * 440 * 1.5
       return -val
     })
 
-    watch(keyborardShow, (nv) => {
-      if (nv) {
-        resetVal()
-      }
+    // 打开键盘、以及每次为某个输入框打开（同一个输入框再次打开、键盘开着时点了另一个输入框）都重新带入内容
+    watch(() => [store.keyboardSeq, keyborardShow.value] as const, ([, show]) => {
+      if (show) loadFromTarget()
+    })
+    // 系统配置里关掉「触摸键盘输入」：已经开着的键盘也收起
+    watch(() => configStore.sysConfig?.InputType, (v) => {
+      if (keyborardShow.value && !isTouchKeyboardEnabled(v)) closeKeyboard()
     })
 
     onMounted(() => {
@@ -241,8 +246,6 @@ export default defineComponent({
             '{reset}': 'CE',
             '{abc}': 'abc'
           },
-          // // inputPattern: /^(?:[1-9][0-9]{0,2}|0)$/,
-          // maxLength: 3,
           layout: {
             'default': [
               '` 1 2 3 4 5 6 7 8 9 0 - = {bksp2}',
@@ -262,8 +265,8 @@ export default defineComponent({
               '1 2 3',
               '4 5 6',
               '7 8 9',
-              '{bksp2} 0',
-              '{abc} {enter}',
+              '. 0 -',
+              '{abc} {bksp2} {enter}',
             ]
           },
           buttonTheme: [
@@ -271,19 +274,56 @@ export default defineComponent({
               class: "no-grow-style",
               buttons: "{bksp2} {123} {abc} {esc}"
             },
-
           ],
           onChange: input => onChange(input),
           onKeyPress: button => onKeyPress(button)
         });
-        if (commonData.isNum) {
-          keyboardIns.setOptions({
-            layoutName: 'num'
-          })
-        }
+        applyLayout()
+        if (keyborardShow.value) loadFromTarget()
       })
-
     })
+    onBeforeUnmount(() => {
+      keyboardIns?.destroy()
+      keyboardIns = undefined
+    })
+
+    const areaStyle = {
+      width: '100%',
+      boxSizing: 'border-box' as const,
+      fontSize: '22px',
+      lineHeight: '30px',
+      padding: '8px 12px',
+      color: '#1f2937',
+      background: '#ffffff',
+      border: '1px solid rgba(160,174,192,0.9)',
+      borderRadius: '10px',
+      boxShadow: 'inset 0 1px 3px rgba(15,23,42,0.12)',
+      outline: 'none',
+      userSelect: 'text' as const,
+      resize: 'none' as const,
+    }
+
+    const renderArea = () => {
+      const common = {
+        ref: areaRef,
+        value: areaValue.value,
+        style: areaStyle,
+        'data-keyboard-area': '',
+        autocomplete: 'off',
+        spellcheck: false,
+        maxlength: commonData.maxLength,
+        onInput: onAreaInput,
+        onKeydown: onAreaKeydown,
+        onKeyup: syncCaretFromArea,
+        onMouseup: syncCaretFromArea,
+        onSelect: syncCaretFromArea,
+        // 面板根元素 mousedown 时 preventDefault（按键不抢焦点），输入区要能点进去移动光标，所以这里拦住冒泡
+        onMousedown: (e: MouseEvent) => e.stopPropagation(),
+      }
+      return commonData.isTextarea
+        ? <textarea {...common} rows={2} />
+        : <input {...common} type={commonData.isPassword ? 'password' : 'text'} inputmode={commonData.isNum ? 'decimal' : undefined} />
+    }
 
     return () => {
 
@@ -291,31 +331,29 @@ export default defineComponent({
         <div class={'absolute right-4 bottom-8 h-[10vh] w-[10vh] flex flex-col items-center justify-center'} onMousedown={(e) => { e.preventDefault() }} >
           {
             isMounted.value &&
-            // <Teleport to="#indexCon">
             <Transition name='slide-fade'>
-              <div v-drag={'.global-keyboard-value'} style={{ zIndex: 3000, willChange: 'transform', contain: 'layout style paint', transform: `scale(${winScale.value})`, left: leftMove.value + 'px', background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(250,251,253,0.96) 100%)', border: '1px solid rgba(210,216,226,0.95)', borderRadius: '18px', boxShadow: '0 24px 60px rgba(15,23,42,0.18), 0 8px 24px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,1)', padding: '0 10px 14px', backdropFilter: 'blur(10px)' }} class={classnames('absolute bottom-40 h-[480px] flex flex-col items-center justify-end', { 'w-[354px]': commonData.isNum, 'w-[1000px]': !commonData.isNum })} v-show={keyborardShow.value}>
-                <div class={'w-full global-keyboard-value flex justify-between items-center'} style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(247,248,251,0.96) 100%)', borderRadius: '14px 14px 0 0', padding: '8px 12px', marginBottom: '8px', borderBottom: '1px solid rgba(218,223,232,0.95)', boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.95)', cursor: 'move' }} ref={showTextRef}>
+              <div v-drag={'.global-keyboard-value'} data-num-mode={commonData.isNum ? 'true' : 'false'} style={{ zIndex: 3000, willChange: 'transform', contain: 'layout style paint', transform: `scale(${winScale.value})`, left: leftMove.value + 'px', background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(250,251,253,0.96) 100%)', border: '1px solid rgba(210,216,226,0.95)', borderRadius: '18px', boxShadow: '0 24px 60px rgba(15,23,42,0.18), 0 8px 24px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,1)', padding: '0 10px 14px', backdropFilter: 'blur(10px)' }} class={classnames(KEYBOARD_ROOT_CLASS, 'absolute bottom-40 flex flex-col items-center justify-end', { 'w-[354px]': commonData.isNum, 'w-[1000px]': !commonData.isNum, 'h-[540px]': !commonData.isTextarea, 'h-[570px]': commonData.isTextarea })} v-show={keyborardShow.value}>
+                <div class={'w-full global-keyboard-value flex justify-between items-center shrink-0'} style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(247,248,251,0.96) 100%)', borderRadius: '14px 14px 0 0', padding: '8px 12px', marginBottom: '8px', borderBottom: '1px solid rgba(218,223,232,0.95)', boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.95)', cursor: 'move' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
                     <span style={{ display: 'flex', gap: '5px' }}>
                       <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'linear-gradient(135deg,#ff6b6b,#e53935)', border: '1px solid #c62828', boxShadow: '0 1px 3px rgba(200,0,0,0.4), inset 0 1px 0 rgba(255,180,180,0.5)', display: 'inline-block' }}></span>
                       <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'linear-gradient(135deg,#ffd54f,#ffa000)', border: '1px solid #e65100', boxShadow: '0 1px 3px rgba(200,100,0,0.4), inset 0 1px 0 rgba(255,230,160,0.5)', display: 'inline-block' }}></span>
                       <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'linear-gradient(135deg,#81c784,#388e3c)', border: '1px solid #2e7d32', boxShadow: '0 1px 3px rgba(0,100,0,0.4), inset 0 1px 0 rgba(180,255,180,0.5)', display: 'inline-block' }}></span>
                     </span>
-                    <span style={{ color: 'rgba(76,87,104,0.72)', fontSize: '10px', letterSpacing: '0.18em', fontFamily: 'monospace', userSelect: 'none' as const }}>KEYBOARD</span>
+                    <span style={{ color: 'rgba(76,87,104,0.72)', fontSize: '10px', letterSpacing: '0.18em', fontFamily: 'monospace', userSelect: 'none' as const }}>{commonData.isNum ? 'NUMBER' : 'KEYBOARD'}</span>
                   </div>
-                  <div style={{ background: 'linear-gradient(180deg,#ffffff 0%,#f3f5f8 100%)', border: '1px solid rgba(203,211,222,0.95)', borderBottom: '2px solid rgba(178,188,202,0.95)', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 3px 0 rgba(148,163,184,0.22), 0 5px 12px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,1)', cursor: 'pointer', color: '#64748b', flexShrink: 0 }} onClick={closeKeyboard}>
+                  <div data-keyboard-close style={{ background: 'linear-gradient(180deg,#ffffff 0%,#f3f5f8 100%)', border: '1px solid rgba(203,211,222,0.95)', borderBottom: '2px solid rgba(178,188,202,0.95)', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 3px 0 rgba(148,163,184,0.22), 0 5px 12px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,1)', cursor: 'pointer', color: '#64748b', flexShrink: 0 }} onClick={closeKeyboard}>
                     <NIcon size={16}>  <CloseTwotone /> </NIcon>
                   </div>
                 </div>
-                {/* <NInput value={keyBoardAngle.value}></NInput> */}
-                {/* <NInputNumber ref={(e) => { inputRef.value = e as InputType }} class={'w-full'} value={Number(keyBoardAngle.value)} size={'large'} /> */}
+                {/* 输入区：带入目标输入框的内容，回车才写回 */}
+                <div class={'w-full shrink-0 px-1 mb-2'}>
+                  {renderArea()}
+                </div>
                 <div class={'simple-keyboard w-full h-full shrink'}></div>
               </div>
             </Transition>
-            // </Teleport>
           }
-
-
         </div>
       )
     }

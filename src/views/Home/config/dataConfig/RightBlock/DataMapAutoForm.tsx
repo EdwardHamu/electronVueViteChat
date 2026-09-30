@@ -33,7 +33,7 @@ export default defineComponent({
     const isAddMore = ref(false)
     let curProtoRegiDataList: any[] = []
     let hasRegiType = false
-    const legnthItem = { type: 'input', label: '数据长度', prop: 'Length', width: 6, rule: 'must' }
+    const legnthItem = { type: 'numInput', label: '数据长度', prop: 'Length', numAsString: true, width: 6, rule: 'must' }
     // const remarkItem = { type: 'input', label: '通道备注', prop: 'Remark', width: 6, }
     const itemList = ref<formListItem[]>(props.pItemList || [])
     const optionMap: Record<string, SelectProps['options']> = reactive({

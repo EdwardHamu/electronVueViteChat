@@ -91,6 +91,7 @@ const TableWidget = defineComponent({
 
 export const tableDefinition: WidgetDefinition = {
   type: 'table',
+  hasText: true,
   label: () => tt('scada.widget.table'),
   description: () => tt('scada.widget.tableDesc'),
   icon: icons.table,

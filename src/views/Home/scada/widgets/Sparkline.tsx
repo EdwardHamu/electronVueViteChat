@@ -92,6 +92,7 @@ const Sparkline = defineComponent({
 
 export const sparklineDefinition: WidgetDefinition = {
   type: 'sparkline',
+  hasText: true,
   label: () => tt('scada.widget.sparkline'),
   description: () => tt('scada.widget.sparklineDesc'),
   icon: icons.sparkline,

@@ -158,6 +158,7 @@ const decimalsField = (): PropField => ({ key: 'decimals', label: () => tt('scad
 
 export const qrCodeDefinition: WidgetDefinition = {
   type: 'qrCode',
+  hasText: true,
   label: () => tt('scada.widget.qrCode'),
   description: () => tt('scada.widget.qrCodeDesc', TPL_LITERALS),
   icon: icons.qrCode,
@@ -182,6 +183,7 @@ export const qrCodeDefinition: WidgetDefinition = {
 
 export const barcodeDefinition: WidgetDefinition = {
   type: 'barcode',
+  hasText: true,
   label: () => tt('scada.widget.barcode'),
   description: () => tt('scada.widget.barcodeDesc'),
   icon: icons.barcode,

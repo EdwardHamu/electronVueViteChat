@@ -93,7 +93,7 @@ export default defineComponent({
                 } else if (child.label === '其他配置' || child.label === t('config.otherConfiguration')) {
                   child.label = t('config.otherConfiguration')
                 }
-              } else if (child.type === 'input') {
+              } else if (child.type === 'input' || child.type === 'numInput') {
                 if (child.prop === 'CompanyName') {
                   child.label = t('config.companyName')
                 } else if (child.prop === 'MachineCode') {

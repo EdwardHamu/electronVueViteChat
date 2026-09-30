@@ -57,10 +57,10 @@ export const ModbusTCPMaster = {
     { type: 'select', label: '32位解码顺序', prop: 'LHpostion32', width: 6 },
     { type: 'select', label: '字符串解码顺序', prop: 'LHpostionStr', width: 6 },
     { type: 'select', label: '16位解码顺序', prop: 'LHpostion16', width: 6 },
-    { type: 'input', label: '采集周期', prop: 'AcquCycle', width: 6, rule: 'must' },
+    { type: 'numInput', label: '采集周期', prop: 'AcquCycle', numAsString: true, width: 6, rule: 'must' },
     { type: 'input', label: '主机端IP', prop: 'ServerIp', width: 6 },
-    { type: 'input', label: '端口', prop: 'ServerPort', width: 6 },
-    { type: 'input', label: '从站地址', prop: 'SlaveId', width: 6 },
+    { type: 'numInput', label: '端口', prop: 'ServerPort', numAsString: true, width: 6 },
+    { type: 'numInput', label: '从站地址', prop: 'SlaveId', numAsString: true, width: 6 },
   ],
   optionMap: <Record<string, { label: string | number, value: string | number }[]>>{
     DevInt: ['Net'].map(e => ({ label: e, value: e })),
@@ -79,10 +79,10 @@ export const DVPMaster = {
     { type: 'select', label: '波特率', prop: 'Baudrate', width: 6 },
     { type: 'select', label: '数据位', prop: 'Bytesize', width: 6 },
     { type: 'select', label: '奇偶校验', prop: 'Parity', width: 6 },
-    { type: 'input', label: '采集周期', prop: 'AcquCycle', width: 6, rule: 'must' },
+    { type: 'numInput', label: '采集周期', prop: 'AcquCycle', numAsString: true, width: 6, rule: 'must' },
     { type: 'select', label: '停止位', prop: 'Stopbits', width: 6 },
     { type: 'switch', label: '透传使能', prop: 'Penetrate', width: 4, checkedValue: 1, uncheckedValue: 0 },
-    { type: 'input', label: '从站地址', prop: 'SlaveId', width: 6 },
+    { type: 'numInput', label: '从站地址', prop: 'SlaveId', numAsString: true, width: 6 },
   ],
   optionMap: <Record<string, { label: string | number, value: string | number }[]>>{
 
@@ -105,10 +105,10 @@ export const ModbusASCIIMaster = {
     { type: 'select', label: '波特率', prop: 'Baudrate', width: 6 },
     { type: 'select', label: '数据位', prop: 'Bytesize', width: 6 },
     { type: 'select', label: '奇偶校验', prop: 'Parity', width: 6 },
-    { type: 'input', label: '采集周期', prop: 'AcquCycle', width: 6, rule: 'must' },
+    { type: 'numInput', label: '采集周期', prop: 'AcquCycle', numAsString: true, width: 6, rule: 'must' },
     { type: 'select', label: '停止位', prop: 'Stopbits', width: 6 },
     { type: 'switch', label: '透传使能', prop: 'Penetrate', width: 4, checkedValue: 1, uncheckedValue: 0 },
-    { type: 'input', label: '从站地址', prop: 'SlaveId', width: 6 },
+    { type: 'numInput', label: '从站地址', prop: 'SlaveId', numAsString: true, width: 6 },
   ],
   optionMap: <Record<string, { label: string | number, value: string | number }[]>>{
 
@@ -122,8 +122,8 @@ export const ModbusASCIIMaster = {
 }
 export const MQTT = {
   itemList: <formListItem[]>[
-    { type: 'input', label: '采集周期', prop: 'AcquCycle', width: 6, rule: 'must' },
-    { type: 'input', label: '从站地址', prop: 'SlaveId', width: 6 },
+    { type: 'numInput', label: '采集周期', prop: 'AcquCycle', numAsString: true, width: 6, rule: 'must' },
+    { type: 'numInput', label: '从站地址', prop: 'SlaveId', numAsString: true, width: 6 },
   ],
   optionMap: <Record<string, { label: string, value: string }[]>>{
 
@@ -140,12 +140,12 @@ export const NSTZUMBACH = {
     { type: 'select', label: '字符串解码顺序', prop: 'LHpostionStr', width: 6 },
     { type: 'select', label: '16位解码顺序', prop: 'LHpostion16', width: 6 },
 
-    { type: 'input', label: '采集周期', prop: 'AcquCycle', width: 6, rule: 'must' },
+    { type: 'numInput', label: '采集周期', prop: 'AcquCycle', numAsString: true, width: 6, rule: 'must' },
     { type: 'select', label: '停止位', prop: 'Stopbits', width: 6 },
     { type: 'input', label: '主机端IP', prop: 'ServerIp', width: 6 },
-    { type: 'input', label: '端口', prop: 'ServerPort', width: 6 },
+    { type: 'numInput', label: '端口', prop: 'ServerPort', numAsString: true, width: 6 },
     { type: 'switch', label: '透传使能', prop: 'Penetrate', width: 4, checkedValue: 1, uncheckedValue: 0 },
-    { type: 'input', label: '从站地址', prop: 'SlaveId', width: 6 },
+    { type: 'numInput', label: '从站地址', prop: 'SlaveId', numAsString: true, width: 6 },
   ],
   optionMap: <Record<string, { label: string | number, value: string | number }[]>>{
 
@@ -161,10 +161,10 @@ export const NSTZUMBACH = {
 export const OPCUAServer = {
   itemList: <formListItem[]>[
     { type: 'select', label: '设备接口', prop: 'DevInt', width: 6, rule: 'must' },
-    { type: 'input', label: '采集周期', prop: 'AcquCycle', width: 6, rule: 'must' },
+    { type: 'numInput', label: '采集周期', prop: 'AcquCycle', numAsString: true, width: 6, rule: 'must' },
     { type: 'input', label: '主机端IP', prop: 'ServerIp', width: 6 },
-    { type: 'input', label: '端口', prop: 'ServerPort', width: 6 },
-    { type: 'input', label: '从站地址', prop: 'SlaveId', width: 6 },
+    { type: 'numInput', label: '端口', prop: 'ServerPort', numAsString: true, width: 6 },
+    { type: 'numInput', label: '从站地址', prop: 'SlaveId', numAsString: true, width: 6 },
   ],
   optionMap: <Record<string, { label: string | number, value: string | number }[]>>{
 
@@ -181,12 +181,12 @@ export const S71200TCP = {
   itemList: <formListItem[]>[
     { type: 'select', label: '设备接口', prop: 'DevInt', width: 6, rule: 'must' },
     { type: 'select', label: '32位解码顺序', prop: 'LHpostion32', width: 6 },
-    { type: 'input', label: '采集周期', prop: 'AcquCycle', width: 6, rule: 'must' },
-    { type: 'input', label: '机架号', prop: 'frameNum', width: 6 },
-    { type: 'input', label: '槽号', prop: 'grooveNum', width: 6 },
+    { type: 'numInput', label: '采集周期', prop: 'AcquCycle', numAsString: true, width: 6, rule: 'must' },
+    { type: 'numInput', label: '机架号', prop: 'frameNum', numAsString: true, width: 6 },
+    { type: 'numInput', label: '槽号', prop: 'grooveNum', numAsString: true, width: 6 },
     { type: 'input', label: '主机端IP', prop: 'ServerIp', width: 6 },
-    { type: 'input', label: '端口', prop: 'ServerPort', width: 6 },
-    { type: 'input', label: '从站地址', prop: 'SlaveId', width: 6 },
+    { type: 'numInput', label: '端口', prop: 'ServerPort', numAsString: true, width: 6 },
+    { type: 'numInput', label: '从站地址', prop: 'SlaveId', numAsString: true, width: 6 },
   ],
   optionMap: <Record<string, { label: string | number, value: string | number }[]>>{
 
@@ -206,10 +206,10 @@ export const S7SmartTCP = {
   itemList: <formListItem[]>[
     { type: 'select', label: '设备接口', prop: 'DevInt', width: 6, rule: 'must' },
     { type: 'select', label: '32位解码顺序', prop: 'LHpostion32', width: 6 },
-    { type: 'input', label: '采集周期', prop: 'AcquCycle', width: 6, rule: 'must' },
+    { type: 'numInput', label: '采集周期', prop: 'AcquCycle', numAsString: true, width: 6, rule: 'must' },
     { type: 'input', label: '主机端IP', prop: 'ServerIp', width: 6 },
-    { type: 'input', label: '端口', prop: 'ServerPort', width: 6 },
-    { type: 'input', label: '从站地址', prop: 'SlaveId', width: 6 },
+    { type: 'numInput', label: '端口', prop: 'ServerPort', numAsString: true, width: 6 },
+    { type: 'numInput', label: '从站地址', prop: 'SlaveId', numAsString: true, width: 6 },
   ],
   optionMap: <Record<string, { label: string | number, value: string | number }[]>>{
 
@@ -225,9 +225,9 @@ export const ModbusTCPSlave = {
     { type: 'select', label: '设备接口', prop: 'DevInt', width: 6, rule: 'must' },
     { type: 'select', label: '32位解码顺序', prop: 'LHpostion32', width: 6 },
 
-    { type: 'input', label: '采集周期', prop: 'AcquCycle', width: 6, rule: 'must' },
+    { type: 'numInput', label: '采集周期', prop: 'AcquCycle', numAsString: true, width: 6, rule: 'must' },
     { type: 'switch', label: '透传使能', prop: 'Penetrate', width: 4, checkedValue: 1, uncheckedValue: 0 },
-    { type: 'input', label: '从站地址', prop: 'SlaveId', width: 6 },
+    { type: 'numInput', label: '从站地址', prop: 'SlaveId', numAsString: true, width: 6 },
   ],
   optionMap: <Record<string, { label: string | number, value: string | number }[]>>{
 

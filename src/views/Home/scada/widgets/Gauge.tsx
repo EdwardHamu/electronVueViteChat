@@ -82,6 +82,7 @@ const Gauge = defineComponent({
 
 export const gaugeDefinition: WidgetDefinition = {
   type: 'gauge',
+  hasText: true,
   label: () => tt('scada.widget.gauge'),
   description: () => tt('scada.widget.gaugeDesc'),
   icon: icons.gauge,

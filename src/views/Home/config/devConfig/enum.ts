@@ -316,22 +316,22 @@ const mapLabelAndProp = (str: string) => {
 export const commonFormItemListMap: Record<string, formListItem> = {
 }
 commonFormItemListMap[propNameEnum.Host] = { type: 'input', ...mapLabelAndProp(propNameEnum.Host), width: 12, rule: ['must'] }
-commonFormItemListMap[propNameEnum.Port] = { type: 'input', ...mapLabelAndProp(propNameEnum.Port), width: 12, rule: ['must'] }
-commonFormItemListMap[propNameEnum.SlaveId] = { type: 'input', ...mapLabelAndProp(propNameEnum.SlaveId), width: 12, }
+commonFormItemListMap[propNameEnum.Port] = { type: 'numInput', ...mapLabelAndProp(propNameEnum.Port), numAsString: true, width: 12, rule: ['must'] }
+commonFormItemListMap[propNameEnum.SlaveId] = { type: 'numInput', ...mapLabelAndProp(propNameEnum.SlaveId), numAsString: true, width: 12, }
 commonFormItemListMap[propNameEnum.Endian32bit] = { type: 'select', ...mapLabelAndProp(propNameEnum.Endian32bit), width: 12, rule: ['must'] }
 commonFormItemListMap[propNameEnum.Endian16bit] = { type: 'select', ...mapLabelAndProp(propNameEnum.Endian16bit), width: 12, rule: ['must'] }
-commonFormItemListMap[propNameEnum.Cycle] = { type: 'input', ...mapLabelAndProp(propNameEnum.Cycle), width: 12, rule: ['must'] }
-commonFormItemListMap[propNameEnum.Timeout] = { type: 'input', ...mapLabelAndProp(propNameEnum.Timeout), width: 12, rule: ['must'] }
+commonFormItemListMap[propNameEnum.Cycle] = { type: 'numInput', ...mapLabelAndProp(propNameEnum.Cycle), numAsString: true, width: 12, rule: ['must'] }
+commonFormItemListMap[propNameEnum.Timeout] = { type: 'numInput', ...mapLabelAndProp(propNameEnum.Timeout), numAsString: true, width: 12, rule: ['must'] }
 commonFormItemListMap[propNameEnum.DataName] = { type: 'input', ...mapLabelAndProp(propNameEnum.DataName), width: 12, rule: ['must'] }
 commonFormItemListMap[propNameEnum.Name] = { type: 'input', ...mapLabelAndProp(propNameEnum.Name), width: 12, rule: ['must'] }
 commonFormItemListMap[propNameEnum.Area] = { type: 'select', ...mapLabelAndProp(propNameEnum.Area), width: 12, rule: ['mustNum'] }
-commonFormItemListMap[propNameEnum.Index] = { type: 'input', ...mapLabelAndProp(propNameEnum.Index), width: 12, rule: ['must'] }
-commonFormItemListMap[propNameEnum.Length] = { type: 'input', ...mapLabelAndProp(propNameEnum.Length), width: 12, rule: ['must'] }
+commonFormItemListMap[propNameEnum.Index] = { type: 'numInput', ...mapLabelAndProp(propNameEnum.Index), numAsString: true, width: 12, rule: ['must'] }
+commonFormItemListMap[propNameEnum.Length] = { type: 'numInput', ...mapLabelAndProp(propNameEnum.Length), numAsString: true, width: 12, rule: ['must'] }
 commonFormItemListMap[propNameEnum.DataType] = { type: 'select', ...mapLabelAndProp(propNameEnum.DataType), width: 12, rule: ['mustNum'] }
 commonFormItemListMap[propNameEnum.CountFormula] = { type: 'input', ...mapLabelAndProp(propNameEnum.CountFormula), width: 12, }
 commonFormItemListMap[propNameEnum.ExchangeData] = { type: 'select', ...mapLabelAndProp(propNameEnum.ExchangeData), width: 12, }
 commonFormItemListMap[propNameEnum.EndianBit] = { type: 'select', ...mapLabelAndProp(propNameEnum.EndianBit), width: 12, rule: ['must'] }
-commonFormItemListMap[propNameEnum.Frequency] = { type: 'input', ...mapLabelAndProp(propNameEnum.Frequency), width: 12, rule: ['must'] }
+commonFormItemListMap[propNameEnum.Frequency] = { type: 'numInput', ...mapLabelAndProp(propNameEnum.Frequency), numAsString: true, width: 12, rule: ['must'] }
 commonFormItemListMap[propNameEnum.PortName] = { type: 'input', ...mapLabelAndProp(propNameEnum.PortName), width: 12, rule: ['must'] }
 commonFormItemListMap[propNameEnum.BaudRate] = { type: 'select', ...mapLabelAndProp(propNameEnum.BaudRate), width: 12, rule: ['must'] }
 commonFormItemListMap[propNameEnum.DataBits] = { type: 'select', ...mapLabelAndProp(propNameEnum.DataBits), width: 12, rule: ['must'] }
@@ -339,12 +339,12 @@ commonFormItemListMap[propNameEnum.StopBits] = { type: 'select', ...mapLabelAndP
 commonFormItemListMap[propNameEnum.Parity] = { type: 'select', ...mapLabelAndProp(propNameEnum.Parity), width: 12, rule: ['must'] }
 commonFormItemListMap[propNameEnum.EndianString] = { type: 'select', ...mapLabelAndProp(propNameEnum.EndianString), width: 12, rule: ['must'] }
 commonFormItemListMap[propNameEnum.PlcModel] = { type: 'select', ...mapLabelAndProp(propNameEnum.PlcModel), width: 12, rule: ['must'] }
-commonFormItemListMap[propNameEnum.Slot] = { type: 'input', ...mapLabelAndProp(propNameEnum.Slot), width: 12, rule: ['must'] }
-commonFormItemListMap[propNameEnum.Rack] = { type: 'input', ...mapLabelAndProp(propNameEnum.Rack), width: 12, rule: ['must'] }
+commonFormItemListMap[propNameEnum.Slot] = { type: 'numInput', ...mapLabelAndProp(propNameEnum.Slot), numAsString: true, width: 12, rule: ['must'] }
+commonFormItemListMap[propNameEnum.Rack] = { type: 'numInput', ...mapLabelAndProp(propNameEnum.Rack), numAsString: true, width: 12, rule: ['must'] }
 commonFormItemListMap[propNameEnum.Address] = { type: 'input', ...mapLabelAndProp(propNameEnum.Address), width: 12, rule: ['must'] }
-commonFormItemListMap[propNameEnum.Offset] = { type: 'input', ...mapLabelAndProp(propNameEnum.Offset), width: 12, rule: ['must'] }
+commonFormItemListMap[propNameEnum.Offset] = { type: 'numInput', ...mapLabelAndProp(propNameEnum.Offset), numAsString: true, width: 12, rule: ['must'] }
 commonFormItemListMap[propNameEnum.CountMark] = { type: 'select', ...mapLabelAndProp(propNameEnum.CountMark), width: 12, rule: ['must'] }
-commonFormItemListMap[propNameEnum.ReadBuffSize] = { type: 'input', ...mapLabelAndProp(propNameEnum.ReadBuffSize), width: 12, rule: ['must'] }
+commonFormItemListMap[propNameEnum.ReadBuffSize] = { type: 'numInput', ...mapLabelAndProp(propNameEnum.ReadBuffSize), numAsString: true, width: 12, rule: ['must'] }
 commonFormItemListMap[propNameEnum.Split] = { type: 'input', ...mapLabelAndProp(propNameEnum.Split), width: 12, rule: ['must'] }
 
 commonFormItemListMap[propNameEnum.DeviceClass] = { type: 'select', ...mapLabelAndProp(propNameEnum.DeviceClass), width: 12, rule: ['mustNum'] }
@@ -356,9 +356,9 @@ commonFormItemListMap[propNameEnum.Permission] = { type: 'select', ...mapLabelAn
 commonFormItemListMap[propNameEnum.State] = { type: 'switch', ...mapLabelAndProp(propNameEnum.State), checkedValue: 1, uncheckedValue: 0, width: 12, rule: ['mustNum'] }
 commonFormItemListMap[propNameEnum.Unit] = { type: 'input', ...mapLabelAndProp(propNameEnum.Unit), width: 12, rule: ['must'] }
 commonFormItemListMap[propNameEnum.Exchange] = { type: 'select', ...mapLabelAndProp(propNameEnum.Exchange), width: 12, rule: ['mustNum'] }
-commonFormItemListMap[propNameEnum.Rate] = { type: 'input', ...mapLabelAndProp(propNameEnum.Rate), width: 12, rule: ['must'] }
-commonFormItemListMap[propNameEnum.Precision] = { type: 'input', ...mapLabelAndProp(propNameEnum.Precision), width: 12, rule: ['must'] }
-// 下拉 1 ~ 8（选项见 WallNumList），不用 numInput：项目里没有其它地方用它，样式也未与 input/select 对齐
+commonFormItemListMap[propNameEnum.Rate] = { type: 'numInput', ...mapLabelAndProp(propNameEnum.Rate), numAsString: true, width: 12, rule: ['must'] }
+commonFormItemListMap[propNameEnum.Precision] = { type: 'numInput', ...mapLabelAndProp(propNameEnum.Precision), numAsString: true, width: 12, rule: ['must'] }
+// 下拉 1 ~ 8（选项见 WallNumList），只有 8 个取值，用下拉比 numInput 方便
 commonFormItemListMap[propNameEnum.WallNum] = { type: 'select', ...mapLabelAndProp(propNameEnum.WallNum), width: 12, rule: ['mustNum'] }
 
 // 刷新 propNameMap 和 commonFormItemListMap 的国际化文本

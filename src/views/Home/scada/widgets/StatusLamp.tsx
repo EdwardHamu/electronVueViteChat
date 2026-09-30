@@ -53,6 +53,7 @@ const StatusLamp = defineComponent({
 
 export const statusLampDefinition: WidgetDefinition = {
   type: 'statusLamp',
+  hasText: true,
   label: () => tt('scada.widget.statusLamp'),
   description: () => tt('scada.widget.statusLampDesc'),
   icon: icons.statusLamp,

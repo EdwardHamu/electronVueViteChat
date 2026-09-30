@@ -54,6 +54,7 @@ const def = (type: string, extra: Partial<WidgetDefinition> & { defaultProps: ()
   description: () => tt('scada.widget.' + type + 'Desc'),
   icon: icons[type],
   category: 'control',
+  hasText: true,
   defaultSize: { w: 160, h: 48 },
   minSize: { w: 30, h: 20 },
   needsBinding: true,

@@ -8,6 +8,7 @@
 import { watchOnce } from "@vueuse/core";
 import { DropdownProps } from "naive-ui";
 import { defineStore } from "pinia" // 定义容器
+import { markRaw } from "vue"
 //修改store代码需要重启项目才生效
 
 let eccangle = localStorage.getItem('eccangle') || 0
@@ -101,6 +102,9 @@ export const useMain = defineStore('useStore', {
 
             lastFocusedInput: <HTMLInputElement | null>null,
             globalKeyBoardShow: false,
+            keyboardTarget: <HTMLInputElement | HTMLTextAreaElement | null>null, //虚拟键盘当前服务的输入框（点击时带入内容、回车时写回）
+            keyboardSeq: 0, //每次为某个输入框打开键盘 +1，键盘据此重新从输入框带入内容（同一个输入框再次打开也会刷新）
+            keyboardCommitting: false, //键盘正在把内容写回输入框（写回时会聚焦目标输入框，此时不能再触发弹出）
             globalKeyBoardBlocked: false, //为 true 时输入框聚焦不弹出虚拟键盘（数据组态页）
 
             isLandscape: false, //是否横屏
@@ -215,6 +219,16 @@ export const useMain = defineStore('useStore', {
         },
         setGlobalKeyBoardShow(value: boolean) {
             this.globalKeyBoardShow = value
+            if (!value) this.keyboardTarget = null
+        },
+        /** 为某个输入框打开虚拟键盘：键盘会把该输入框现有的内容带入输入区 */
+        openGlobalKeyBoard(target: HTMLInputElement | HTMLTextAreaElement | null) {
+            this.keyboardTarget = target ? markRaw(target) : null
+            this.keyboardSeq++
+            this.globalKeyBoardShow = true
+        },
+        setKeyboardCommitting(value: boolean) {
+            this.keyboardCommitting = value
         },
         setGlobalKeyBoardBlocked(value: boolean) {
             this.globalKeyBoardBlocked = value

@@ -6,6 +6,7 @@
  * columns = 2 时（竖屏放在画布下方）各区块分两栏排布。
  * 数据处理函数（JS）通过面板底部的按钮打开 TransformDialog 弹窗编辑。
  * 颜色类字段用 ColorField（预设颜色表 + 调色盘，在色块上方弹出的浮动面板），不用 NColorPicker 的弹层。
+ * 字体字段（'font'，hasText 的组件由 registerWidget 自动加）用 FontField；多选面板里也能给选中的带文字组件统一设置字体（一步撤销）。
  */
 import { NButton, NInput, NInputNumber, NPopconfirm, NScrollbar, NSelect, NSwitch } from 'naive-ui'
 import { computed, defineComponent, ref, watch, type PropType } from 'vue'
@@ -20,6 +21,8 @@ import { useScadaStore } from './store'
 import { transformErrors } from './transform'
 import TransformDialog from './TransformDialog'
 import CodeDialog, { codeParts } from './CodeDialog'
+import FontField from './FontField'
+import { FONT_FAMILY_KEY } from './fonts'
 import type { PropField, WidgetInstance } from './types'
 import { LOCAL_SOURCE_ID } from './variables'
 import { tt } from './widgets/common'
@@ -211,6 +214,8 @@ export default defineComponent({
           )
         case 'select':
           return <NSelect size="small" value={value ?? null} options={f.options ? f.options(w) : []} onUpdateValue={set} />
+        case 'font':
+          return <FontField value={typeof value === 'string' ? value : ''} placeholder={ph} onUpdateValue={set} />
         case 'multiselect':
           return <NSelect size="small" multiple clearable maxTagCount="responsive" value={Array.isArray(value) ? value : []} options={f.options ? f.options(w) : []} placeholder={ph} onUpdateValue={(v: any[]) => set(v)} />
         case 'code': {
@@ -332,6 +337,21 @@ export default defineComponent({
       )
     }
 
+    /** 多选面板的「字体」：给选中的、带文字的组件统一设置（锁定的组件也改——字体不涉及位置；与单选面板一致） */
+    const renderMultiFont = (list: WidgetInstance[]) => {
+      const texts = list.filter(w => getWidgetDefinition(w.type)?.hasText)
+      if (!texts.length) return null
+      const values = Array.from(new Set(texts.map(w => String(w.props[FONT_FAMILY_KEY] || ''))))
+      const setAll = (v: string) => scada.batch(() => texts.forEach(w => scada.setWidgetProp(w.id, FONT_FAMILY_KEY, v)))
+      return (
+        <Section sid="multiFont" title={tt('scada.prop.fontFamily')}>
+          <Row label={`${tt('scada.prop.fontFamily')} (${texts.length})`}>
+            <FontField value={values.length === 1 ? values[0] : ''} mixed={values.length > 1} placeholder={tt('scada.prop.fontDefault')} onUpdateValue={setAll} />
+          </Row>
+        </Section>
+      )
+    }
+
     /** 多选面板：数量 / 参考对象 / 选区外接框 / 批量操作（对齐、分布、旋转、组合、锁定在顶部排列工具栏里） */
     const renderMultiPanel = () => {
       const list = scada.selectedWidgets
@@ -348,6 +368,7 @@ export default defineComponent({
             </div>
             <div class={'text-[11px] text-gray-400 mt-1 leading-4'}>{tt('scada.multi.hint')}</div>
           </Section>
+          {renderMultiFont(list)}
           {u ? (
             <Section sid="multiBounds" title={tt('scada.multi.bounds')}>
               <div class={'grid grid-cols-2 gap-x-3 gap-y-1.5 py-1'}>

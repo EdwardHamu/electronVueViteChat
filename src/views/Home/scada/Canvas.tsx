@@ -9,6 +9,8 @@
  *  - 滚轮（或双指捏合）以指针位置为中心缩放视图，键盘 + / - / 0 同样可用；
  *  - 按住空格键拖动鼠标（画布任意位置，包括组件上方）、或按住鼠标中键拖动，平移视图；触摸屏双指同时可缩放 / 平移；
  *  - 选中组件后方向键微调位置（1px；Shift + 方向键按网格步进），Delete 删除；
+ *  - 在空白处（画布或画布外的灰色区域）按住拖动：框选（完全落在框内的组件；组合要整个框住才选中），Ctrl / Shift + 框选追加到当前选择；
+ *    拖动中按 Esc / 空格、或第二根手指按下（捏合）取消框选并恢复原来的选择；
  *  - 退出编辑（保存 / 取消）视图自动复位为"适配容器"。
  * 每个组件由 WidgetHost 承载：解析数据绑定 → 经过组件的数据处理函数（transform.ts）→ 维护历史值 → 渲染注册表里的组件。
  */
@@ -17,6 +19,7 @@ import { useDataPoint } from './dataSource'
 import { boundsMin, HANDLE_CURSORS, HANDLE_POS, HANDLES, resizeBounds, scaleItems, type ArrangeItem, type Handle } from './arrange'
 import { fitScale, snap, transformCss, unionRect, visualRect } from './geometry'
 import { getWidgetDefinition } from './registry'
+import { FONT_FAMILY_KEY, fontFamilyCss } from './fonts'
 import { toArrangeItem, useScadaStore } from './store'
 import { clearTransformReport, compileTransform, reportTransform, runTransform, type TransformContext } from './transform'
 import type { DataPoint, WidgetInstance, WidgetRect } from './types'
@@ -196,6 +199,21 @@ interface PressState {
   panY0: number
 }
 
+/** 框选：起点 / 当前点都是画布逻辑坐标；base = 开始框选时保留的选择（Ctrl / Shift 追加时为原选择，否则为空） */
+interface MarqueeState {
+  pointerId: number
+  startX: number
+  startY: number
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+  base: string[]
+  /** 开始框选前的选择（取消时恢复） */
+  before: string[]
+  active: boolean
+}
+
 interface PinchState {
   a: number
   b: number
@@ -226,6 +244,9 @@ export default defineComponent({
     const pointers = new Map<number, { x: number; y: number }>()
     let press: PressState | null = null
     let pinch: PinchState | null = null
+    let marquee: MarqueeState | null = null
+    /** 框选矩形（画布逻辑坐标），用于渲染；null = 没在框选 */
+    const marqueeRect = ref<WidgetRect | null>(null)
 
     const layout = computed(() => scada.current)
     /** 让整个画布刚好放进容器的比例 */
@@ -343,6 +364,63 @@ export default defineComponent({
         /* ignore */
       }
     }
+    // ---------------------------------------------------------------- 框选
+    /** 屏幕坐标 → 画布逻辑坐标（按画布元素的实际位置和当前缩放换算） */
+    const toCanvasPoint = (clientX: number, clientY: number) => {
+      const el = canvasRef.value
+      const r = el ? el.getBoundingClientRect() : { left: 0, top: 0 }
+      const s = scale.value || 1
+      return { x: (clientX - r.left) / s, y: (clientY - r.top) / s }
+    }
+    /** 完全落在框内的组件（按图层顺序）；组合里的组件只有整个组合的外接框都在框内才算 */
+    const marqueeHits = (rect: WidgetRect) => {
+      const inside = (v: WidgetRect) => v.x >= rect.x - 0.01 && v.y >= rect.y - 0.01 && v.x + v.w <= rect.x + rect.w + 0.01 && v.y + v.h <= rect.y + rect.h + 0.01
+      const widgets = layout.value.widgets
+      const groupOk = new Map<string, boolean>()
+      return widgets
+        .filter(w => {
+          if (!w.groupId) return inside(visualRect(w))
+          if (!groupOk.has(w.groupId)) {
+            const u = unionRect(widgets.filter(e => e.groupId === w.groupId).map(visualRect))
+            groupOk.set(w.groupId, !!u && inside(u))
+          }
+          return !!groupOk.get(w.groupId)
+        })
+        .map(w => w.id)
+    }
+    const beginMarquee = (e: PointerEvent) => {
+      const additive = e.ctrlKey || e.metaKey || e.shiftKey
+      const before = [...scada.selectedIds]
+      // 不带修饰键按在空白处：先取消选择（原来的点击空白取消选择行为不变）
+      if (!additive) scada.select(null)
+      const p = toCanvasPoint(e.clientX, e.clientY)
+      marquee = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, x0: p.x, y0: p.y, x1: p.x, y1: p.y, base: additive ? before : [], before, active: false }
+    }
+    const updateMarquee = (e: PointerEvent) => {
+      const m = marquee
+      if (!m) return
+      if (!m.active) {
+        if (Math.hypot(e.clientX - m.startX, e.clientY - m.startY) < DRAG_THRESHOLD) return
+        m.active = true
+      }
+      const p = toCanvasPoint(e.clientX, e.clientY)
+      m.x1 = p.x
+      m.y1 = p.y
+      const rect = { x: Math.min(m.x0, m.x1), y: Math.min(m.y0, m.y1), w: Math.abs(m.x1 - m.x0), h: Math.abs(m.y1 - m.y0) }
+      marqueeRect.value = rect
+      const hits = marqueeHits(rect)
+      const next = [...m.base, ...hits.filter(id => !m.base.includes(id))]
+      if (next.length !== scada.selectedIds.length || next.some((id, i) => scada.selectedIds[i] !== id)) scada.setSelection(next)
+    }
+    /** 结束框选；restore = true 时（Esc / 空格 / 捏合 / pointercancel）恢复开始框选前的选择 */
+    const endMarquee = (restore: boolean) => {
+      const m = marquee
+      if (!m) return
+      marquee = null
+      marqueeRect.value = null
+      if (restore) scada.setSelection(m.before)
+    }
+
     /**
      * 容器按下（画布、画布外的灰色区域，以及按住空格时的组件上方）：
      * 空格 + 左键 / 中键 → 立即平移；第二指 → 捏合缩放；其余情况只记录指针（供捏合识别）
@@ -357,6 +435,8 @@ export default defineComponent({
       capturePointer(el, e.pointerId)
       if (pointers.size >= 2) {
         clearPress()
+        // 第二根手指：改为捏合缩放，取消框选
+        endMarquee(true)
         const entries = Array.from(pointers.entries())
         const [ida, pa] = entries[entries.length - 2]
         const [idb, pb] = entries[entries.length - 1]
@@ -369,6 +449,13 @@ export default defineComponent({
         // 中键要阻止浏览器的自动滚动；空格平移时阻止选中文字
         e.preventDefault()
         beginPan(e)
+        return
+      }
+      // 空白处（画布 / 灰色区域；组件和手柄的 pointerdown 已 stopPropagation，到不了这里）左键 / 触摸：开始框选。
+      // 不带修饰键时 beginMarquee 先取消选择（= 原来「点空白取消选择」），带 Ctrl / Shift 保留选择并追加
+      if (e.pointerType !== 'mouse' || e.button === 0) {
+        e.preventDefault()
+        beginMarquee(e)
       }
     }
     const onContainerPointerMove = (e: PointerEvent) => {
@@ -394,6 +481,10 @@ export default defineComponent({
         pinch.midY = midY
         return
       }
+      if (marquee && marquee.pointerId === e.pointerId) {
+        updateMarquee(e)
+        return
+      }
       if (!press || press.pointerId !== e.pointerId) return
       canvasView.panX = press.panX0 + (e.clientX - press.startX)
       canvasView.panY = press.panY0 + (e.clientY - press.startY)
@@ -405,11 +496,14 @@ export default defineComponent({
       releasePointer(containerRef.value, e.pointerId)
       if (pinch && (pinch.a === e.pointerId || pinch.b === e.pointerId)) pinch = null
       if (press && press.pointerId === e.pointerId) clearPress()
+      if (marquee && marquee.pointerId === e.pointerId) endMarquee(e.type === 'pointercancel')
     }
     const resetGestures = () => {
       pointers.clear()
       pinch = null
       clearPress()
+      marquee = null
+      marqueeRect.value = null
       canvasView.spaceDown = false
     }
 
@@ -484,8 +578,15 @@ export default defineComponent({
       const target = e.target as HTMLElement | null
       const tag = target?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return
+      if (marquee && e.key === 'Escape') {
+        endMarquee(true)
+        e.preventDefault()
+        return
+      }
       if (isSpace(e)) {
         if (!focusOnCanvas()) return
+        // 空格 = 平移修饰键：取消进行中的框选
+        endMarquee(true)
         canvasView.spaceDown = true
         e.preventDefault() // 防止页面滚动
         return
@@ -537,6 +638,7 @@ export default defineComponent({
     /** 切到别的窗口时收不到 keyup，这里兜底复位 */
     const onWindowBlur = () => {
       canvasView.spaceDown = false
+      endMarquee(false)
     }
 
     // ---------------------------------------------------------------- 组件拖动 / 缩放 / 多选
@@ -637,13 +739,6 @@ export default defineComponent({
         else scada.select(d.click.id, { group: d.click.group })
       }
     }
-    const onCanvasPointerDown = (e: PointerEvent) => {
-      if (!scada.editing || canvasView.spaceDown) return
-      // 中键（平移）/ 右键不改变选择；带修饰键点空白处：保持当前选择（方便漏点时不丢选区）
-      if (e && e.pointerType === 'mouse' && e.button !== 0) return
-      if (e && (e.ctrlKey || e.metaKey || e.shiftKey)) return
-      scada.select(null)
-    }
 
     /** 选区外框 + 八个手柄 + 参考对象标记 + 锁定小锁；画在所有组件之上、随画布缩放，尺寸按 1/s 抵消成固定的屏幕像素 */
     const renderOverlay = (s: number) => {
@@ -728,6 +823,17 @@ export default defineComponent({
           )
         })
       }
+      const mr = marqueeRect.value
+      if (mr) {
+        nodes.push(
+          <div
+            key="marquee"
+            data-marquee
+            class={'absolute pointer-events-none'}
+            style={{ left: mr.x + 'px', top: mr.y + 'px', width: mr.w + 'px', height: mr.h + 'px', border: `${1 / s}px solid #2563eb`, background: 'rgba(37,99,235,.12)', boxSizing: 'border-box' }}
+          />
+        )
+      }
       return (
         <div class={'absolute left-0 top-0 pointer-events-none'} style={{ width: '0px', height: '0px', overflow: 'visible' }} data-scada-overlay>
           {nodes}
@@ -779,7 +885,6 @@ export default defineComponent({
               outline: editing ? '1px solid #9ca3af' : 'none',
               ...gridStyle
             }}
-            onPointerdown={onCanvasPointerDown}
             onPointermove={onPointerMove}
             onPointerup={onPointerUp}
             onPointercancel={onPointerUp}
@@ -809,7 +914,12 @@ export default defineComponent({
                   }}
                   onPointerdown={(e: PointerEvent) => onWidgetPointerDown(e, w)}
                 >
-                  <div class={'w-full h-full'} style={{ pointerEvents: editing ? 'none' : 'auto' }}>
+                  {/* 字体（hasText 组件的 props.fontFamily）：加在这一层，style.scss 的 [data-scada-font] * 让内部全部文字继承 */}
+                  <div
+                    class={'w-full h-full'}
+                    style={{ pointerEvents: editing ? 'none' : 'auto', fontFamily: fontFamilyCss(w.props[FONT_FAMILY_KEY]) || undefined }}
+                    data-scada-font={w.props[FONT_FAMILY_KEY] ? String(w.props[FONT_FAMILY_KEY]) : undefined}
+                  >
                     <WidgetHost widget={w} editing={editing} />
                   </div>
                 </div>

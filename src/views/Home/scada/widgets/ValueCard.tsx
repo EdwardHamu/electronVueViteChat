@@ -51,6 +51,7 @@ const ValueCard = defineComponent({
 
 export const valueCardDefinition: WidgetDefinition = {
   type: 'valueCard',
+  hasText: true,
   label: () => tt('scada.widget.valueCard'),
   description: () => tt('scada.widget.valueCardDesc'),
   icon: icons.valueCard,

@@ -16,6 +16,10 @@ import { createPinia } from 'pinia'
 import drag from "v-drag"
 import { listenAltF5, listenAllInputFocus } from './utils/utils';
 import { initApp } from './i18n/index'
+import { installNumberInputMark } from './utils/virtualKeyboard'
+
+// 所有 NInputNumber 的内部 <input> 带上 data-num-input="true"（虚拟键盘据此切到数字模式），必须在首次渲染前调用
+installNumberInputMark()
 
 // import "./keyboard.min.css";
 // import KeyBoard from "vue-keyboard-virtual-next";

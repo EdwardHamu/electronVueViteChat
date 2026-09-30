@@ -16,6 +16,7 @@ import type { CodePart, WidgetDefinition, WriteValue } from '../types'
 import { icons } from './icons'
 import { STATUS_COLORS, tt, widgetProps } from './common'
 import { useControl } from './controlCommon'
+import { FONT_FAMILY_KEY, fontFamilyCss } from '../fonts'
 
 /** 默认示例：名称 + 数值（随状态变色）+ 单位 + 公差范围 */
 export const CUSTOM_TEMPLATE = {
@@ -91,10 +92,15 @@ const publicProps = (props: Record<string, any>) => {
 /** 用户代码里的 </script> / </style> 会提前结束标签，转义成 <\\/…（在 JS 字符串 / CSS 里都合法） */
 const escapeClose = (code: string, tag: string) => code.replace(new RegExp('</' + tag, 'gi'), m => '<\\/' + m.slice(2))
 
-/** 拼出 iframe 的 srcdoc：运行时放在 head 里，这样 HTML 内联的 <script> 也能用 scada */
-export const buildCustomDoc = (html: string, css: string, js: string) =>
+/**
+ * 拼出 iframe 的 srcdoc：运行时放在 head 里，这样 HTML 内联的 <script> 也能用 scada。
+ * font = 属性面板选的字体（props.fontFamily）：iframe 是独立文档、继承不到外面的字体，写进基础样式（用户 CSS 在后面，仍可覆盖）
+ */
+export const buildCustomDoc = (html: string, css: string, js: string, font = '') =>
   '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-  '<style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}*,*::before,*::after{box-sizing:border-box}</style>' +
+  '<style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:' +
+  (fontFamilyCss(font) || 'system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif') +
+  '}*,*::before,*::after{box-sizing:border-box}</style>' +
   '<script>' + CUSTOM_RUNTIME + '</script>' +
   '<style>' + escapeClose(css, 'style') + '</style></head><body>' +
   html +
@@ -109,7 +115,7 @@ const CustomWidget = defineComponent({
     const frameRef = ref<HTMLIFrameElement>()
     const ready = ref(false)
     const error = ref('')
-    const doc = computed(() => buildCustomDoc(String(p.value.html ?? ''), String(p.value.css ?? ''), String(p.value.js ?? '')))
+    const doc = computed(() => buildCustomDoc(String(p.value.html ?? ''), String(p.value.css ?? ''), String(p.value.js ?? ''), String(p.value[FONT_FAMILY_KEY] || '')))
     const hasCode = computed(() => !!(String(p.value.html || '').trim() || String(p.value.js || '').trim()))
 
     /** 推给 iframe 的快照：只带可结构化克隆的字段 */
@@ -209,6 +215,7 @@ const codePart = (key: 'html' | 'css' | 'js'): CodePart => ({
 
 export const customDefinition: WidgetDefinition = {
   type: 'custom',
+  hasText: true,
   label: () => tt('scada.widget.custom'),
   description: () => tt('scada.widget.customDesc'),
   icon: icons.custom,

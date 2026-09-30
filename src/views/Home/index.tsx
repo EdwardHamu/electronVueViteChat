@@ -28,6 +28,7 @@ import { callBrige } from "@/utils/callm";
 import { useFormulaStore } from "@/store/formula";
 import FormulaConfigNew from "./config/formulaConfigNew";
 import { noKeyBoardInputClass } from "./config/sysConfig/enum";
+import { KEYBOARD_ROOT_CLASS } from "@/utils/virtualKeyboard";
 import Ecc from "./ecc";
 import Scada from "./scada";
 import { useI18n } from "vue-i18n";
@@ -104,6 +105,8 @@ export default defineComponent({
       }
     }
     const handleAllInputFocuse = (event: any) => {
+      // 虚拟键盘自己的输入区不算「最后聚焦的输入框」
+      if (event.target?.closest && event.target.closest('.' + KEYBOARD_ROOT_CLASS)) return
       if (event.target?.tagName === 'INPUT') {
         store.setLastFocusedInput(event.target)
         // console.log("🚀 ~ file: index.tsx:64 ~ handleAllInputFocuse ~ event.target:", event.target)

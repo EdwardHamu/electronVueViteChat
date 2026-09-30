@@ -43,9 +43,9 @@ export default defineComponent({
 
         },
         itemList: [
-          { type: 'input', label: t('data.standard2'), prop: 'Standard', width: 24, },
-          { type: 'input', label: t('data.toleranceUp'), prop: 'UpperTol', width: 24, },
-          { type: 'input', label: t('data.toleranceDwon'), prop: 'LowerTol', width: 24, },
+          { type: 'numInput', label: t('data.standard2'), prop: 'Standard', numAsString: true, width: 24, },
+          { type: 'numInput', label: t('data.toleranceUp'), prop: 'UpperTol', numAsString: true, width: 24, },
+          { type: 'numInput', label: t('data.toleranceDwon'), prop: 'LowerTol', numAsString: true, width: 24, },
         ] as formListItem[],
         hideBtn: true,
         noLargeBtn: true,

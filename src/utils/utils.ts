@@ -9,7 +9,7 @@ import { Ref } from "vue";
 import { propNameMap } from "@/views/Home/config/devConfig/enum";
 import { callBrige } from "./callm";
 import { menuIdSplit, menuPropEnum } from "@/views/Home/curcev/enum";
-import { noKeyBoardInputClass } from "@/views/Home/config/sysConfig/enum";
+import { isKeyboardTarget, isTouchKeyboardEnabled } from "./virtualKeyboard";
 import * as echarts from 'echarts';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -127,23 +127,21 @@ export const loopGet = (fn: () => Promise<any>, ms: number, isGettingRef: Ref<bo
 }
 
 export const listenAllInputFocus = (store: ReturnType<typeof useMain>, configStore: ReturnType<typeof useConfigStore>) => {
-  document.addEventListener('focusin', function (event) {
+  /** 是否为这个输入框弹出虚拟键盘：由系统配置 InputType（「触摸键盘输入」开关）决定 */
+  const tryOpen = (target: EventTarget | null) => {
     // 数据组态页等场景屏蔽虚拟键盘：聚焦输入框不弹出
     if (store.globalKeyBoardBlocked) return
-    // `event.target` 是实际获取焦点的元素
-    const targetElement = event.target;
-    // console.log("🪵 [utils.ts:122] ~ token ~ \x1b[0;32mtargetElement\x1b[0m = ", targetElement);
-
-    // 检查这个元素是否是一个输入框
-    //@ts-ignore
-    if (targetElement && targetElement.type == 'text' && targetElement.tagName === 'INPUT' && !targetElement?.closest('div.' + noKeyBoardInputClass) && !targetElement.className.includes('selection') || targetElement.tagName === 'TEXTAREA') {
-      console.log('用户点击或选中了一个输入框。');
-      //@ts-ignore
-      console.log('被选中的元素 ID 是:', targetElement.id || '无ID');
-      if (configStore.sysConfig.InputType || window.location.host.includes('localhost')) {
-        store.setGlobalKeyBoardShow(true)
-      }
-    }
+    // 键盘把内容写回输入框时会聚焦它，不能因此再弹一次
+    if (store.keyboardCommitting) return
+    if (!isKeyboardTarget(target)) return
+    if (!isTouchKeyboardEnabled(configStore.sysConfig?.InputType)) return
+    store.openGlobalKeyBoard(target)
+  }
+  document.addEventListener('focusin', (event) => tryOpen(event.target));
+  // 输入框已经有焦点（关掉键盘后焦点还留在里面）时再点它不会有 focusin，这里补上
+  document.addEventListener('click', (event) => {
+    if (store.globalKeyBoardShow) return
+    if (event.target && event.target === document.activeElement) tryOpen(event.target)
   });
 }
 

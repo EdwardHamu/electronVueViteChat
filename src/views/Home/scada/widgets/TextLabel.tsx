@@ -47,6 +47,7 @@ const TextLabel = defineComponent({
 
 export const textLabelDefinition: WidgetDefinition = {
   type: 'textLabel',
+  hasText: true,
   label: () => tt('scada.widget.textLabel'),
   description: () => tt('scada.widget.textLabelDesc'),
   icon: icons.textLabel,

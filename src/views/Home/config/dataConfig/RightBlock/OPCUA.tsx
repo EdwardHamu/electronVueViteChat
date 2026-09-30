@@ -15,16 +15,16 @@ const ClientForm = defineComponent({
   setup(props, ctx) {
     const itemList = ref<formListItem[]>([
       { type: 'select', label: '连接变量', prop: 'Code', width: 6, rule: 'must' },
-      { type: 'input', label: '命名空间', prop: 'SlaveId', width: 6, rule: 'must' },
+      { type: 'numInput', label: '命名空间', prop: 'SlaveId', numAsString: true, width: 6, rule: 'must' },
       { type: 'select', label: '空间标识符', prop: 'LHpostion', width: 6, },
       { type: 'input', label: 'NodeID', prop: 'StaAdd', width: 6, rule: 'must' },
       { type: 'select', label: '数据通道', prop: 'RegiData', width: 6, rule: 'must' },
       { type: 'select', label: '数据类型', prop: 'DataType', width: 6, rule: 'must' },
       { type: 'select', label: '读写方式', prop: 'Writable', width: 6, rule: 'must' },
-      { type: 'input', label: '输入最小值', prop: 'Imin', width: 6, },
-      { type: 'input', label: '输入最大值', prop: 'Imax', width: 6, },
-      { type: 'input', label: '工程最小值', prop: 'Vmin', width: 6, },
-      { type: 'input', label: '工程最大值', prop: 'Vmax', width: 6, },
+      { type: 'numInput', label: '输入最小值', prop: 'Imin', numAsString: true, width: 6, },
+      { type: 'numInput', label: '输入最大值', prop: 'Imax', numAsString: true, width: 6, },
+      { type: 'numInput', label: '工程最小值', prop: 'Vmin', numAsString: true, width: 6, },
+      { type: 'numInput', label: '工程最大值', prop: 'Vmax', numAsString: true, width: 6, },
       { type: 'input', label: '通道备注', prop: 'Remark', width: 6, },
     ].map((e: formListItem) => {
       e.placement = 'top'
@@ -56,7 +56,7 @@ const ServerForm = defineComponent({
     const autoForm = ref<DataMapAutoFormExpose>()
     const itemList = ref<formListItem[]>([
       { type: 'select', label: '连接变量', prop: 'Code', width: 6, rule: 'must' },
-      { type: 'input', label: '命名空间', prop: 'NameSpaceIndex', width: 6, rule: 'must' },
+      { type: 'numInput', label: '命名空间', prop: 'NameSpaceIndex', numAsString: true, width: 6, rule: 'must' },
       { type: 'select', label: '空间标识符', prop: 'IdentifierType', width: 6, },
       { type: 'input', label: 'NodeID', prop: 'Identifier', width: 6, rule: 'must' },
       { type: 'select', label: '数据通道', prop: 'RegiData', width: 6, rule: 'must' },
@@ -64,10 +64,10 @@ const ServerForm = defineComponent({
       { type: 'select', label: '读写方式', prop: 'Writable', width: 6, rule: 'must' },
       { type: 'select', label: '用户权限', prop: 'UserAccessLevel', width: 6, rule: 'must' },
       { type: 'select', label: '匿名权限', prop: 'AccessLevel', width: 6, rule: 'must' },
-      { type: 'input', label: '输入最小值', prop: 'Imin', width: 6, },
-      { type: 'input', label: '输入最大值', prop: 'Imax', width: 6, },
-      { type: 'input', label: '工程最小值', prop: 'Vmin', width: 6, },
-      { type: 'input', label: '工程最大值', prop: 'Vmax', width: 6, },
+      { type: 'numInput', label: '输入最小值', prop: 'Imin', numAsString: true, width: 6, },
+      { type: 'numInput', label: '输入最大值', prop: 'Imax', numAsString: true, width: 6, },
+      { type: 'numInput', label: '工程最小值', prop: 'Vmin', numAsString: true, width: 6, },
+      { type: 'numInput', label: '工程最大值', prop: 'Vmax', numAsString: true, width: 6, },
       { type: 'input', label: '通道备注', prop: 'Remark', width: 6, },
     ].map((e: formListItem) => {
       e.placement = 'top'

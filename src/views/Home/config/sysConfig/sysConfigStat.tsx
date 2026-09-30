@@ -112,7 +112,7 @@ export default defineComponent({
                 } else if (child.prop === 'EnablePrintStati') {
                   child.label = t('config.allowPrintingStatisticalData')
                 }
-              } else if (child.type === 'input') {
+              } else if (child.type === 'input' || child.type === 'numInput') {
                 if (child.prop === 'ExportPath') {
                   child.label = t('config.exportPath')
                 }

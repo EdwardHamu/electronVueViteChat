@@ -46,18 +46,18 @@ export default defineComponent({
             { type: 'divider', label: t('config.dataDisplay'), width: 24 },
             { type: 'select', label: t('config.defaultDecimalPlaces'), prop: 'Precision', width: 12 },
             { type: 'select', label: t('config.curvesPerScreen'), prop: 'MaxChartNum', width: 12 },
-            { type: 'input', label: t('config.minimumStatisticalPoints'), prop: 'CpkMinPonitNum', width: 12 },
-            { type: 'input', label: t('config.statisticalDataPeriod'), prop: 'CpkInterval', width: 12, suffix: 'ms' },
-            { type: 'input', label: t('config.graphRefreshPeriod'), prop: 'RefreshInterval', width: 12, suffix: 'ms' },
+            { type: 'numInput', label: t('config.minimumStatisticalPoints'), prop: 'CpkMinPonitNum', numAsString: true, width: 12 },
+            { type: 'numInput', label: t('config.statisticalDataPeriod'), prop: 'CpkInterval', numAsString: true, width: 12, suffix: 'ms' },
+            { type: 'numInput', label: t('config.graphRefreshPeriod'), prop: 'RefreshInterval', numAsString: true, width: 12, suffix: 'ms' },
             // { type: 'input', label: t('config.maximumDisplayPoints'), prop: 'MaxPonitNum', width: 12 },
           ]
         },
         {
           type: 'box', label: '', width: 24, childCompList: [
             { type: 'divider', label: t('config.dataAcquisition'), width: 24 },
-            { type: 'input', label: t('config.controlSignalInterval'), prop: 'ControlInterval', width: 12, suffix: 'ms' },
-            { type: 'input', label: t('config.dataAcquisitionInterval'), prop: 'ColloctInterval', width: 12, suffix: 'ms' },
-            { type: 'input', label: t('config.alarmSignalInterval'), prop: 'AlarmInterval', width: 12, suffix: 'ms' },
+            { type: 'numInput', label: t('config.controlSignalInterval'), prop: 'ControlInterval', numAsString: true, width: 12, suffix: 'ms' },
+            { type: 'numInput', label: t('config.dataAcquisitionInterval'), prop: 'ColloctInterval', numAsString: true, width: 12, suffix: 'ms' },
+            { type: 'numInput', label: t('config.alarmSignalInterval'), prop: 'AlarmInterval', numAsString: true, width: 12, suffix: 'ms' },
             { type: 'switch', label: t('config.writeAlarmInfoToDatabase'), prop: 'AlarmToDb', width: 12, checkedValue: 1, uncheckedValue: 0, },
           ]
         },
@@ -125,7 +125,7 @@ export default defineComponent({
                 } else if (child.prop === 'MaxChartNum') {
                   child.label = t('config.curvesPerScreen')
                 }
-              } else if (child.type === 'input') {
+              } else if (child.type === 'input' || child.type === 'numInput') {
                 if (child.prop === 'CpkMinPonitNum') {
                   child.label = t('config.minimumStatisticalPoints')
                 } else if (child.prop === 'CpkInterval') {

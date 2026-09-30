@@ -30,7 +30,13 @@ export interface formListItem {
   childCompList?: formListItem[],
   checkboxList?: { value: string, label: string }[],
   labelStyle?: CSSProperties | string,
-  class?: string
+  class?: string,
+  /**
+   * numInput 专用：表单里的值仍然存成字符串（显示 / 编辑用数字输入框）。
+   * 由 input 改成 numInput 的项都带这个：input 会把数字转成字符串，'must' 校验规则（async-validator 默认按 string 校验）
+   * 和提交给宿主的数据都是字符串，保持不变就不用改规则和后端。不带时 numInput 存 number（配合 'mustNum' 规则）。
+   */
+  numAsString?: boolean
 }
 export type MyFormWrapIns = {
   submit: Function,
@@ -206,10 +212,19 @@ export const MyFormWrap = defineComponent({
       )
     }
     const renderNumInput = (form: typeof props.form, item: formListItem) => {
-      // typeof form[item.prop] === 'string' && (form[item.prop] = Number(form[item.prop]))
+      const asString = !!item.numAsString
+      // 与 renderInput 一致：字符串模式下把宿主给的数字转成字符串，'must' 规则才能通过
+      asString && typeof form[item.prop] === 'number' && (form[item.prop] = form[item.prop] + "")
+      const raw = form[item.prop]
+      const num = raw === null || raw === undefined || raw === '' ? null : Number(raw)
+      const value = num === null || !Number.isFinite(num) ? null : num
+      const update = (v: number | null) => {
+        form[item.prop] = asString ? (v === null || v === undefined ? '' : String(v)) : v
+      }
+      // 样式与 renderInput 对齐（标签字号、宽度、类名）；内部 <input> 自带 data-num-input 标记，虚拟键盘据此切到数字模式
       return (
-        <NFormItem label={item.label} path={item.prop}>
-          <NInputNumber size={'large'} min={item.min} max={item.max} v-model:value={form[item.prop]} placeholder="" clearable disabled={item.disabled} v-slots={{
+        <NFormItem class={item.class} label={item.label} path={item.prop} contentStyle={{ maxWidth: '2000px', }} labelStyle={commonStyle.value}>
+          <NInputNumber size={'large'} min={item.min} max={item.max} value={value} onUpdateValue={update} style={{ ...commonStyle.value, ...inputStyle.value }} placeholder="" clearable disabled={item.disabled} v-slots={{
             suffix: typeof item.suffix === 'function' ? item.suffix : () => item.suffix
           }} />
         </NFormItem>

@@ -15,7 +15,7 @@ export default defineComponent({
     const itemList = ref<formListItem[]>([
       { type: 'select', label: '变量', prop: 'HistKey', width: 8, rule: 'must' },
       { type: 'select', label: '条件', prop: 'HistCondition', width: 8, rule: 'must' },
-      { type: 'input', label: '值', prop: 'HistValue', width: 8, rule: 'must' },
+      { type: 'numInput', label: '值', prop: 'HistValue', numAsString: true, width: 8, rule: 'must' },
     ])
     const optionMap: Record<string, SelectProps['options']> = reactive({
       HistCondition: ['==', '>', '>=', '<', '<=', '!='].map((e) => {

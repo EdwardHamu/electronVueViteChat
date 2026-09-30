@@ -37,6 +37,10 @@ body {
 .value-number {
   font-family: "myMono";
 }
+/* 组态组件选了字体（scada/fonts.ts）：组件内部全部文字（含 input / button、SVG text、.value-number、font-mono）都用它 */
+[data-scada-font] * {
+  font-family: inherit !important;
+}
 .left-side-ani {
   transition: left 0.3s ease;
 }

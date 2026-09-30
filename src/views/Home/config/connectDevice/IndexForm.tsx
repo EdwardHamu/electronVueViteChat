@@ -23,7 +23,7 @@ export default defineComponent({
       { type: 'select', label: 'PositionName', prop: 'PositionName', width: 6, rule: 'must' },
       // { type: 'select', label: 'Interface', prop: 'Interface', width: 6, rule: 'must' },
       {
-        type: 'input', label: 'Distance', prop: 'Distance', width: 6, rule: 'must', suffix: () => {
+        type: 'numInput', label: 'Distance', prop: 'Distance', numAsString: true, width: 6, rule: 'must', suffix: () => {
           return <span>M</span>
         }
       },

@@ -120,8 +120,9 @@ export interface WidgetInstance extends WidgetRect {
 /**
  * textarea：多行文本（选项列表等）；image：图片地址 + 选择本地文件（存为 data URL）；multiselect：多选（值为数组）；
  * code：代码（HTML / CSS / JS），面板里只显示一个按钮，点开 CodeDialog 弹窗（带语法高亮）编辑；一个 code 字段可以同时编辑多段代码（parts）
+ * font：系统字体（可搜索的下拉，选项用各自的字体预览；值为字体名，空 = 默认字体），见 fonts.ts
  */
-export type PropFieldType = 'text' | 'textarea' | 'number' | 'color' | 'boolean' | 'select' | 'multiselect' | 'image' | 'code'
+export type PropFieldType = 'text' | 'textarea' | 'number' | 'color' | 'boolean' | 'select' | 'multiselect' | 'image' | 'code' | 'font'
 
 export type CodeLanguage = 'html' | 'css' | 'js'
 
@@ -172,6 +173,11 @@ export interface WidgetDefinition {
   /** 组件库里的小图标（24×24 viewBox 的 SVG 渲染函数），缺省显示首字 */
   icon?: () => VNodeChild
   category?: WidgetCategory
+  /**
+   * 组件里有文字：registerWidget 会自动加一个「字体」属性（props.fontFamily，放在字号后面，没有字号就放最后），
+   * Canvas 把它应用到组件外层并让内部全部文字继承（见 fonts.ts）
+   */
+  hasText?: boolean
   defaultSize: { w: number; h: number }
   minSize?: { w: number; h: number }
   /** 是否需要绑定数据；false 表示绑定可选（如文本标签：不绑定显示静态文字，绑定后显示数据 / 处理函数的输出） */
