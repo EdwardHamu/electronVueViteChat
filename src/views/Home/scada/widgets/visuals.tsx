@@ -12,7 +12,7 @@ import { formatValue } from '../geometry'
 import { isLightColor, normalizeHex } from '../color'
 import type { BindingOption, DataPoint, PropField, WidgetDefinition, WidgetInstance } from '../types'
 import { icons } from './icons'
-import { STATUS_COLORS, displayName, fractionOf, pointText, resolveRange, statusColor, toNum, tt, widgetProps } from './common'
+import { STATUS_COLORS, displayName, fractionOf, localFraction, pointText, resolveRange, statusColor, toNum, tt, widgetProps } from './common'
 import { useControl } from './controlCommon'
 
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v)
@@ -244,7 +244,9 @@ const Slider = defineComponent({
       if (!el) return null
       const r = el.getBoundingClientRect()
       const vertical = p.value.layout === 'vertical'
-      const f = vertical ? (r.height > 0 ? (r.bottom - e.clientY) / r.height : 0) : (r.width > 0 ? (e.clientX - r.left) / r.width : 0)
+      // 组件可能被旋转 / 翻转：把指针位置换算回滑块自己的坐标轴
+      const { fx, fy } = localFraction(r, e.clientX, e.clientY, props.widget)
+      const f = r.width > 0 && r.height > 0 ? (vertical ? 1 - fy : fx) : 0
       return quantize(lo.value + (hi.value - lo.value) * clamp(f, 0, 1))
     }
     const onDown = (e: PointerEvent) => {

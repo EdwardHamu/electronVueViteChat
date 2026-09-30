@@ -1,14 +1,17 @@
 /**
- * 属性面板的颜色字段：一行「标签 + 当前色块」，点开后在下方展开面板（不用弹层，避免与属性面板滚动 / 竖屏两栏互相遮挡）。
+ * 属性面板的颜色字段：一行「标签 + 当前色块」，点击后在色块上方弹出浮动面板（Teleport 到 body 的 fixed 浮层，不挤占属性面板的布局）。
+ *  - 向上弹出：面板底边贴在色块上边缘之上，面板高度不够时向上长；头顶放不下（< 220px）而下方明显更宽裕时才翻到下方；
+ *    水平方向以色块中心为基准，夹在窗口内（右侧属性栏贴着窗口边时自动左移），小箭头始终指向色块；
+ *    属性面板滚动 / 窗口缩放时面板跟着色块重新定位。
  *  - 第一界面是「预设颜色」网格：点色块直接选色；「＋ 加入预设」把当前颜色存进去；「管理」进入删除模式，可「恢复默认」。
  *    预设表所有颜色字段共用并持久化（colorPresets.ts，localStorage）。
  *  - 点「调色盘」切换到 HSV 调色盘：饱和度 / 明度面板 + 色相条 + hex 输入，同样可以把当前颜色加入预设。
  *  - clearable 时提供「清除」（写回空字符串 = 使用组件默认色）。
- *  - 自动收起：同一时间只展开一个颜色字段（打开另一个时旧的收起）；焦点 / 点按落到面板外的其它输入框或控件上时也收起。
- *    点面板外的空白处、拖动属性面板滚动条 / 触摸滚动都不会收起（行内面板不是弹层，滚动时收起会很突兀）。
+ *  - 自动收起：同一时间只展开一个颜色字段（打开另一个时旧的收起）；点按 / 焦点落到面板和色块之外的任何地方、按 Esc、点面板右上角 ✕ 都会收起
+ *    （浮层和行内面板不同，点外面就该关）。面板内部（含 hex 输入框）的操作不收起。
  */
 import { NButton, NInput } from 'naive-ui'
-import { computed, defineComponent, onBeforeUnmount, reactive, ref, watch, type PropType } from 'vue'
+import { computed, defineComponent, onBeforeUnmount, reactive, ref, Teleport, watch, type PropType } from 'vue'
 import { clamp01, hexToHsv, hsvToHex, isLightColor, normalizeHex } from './color'
 import { addColorPreset, COLOR_PRESETS_MAX, removeColorPreset, resetColorPresets, useColorPresets } from './colorPresets'
 import { tt } from './widgets/common'
@@ -22,12 +25,11 @@ const HUE_BG = 'linear-gradient(to right, #f00 0%, #ff0 16.7%, #0f0 33.3%, #0ff 
 /** 当前展开的颜色字段实例 id（模块级：所有 ColorField 共用，保证同时只展开一个） */
 let fieldSeq = 0
 export const activeColorField = ref<number | null>(null)
-/**
- * 面板外被点按时会让面板收起的目标：其它输入框 / 表单控件（含 naive-ui 的选择器、开关、复选、滑块）和别的颜色字段按钮。
- * 能获得焦点的控件其实靠 focusin 就够了，这里是触摸 / readonly 等拿不到焦点时的兜底。
- */
-export const CLOSE_ON_POINTERDOWN_SELECTOR =
-  'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [data-color-trigger], .n-base-selection, .n-switch, .n-checkbox, .n-radio, .n-slider, .n-input-number'
+/** 浮动面板的宽度、与窗口边缘 / 色块的间距，头顶至少要有这么多空间才向上弹（否则翻到下方） */
+const POPUP_W = 272
+const POPUP_MARGIN = 8
+const POPUP_GAP = 8
+const MIN_SPACE_ABOVE = 220
 
 export default defineComponent({
   name: 'ScadaColorField',
@@ -41,8 +43,13 @@ export default defineComponent({
   setup(props) {
     const presets = useColorPresets()
     const id = ++fieldSeq
+    /** 整行（标签 + 色块按钮）；浮动面板在 body 里，不在它里面 */
     const rootRef = ref<HTMLElement>()
+    const triggerRef = ref<HTMLElement>()
+    const popupRef = ref<HTMLElement>()
     const open = ref(false)
+    /** 浮动面板的定位：placement = top 时 edge 是面板底边到窗口底边的距离，bottom 时 edge 是面板顶边到窗口顶边的距离 */
+    const pos = reactive({ left: 0, width: POPUP_W, edge: 0, maxHeight: 360, placement: 'top' as 'top' | 'bottom', arrow: 24 })
     const view = ref<View>('presets')
     const manage = ref(false)
     const svRef = ref<HTMLElement>()
@@ -77,11 +84,32 @@ export default defineComponent({
       hexFocused.value = false
       if (activeColorField.value === id) activeColorField.value = null
     }
+    /** 按色块当前的屏幕位置重新计算浮动面板的位置（打开时、滚动 / 缩放窗口时调用） */
+    const place = () => {
+      const t = triggerRef.value
+      if (!t || typeof window === 'undefined') return
+      const r = t.getBoundingClientRect()
+      const vw = window.innerWidth || document.documentElement.clientWidth || 0
+      const vh = window.innerHeight || document.documentElement.clientHeight || 0
+      const width = Math.min(POPUP_W, Math.max(160, vw - POPUP_MARGIN * 2))
+      const cx = r.left + r.width / 2
+      const left = Math.max(POPUP_MARGIN, Math.min(cx - width / 2, vw - width - POPUP_MARGIN))
+      const above = r.top - POPUP_GAP - POPUP_MARGIN
+      const below = vh - r.bottom - POPUP_GAP - POPUP_MARGIN
+      const flip = above < MIN_SPACE_ABOVE && below > above
+      pos.placement = flip ? 'bottom' : 'top'
+      pos.edge = flip ? r.bottom + POPUP_GAP : vh - r.top + POPUP_GAP
+      pos.maxHeight = Math.max(120, flip ? below : above)
+      pos.left = left
+      pos.width = width
+      pos.arrow = Math.max(14, Math.min(cx - left, width - 14))
+    }
     const toggle = () => {
       if (open.value) {
         close()
         return
       }
+      place()
       open.value = true
       // 记为当前展开的字段：别的颜色字段会因此收起
       activeColorField.value = id
@@ -95,25 +123,35 @@ export default defineComponent({
       if (v !== id) close()
     })
 
-    // ---------------------------------------------------------------- 焦点 / 点按落到面板外的其它输入框上时收起
-    const isInside = (t: EventTarget | null) => !!(t && rootRef.value && t instanceof Node && rootRef.value.contains(t))
+    // ---------------------------------------------------------------- 点按 / 焦点落到面板和色块之外、Esc 时收起；滚动 / 缩放窗口时跟随色块
+    const isInside = (t: EventTarget | null) =>
+      !!(t && t instanceof Node && ((rootRef.value && rootRef.value.contains(t)) || (popupRef.value && popupRef.value.contains(t))))
     const onDocFocusIn = (e: FocusEvent) => {
       if (!isInside(e.target)) close()
     }
     const onDocPointerDown = (e: PointerEvent) => {
-      const t = e.target as Element | null
-      if (!t || isInside(t) || typeof t.closest !== 'function') return
-      if (t.closest(CLOSE_ON_POINTERDOWN_SELECTOR)) close()
+      if (!isInside(e.target)) close()
     }
+    const onDocKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close()
+    }
+    const onReposition = () => place()
     const attach = () => {
       if (typeof document === 'undefined') return
       document.addEventListener('focusin', onDocFocusIn, true)
       document.addEventListener('pointerdown', onDocPointerDown, true)
+      document.addEventListener('keydown', onDocKeyDown, true)
+      window.addEventListener('resize', onReposition)
+      // 属性面板（NScrollbar 内部容器）滚动不冒泡，要在捕获阶段监听
+      window.addEventListener('scroll', onReposition, true)
     }
     const detach = () => {
       if (typeof document === 'undefined') return
       document.removeEventListener('focusin', onDocFocusIn, true)
       document.removeEventListener('pointerdown', onDocPointerDown, true)
+      document.removeEventListener('keydown', onDocKeyDown, true)
+      window.removeEventListener('resize', onReposition)
+      window.removeEventListener('scroll', onReposition, true)
     }
     watch(open, v => (v ? attach() : detach()))
     onBeforeUnmount(() => {
@@ -307,6 +345,39 @@ export default defineComponent({
       </>
     )
 
+    /** 浮动面板：固定定位在 body 下；小箭头指向色块 */
+    const renderPopup = (v: string) => (
+      <div
+        ref={popupRef}
+        data-color-popup
+        data-placement={pos.placement}
+        class={'fixed'}
+        style={{ left: pos.left + 'px', width: pos.width + 'px', zIndex: 2500, ...(pos.placement === 'top' ? { bottom: pos.edge + 'px' } : { top: pos.edge + 'px' }) }}
+      >
+        <div class={'p-2.5 rounded-lg border border-solid border-gray-200 bg-white shadow-2xl overflow-y-auto'} style={{ maxHeight: pos.maxHeight + 'px' }} data-color-panel>
+          <div class={'flex items-center gap-1.5 mb-2'}>
+            <span class={'flex-1 min-w-0 truncate text-xs text-gray-500'}>{props.label ? `${props.label} · ` : ''}{view.value === 'presets' ? tt('scada.color.presets') : tt('scada.color.palette')}</span>
+            {props.clearable && (
+              <NButton size="tiny" quaternary disabled={!v} onClick={() => emit('')}>{tt('scada.color.clear')}</NButton>
+            )}
+            <NButton size="tiny" secondary type="primary" data-color-switch onClick={() => (view.value = view.value === 'presets' ? 'palette' : 'presets')}>
+              {view.value === 'presets' ? tt('scada.color.palette') : tt('scada.color.presets')}
+            </NButton>
+            <NButton size="tiny" quaternary data-color-close onClick={close}>✕</NButton>
+          </div>
+          {view.value === 'presets' ? renderPresets() : renderPalette()}
+        </div>
+        <div
+          class={'absolute w-2.5 h-2.5 bg-white border-solid border-gray-200 pointer-events-none'}
+          style={{
+            left: pos.arrow - 5 + 'px',
+            transform: 'rotate(45deg)',
+            ...(pos.placement === 'top' ? { bottom: '-6px', borderWidth: '0 1px 1px 0' } : { top: '-6px', borderWidth: '1px 0 0 1px' })
+          }}
+        />
+      </div>
+    )
+
     return () => {
       const v = props.value
       return (
@@ -314,6 +385,7 @@ export default defineComponent({
           <div class={'flex items-center gap-2'}>
             <div class={'w-[88px] shrink-0 text-xs text-gray-600 truncate'} title={props.label}>{props.label}</div>
             <button
+              ref={triggerRef}
               type="button"
               data-color-trigger
               class={'flex-1 min-w-0 h-7 flex items-center gap-2 px-1.5 rounded border border-solid bg-white cursor-pointer outline-none'}
@@ -322,23 +394,11 @@ export default defineComponent({
             >
               <span class={'w-5 h-5 rounded-sm border border-solid border-gray-300 shrink-0'} style={{ background: v || EMPTY_BG }} />
               <span class={'flex-1 min-w-0 text-left text-xs text-gray-700 truncate font-mono'}>{v || tt('scada.color.none')}</span>
-              <span class={'text-[10px] text-gray-400'}>{open.value ? '▲' : '▼'}</span>
+              <span class={'text-[10px] text-gray-400'}>{open.value ? '▼' : '▲'}</span>
             </button>
           </div>
-          {open.value ? (
-            <div class={'mt-1.5 p-2 rounded border border-solid border-gray-200 bg-gray-50'} data-color-panel>
-              <div class={'flex items-center gap-1.5 mb-2'}>
-                <span class={'flex-1 text-xs text-gray-500'}>{view.value === 'presets' ? tt('scada.color.presets') : tt('scada.color.palette')}</span>
-                {props.clearable && (
-                  <NButton size="tiny" quaternary disabled={!v} onClick={() => emit('')}>{tt('scada.color.clear')}</NButton>
-                )}
-                <NButton size="tiny" secondary type="primary" data-color-switch onClick={() => (view.value = view.value === 'presets' ? 'palette' : 'presets')}>
-                  {view.value === 'presets' ? tt('scada.color.palette') : tt('scada.color.presets')}
-                </NButton>
-              </div>
-              {view.value === 'presets' ? renderPresets() : renderPalette()}
-            </div>
-          ) : null}
+          {/* 注意：Teleport 的唯一子节点不能是布尔值，要用三元返回 null */}
+          <Teleport to="body">{open.value ? renderPopup(v) : null}</Teleport>
         </div>
       )
     }

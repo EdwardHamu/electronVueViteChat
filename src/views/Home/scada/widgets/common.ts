@@ -3,7 +3,7 @@
  */
 import type { PropType } from 'vue'
 import i18n from '@/i18n'
-import { formatValue } from '../geometry'
+import { formatValue, normRotate } from '../geometry'
 import type { DataPoint, PointStatus, WidgetInstance } from '../types'
 
 /**
@@ -74,6 +74,36 @@ export const autoFontSize = (w: number, h: number, chars: number, ratio = 0.6, m
   const byHeight = h
   const byWidth = chars > 0 ? w / (chars * ratio) : h
   return Math.max(10, Math.min(max, byHeight, byWidth))
+}
+
+/**
+ * 指针在元素「自身坐标」里的位置比例（0 ~ 1，x 向右、y 向下）。组件被旋转 / 翻转后，画面上的外接框和组件自己的坐标轴不是一回事
+ * （例如顺时针转 90° 的横向滑块，画面上从上到下才是它的从左到右），拖动取值的组件（滑块）用它按组件的 rotate / flipX / flipY 反算回去。
+ * rect 取元素的 getBoundingClientRect()：画布的缩放已经包含在里面，比例与缩放无关。
+ */
+export const localFraction = (rect: { left: number; top: number; width: number; height: number }, clientX: number, clientY: number, w: { rotate?: number; flipX?: boolean; flipY?: boolean }) => {
+  const u = rect.width > 0 ? (clientX - rect.left) / rect.width : 0
+  const v = rect.height > 0 ? (clientY - rect.top) / rect.height : 0
+  let fx = u
+  let fy = v
+  // 先撤销旋转（顺时针 90° 的逆运算），再撤销翻转（渲染时是先翻转再旋转）
+  switch (normRotate(w.rotate)) {
+    case 90:
+      fx = v
+      fy = 1 - u
+      break
+    case 180:
+      fx = 1 - u
+      fy = 1 - v
+      break
+    case 270:
+      fx = 1 - v
+      fy = u
+      break
+  }
+  if (w.flipX) fx = 1 - fx
+  if (w.flipY) fy = 1 - fy
+  return { fx, fy }
 }
 
 /** 取文案；带 {name} 占位的文案必须把值通过 values 传给 vue-i18n（先 t() 再 replace 会把占位符吃掉） */

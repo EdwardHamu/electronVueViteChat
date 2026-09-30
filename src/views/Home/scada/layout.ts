@@ -1,6 +1,7 @@
 /**
  * 布局的默认值与反序列化校验（纯函数）
  */
+import { normRotate } from './geometry'
 import type { CanvasConfig, DataBinding, ScadaLayout, WidgetInstance } from './types'
 
 export const LAYOUT_VERSION = 1
@@ -48,6 +49,14 @@ const normalizeWidget = (raw: any, index: number): WidgetInstance | null => {
     props: raw.props && typeof raw.props === 'object' ? { ...raw.props } : {}
   }
   if (typeof raw.transform === 'string' && raw.transform.trim()) widget.transform = raw.transform
+  // 任务 59：旋转 / 翻转 / 锁定 / 组合 / 隐藏——都是可选字段，只保留有意义的值，老布局没有这些字段照常读取
+  const rotate = normRotate(raw.rotate)
+  if (rotate) widget.rotate = rotate
+  if (raw.flipX === true) widget.flipX = true
+  if (raw.flipY === true) widget.flipY = true
+  if (raw.locked === true) widget.locked = true
+  if (raw.hidden === true) widget.hidden = true
+  if (typeof raw.groupId === 'string' && raw.groupId) widget.groupId = raw.groupId
   return widget
 }
 
@@ -71,6 +80,14 @@ export const normalizeLayout = (raw: any): ScadaLayout | null => {
   widgets.forEach((w: WidgetInstance, i: number) => {
     if (seen.has(w.id)) w.id = `${w.id}_${i}`
     seen.add(w.id)
+  })
+  // 组合至少要有两个成员：落单的 groupId 清掉（比如导入时缺了组件）
+  const groupSize = new Map<string, number>()
+  widgets.forEach((w: WidgetInstance) => {
+    if (w.groupId) groupSize.set(w.groupId, (groupSize.get(w.groupId) || 0) + 1)
+  })
+  widgets.forEach((w: WidgetInstance) => {
+    if (w.groupId && (groupSize.get(w.groupId) || 0) < 2) delete w.groupId
   })
   // let version = num(raw.version, 1)
   // if (version < 2) { ...migrate...; version = 2 }

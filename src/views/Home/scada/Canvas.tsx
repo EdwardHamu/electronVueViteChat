@@ -1,7 +1,11 @@
 /**
  * 组态画布：逻辑尺寸 canvas.width × canvas.height，按容器等比缩放（横竖屏 / 编辑时侧栏占位都能完整显示）。
  * 编辑模式下：
- *  - Pointer Events 拖动 / 右下角缩放组件（鼠标、触摸通用），按网格吸附；
+ *  - Pointer Events 拖动组件、拖选区外框上的 8 个手柄（四角 + 四边中点）向任意方向缩放（鼠标、触摸通用），按网格吸附；
+ *    Shift + 拖角点等比缩放；
+ *  - Ctrl（Mac ⌘）/ Shift + 点击组件加减多选（点组合里的组件选中整个组合，Alt + 点击只选这一个）；多选时拖动 / 缩放 / 方向键 / Delete 作用于所有选中的组件，
+ *    最先选中的是「参考对象」（橙色外框，对齐 / 等宽高以它为准）；Ctrl + A 全选，Ctrl + G 组合，Ctrl + Shift + G 取消组合；
+ *  - 组件可以旋转 / 翻转（wrapper 上的 CSS transform，命中区域跟着画面走）；锁定的组件不能拖动 / 缩放（角上有小锁标记）；
  *  - 滚轮（或双指捏合）以指针位置为中心缩放视图，键盘 + / - / 0 同样可用；
  *  - 按住空格键拖动鼠标（画布任意位置，包括组件上方）、或按住鼠标中键拖动，平移视图；触摸屏双指同时可缩放 / 平移；
  *  - 选中组件后方向键微调位置（1px；Shift + 方向键按网格步进），Delete 删除；
@@ -10,9 +14,10 @@
  */
 import { computed, defineComponent, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch, watchEffect, type PropType } from 'vue'
 import { useDataPoint } from './dataSource'
-import { fitScale, snap } from './geometry'
+import { boundsMin, HANDLE_CURSORS, HANDLE_POS, HANDLES, resizeBounds, scaleItems, type ArrangeItem, type Handle } from './arrange'
+import { fitScale, snap, transformCss, unionRect, visualRect } from './geometry'
 import { getWidgetDefinition } from './registry'
-import { useScadaStore } from './store'
+import { toArrangeItem, useScadaStore } from './store'
 import { clearTransformReport, compileTransform, reportTransform, runTransform, type TransformContext } from './transform'
 import type { DataPoint, WidgetInstance, WidgetRect } from './types'
 import { tt } from './widgets/common'
@@ -142,13 +147,27 @@ const WidgetHost = defineComponent({
 })
 
 interface DragState {
-  id: string
   mode: 'move' | 'resize'
+  handle?: Handle
   pointerId: number
   startX: number
   startY: number
-  rect: WidgetRect
+  /** 开始拖动时「可动」（未锁定）的选中组件快照 */
+  items: ArrangeItem[]
+  /** 它们的视觉外接框（缩放手柄围着它） */
+  bounds: WidgetRect
+  /** 缩放时外接框允许的最小宽 / 高 */
+  minW: number
+  minH: number
+  /** 位移超过 DRAG_THRESHOLD 才算真正拖动；没动过的「点按」在抬起时才处理选择（Ctrl 点已选中的 = 取消选中；多选里点一个 = 收缩为它） */
+  moved: boolean
+  click: { id: string; action: 'toggle' | 'collapse'; group: boolean } | null
+  /** 锁定提示每次拖动只弹一次 */
+  warned: boolean
 }
+
+/** 点按与拖动的分界（屏幕像素） */
+const DRAG_THRESHOLD = 3
 
 /** 平移拖动状态（空格 + 左键 / 中键） */
 interface PressState {
@@ -403,12 +422,15 @@ export default defineComponent({
       const active = typeof document !== 'undefined' ? document.activeElement : null
       return !active || active === document.body || !!(containerRef.value && containerRef.value.contains(active))
     }
-    /** 方向键微调选中组件：1px；Shift 按网格步进（画布越界由 updateWidgetRect 收口） */
+    /** 被锁定的组件拦下了操作：提示一下，免得用户以为没反应 */
+    const notifyLocked = () => {
+      if (window.$message && window.$message.warning) window.$message.warning(tt('scada.tool.lockedHint'))
+    }
+    /** 方向键微调选中的组件（未锁定的整体平移，整体不越出画布）：1px；Shift 按网格步进 */
     const nudgeSelected = (dx: number, dy: number, byGrid: boolean) => {
-      const w = scada.selected
-      if (!w) return
+      if (!scada.selectedIds.length) return
       const step = byGrid ? Math.max(1, layout.value.canvas.grid || 10) : 1
-      scada.updateWidgetRect(w.id, { x: w.x + dx * step, y: w.y + dy * step, w: w.w, h: w.h })
+      if (!scada.nudgeSelection(dx * step, dy * step)) notifyLocked()
     }
     const onKeyDown = (e: KeyboardEvent) => {
       if (!scada.editing) return
@@ -420,6 +442,17 @@ export default defineComponent({
         canvasView.spaceDown = true
         e.preventDefault() // 防止页面滚动
         return
+      }
+      // Ctrl / ⌘ + A 全选，+ G 组合，+ Shift + G 取消组合（焦点在按钮 / 下拉上时不拦截）
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && typeof e.key === 'string') {
+        const k = e.key.toLowerCase()
+        if ((k === 'a' || k === 'g') && focusOnCanvas()) {
+          if (k === 'a') scada.selectAll()
+          else if (e.shiftKey) scada.ungroupSelection()
+          else scada.groupSelection()
+          e.preventDefault()
+          return
+        }
       }
       if (e.key === '+' || e.key === '=') {
         zoomAt(1.2)
@@ -436,9 +469,11 @@ export default defineComponent({
         e.preventDefault()
         return
       }
-      if (!scada.selectedId) return
+      if (!scada.selectedIds.length) return
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        scada.removeWidget(scada.selectedId)
+        // 焦点在按钮 / 下拉 / 颜色面板的色块上时不删组件（选完颜色顺手按退格不能把组件删了）
+        if (!focusOnCanvas()) return
+        if (scada.removeSelected().locked) notifyLocked()
         e.preventDefault()
         return
       }
@@ -457,8 +492,27 @@ export default defineComponent({
       canvasView.spaceDown = false
     }
 
-    // ---------------------------------------------------------------- 组件拖动 / 缩放
-    const onWidgetPointerDown = (e: PointerEvent, w: WidgetInstance, mode: DragState['mode']) => {
+    // ---------------------------------------------------------------- 组件拖动 / 缩放 / 多选
+    const selectedSet = computed(() => new Set(scada.selectedIds))
+    /** 选区里「可动」（未锁定）的组件；缩放手柄围着它们的视觉外接框 */
+    const movable = computed(() => scada.selectedWidgets.filter(w => !w.locked))
+    const frame = computed(() => unionRect(movable.value.map(visualRect)))
+    /** 网格关闭时只按整数像素取整 */
+    const effGrid = () => (scada.gridOn ? layout.value.canvas.grid : 1)
+
+    const focusContainer = () => {
+      // preventDefault 后浏览器不会再移动焦点，这里主动让容器拿到焦点：属性面板输入框失焦，方向键 / 空格才会交给画布
+      const container = containerRef.value
+      if (container && container.focus) container.focus({ preventScroll: true })
+    }
+    const beginDrag = (e: PointerEvent, mode: DragState['mode'], handle: Handle | undefined, capture: HTMLElement | null, click: DragState['click']) => {
+      const items = movable.value.map(toArrangeItem)
+      const bounds = unionRect(items.map(visualRect)) || { x: 0, y: 0, w: 0, h: 0 }
+      const min = boundsMin(items, bounds)
+      drag = { mode, handle, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, items, bounds, minW: min.minW, minH: min.minH, moved: false, click, warned: false }
+      capturePointer(capture || undefined, e.pointerId)
+    }
+    const onWidgetPointerDown = (e: PointerEvent, w: WidgetInstance) => {
       if (!scada.editing) return
       if (e.pointerType === 'mouse' && e.button !== 0) return
       if (press || pinch) return
@@ -466,44 +520,180 @@ export default defineComponent({
       if (canvasView.spaceDown) return
       e.stopPropagation()
       e.preventDefault()
-      // preventDefault 后浏览器不会再移动焦点，这里主动让容器拿到焦点：属性面板输入框失焦，方向键 / 空格才会交给画布
-      const container = containerRef.value
-      if (container && container.focus) container.focus({ preventScroll: true })
-      scada.select(w.id)
-      drag = { id: w.id, mode, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, rect: { x: w.x, y: w.y, w: w.w, h: w.h } }
-      const target = e.currentTarget as HTMLElement | null
-      if (target && target.setPointerCapture) {
-        try {
-          target.setPointerCapture(e.pointerId)
-        } catch {
-          /* 某些环境不支持，忽略 */
-        }
+      focusContainer()
+      // Ctrl / ⌘ / Shift：加减多选；Alt：只操作这一个组件（绕过组合）
+      const additive = e.ctrlKey || e.metaKey || e.shiftKey
+      const group = !e.altKey
+      const wasSelected = scada.selectedIds.includes(w.id)
+      let click: DragState['click'] = null
+      if (additive) {
+        // 已选中的先不取消（可能是要拖着一起走），没拖动就抬起才取消
+        if (wasSelected) click = { id: w.id, action: 'toggle', group }
+        else scada.toggleSelect(w.id, { group })
+      } else if (!wasSelected) {
+        scada.select(w.id, { group })
+      } else if (scada.selectedIds.length > 1) {
+        // 多选里按下一个：拖动则整体移动，点按（没拖动）则收缩为只选它
+        click = { id: w.id, action: 'collapse', group }
       }
+      beginDrag(e, 'move', undefined, e.currentTarget as HTMLElement | null, click)
+    }
+    /** 八个手柄之一按下：缩放当前选区（单个组件 = 缩放它自己） */
+    const onHandlePointerDown = (e: PointerEvent, handle: Handle) => {
+      if (!scada.editing) return
+      if (e.pointerType === 'mouse' && e.button !== 0) return
+      if (press || pinch) return
+      if (canvasView.spaceDown) return
+      e.stopPropagation()
+      e.preventDefault()
+      focusContainer()
+      beginDrag(e, 'resize', handle, e.currentTarget as HTMLElement | null, null)
     }
     const onPointerMove = (e: PointerEvent) => {
       if (!drag || e.pointerId !== drag.pointerId) return
+      const rawDx = e.clientX - drag.startX
+      const rawDy = e.clientY - drag.startY
+      if (!drag.moved) {
+        if (Math.hypot(rawDx, rawDy) < DRAG_THRESHOLD) return
+        drag.moved = true
+      }
+      if (!drag.items.length) {
+        // 选中的全是锁定组件：拖不动，提示一次
+        if (!drag.warned) {
+          drag.warned = true
+          notifyLocked()
+        }
+        return
+      }
       const s = scale.value || 1
-      const dx = (e.clientX - drag.startX) / s
-      const dy = (e.clientY - drag.startY) / s
-      const grid = layout.value.canvas.grid
-      const rect: WidgetRect =
-        drag.mode === 'move'
-          ? { ...drag.rect, x: snap(drag.rect.x + dx, grid), y: snap(drag.rect.y + dy, grid) }
-          : { ...drag.rect, w: snap(drag.rect.w + dx, grid), h: snap(drag.rect.h + dy, grid) }
-      scada.updateWidgetRect(drag.id, rect)
+      const dx = rawDx / s
+      const dy = rawDy / s
+      const canvas = layout.value.canvas
+      const grid = effGrid()
+      const b = drag.bounds
+      if (drag.mode === 'move') {
+        // 整体平移：外接框左上角吸附网格，整体不越出画布
+        const nx = Math.max(0, Math.min(snap(b.x + dx, grid), canvas.width - b.w))
+        const ny = Math.max(0, Math.min(snap(b.y + dy, grid), canvas.height - b.h))
+        scada.applyPatches(drag.items.map(i => ({ id: i.id, x: i.x + (nx - b.x), y: i.y + (ny - b.y), w: i.w, h: i.h })))
+      } else if (drag.handle) {
+        const next = resizeBounds(b, drag.handle, dx, dy, { grid, canvas, minW: drag.minW, minH: drag.minH, keepAspect: e.shiftKey })
+        scada.applyPatches(scaleItems(drag.items, b, next))
+      }
     }
     const onPointerUp = (e: PointerEvent) => {
-      if (drag && e.pointerId === drag.pointerId) drag = null
+      if (!drag || e.pointerId !== drag.pointerId) return
+      const d = drag
+      drag = null
+      if (!d.moved && d.click) {
+        if (d.click.action === 'toggle') scada.toggleSelect(d.click.id, { group: d.click.group })
+        else scada.select(d.click.id, { group: d.click.group })
+      }
     }
-    const onCanvasPointerDown = () => {
-      if (scada.editing && !canvasView.spaceDown) scada.select(null)
+    const onCanvasPointerDown = (e: PointerEvent) => {
+      if (!scada.editing || canvasView.spaceDown) return
+      // 中键（平移）/ 右键不改变选择；带修饰键点空白处：保持当前选择（方便漏点时不丢选区）
+      if (e && e.pointerType === 'mouse' && e.button !== 0) return
+      if (e && (e.ctrlKey || e.metaKey || e.shiftKey)) return
+      scada.select(null)
+    }
+
+    /** 选区外框 + 八个手柄 + 参考对象标记 + 锁定小锁；画在所有组件之上、随画布缩放，尺寸按 1/s 抵消成固定的屏幕像素 */
+    const renderOverlay = (s: number) => {
+      if (!scada.editing) return null
+      const nodes: any[] = []
+      const multi = scada.selectedIds.length > 1
+      layout.value.widgets.forEach(w => {
+        if (!w.locked) return
+        const v = visualRect(w)
+        const sz = 14 / s
+        nodes.push(
+          <div
+            key={'lock-' + w.id}
+            data-lock-badge={w.id}
+            class={'absolute flex items-center justify-center rounded-full bg-gray-700 text-white pointer-events-none'}
+            style={{ left: v.x + v.w - sz - 2 / s + 'px', top: v.y + 2 / s + 'px', width: sz + 'px', height: sz + 'px' }}
+          >
+            <svg viewBox="0 0 24 24" width="64%" height="64%" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="5" y="11" width="14" height="10" rx="2" />
+              <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+            </svg>
+          </div>
+        )
+      })
+      const ref = multi ? scada.selectedWidgets[0] : undefined
+      if (ref) {
+        const v = visualRect(ref)
+        nodes.push(
+          <div
+            key="ref-badge"
+            data-reference-badge={ref.id}
+            class={'absolute pointer-events-none whitespace-nowrap rounded bg-amber-500 text-white'}
+            style={{ left: v.x + 'px', top: v.y + 'px', transform: `translateY(-100%) scale(${1 / s})`, transformOrigin: '0 100%', fontSize: '10px', lineHeight: '14px', padding: '0 4px' }}
+          >
+            {tt('scada.tool.reference')}
+          </div>
+        )
+      }
+      const f = frame.value
+      if (f) {
+        if (multi) {
+          nodes.push(
+            <div
+              key="frame"
+              data-selection-frame
+              class={'absolute pointer-events-none'}
+              style={{ left: f.x + 'px', top: f.y + 'px', width: f.w + 'px', height: f.h + 'px', border: `${1 / s}px dashed #2563eb`, boxSizing: 'border-box' }}
+            />
+          )
+        }
+        const vis = 10 / s
+        // 点击区域比可见的小方块大（触摸屏好点）；选区很小时收小，免得盖住组件本身没法拖动
+        const hit = Math.max(10 / s, Math.min(24 / s, Math.min(f.w, f.h) / 3))
+        const roomX = f.w * s >= 48
+        const roomY = f.h * s >= 48
+        HANDLES.forEach(h => {
+          // 选区太窄 / 太矮时只留四角，避免相邻手柄挤在一起
+          if ((h === 'n' || h === 's') && !roomX) return
+          if ((h === 'e' || h === 'w') && !roomY) return
+          const p = HANDLE_POS[h]
+          nodes.push(
+            <div
+              key={h}
+              data-handle={h}
+              class={'absolute flex items-center justify-center'}
+              style={{
+                left: f.x + f.w * p.fx - hit / 2 + 'px',
+                top: f.y + f.h * p.fy - hit / 2 + 'px',
+                width: hit + 'px',
+                height: hit + 'px',
+                cursor: canvasView.spaceDown ? 'grab' : HANDLE_CURSORS[h],
+                touchAction: 'none',
+                pointerEvents: 'auto'
+              }}
+              onPointerdown={(e: PointerEvent) => onHandlePointerDown(e, h)}
+            >
+              <div
+                class={'pointer-events-none bg-blue-600'}
+                style={{ width: vis + 'px', height: vis + 'px', border: `${1.5 / s}px solid #fff`, borderRadius: 2 / s + 'px', boxShadow: `0 0 0 ${0.5 / s}px rgba(0,0,0,.35)`, boxSizing: 'border-box' }}
+              />
+            </div>
+          )
+        })
+      }
+      return (
+        <div class={'absolute left-0 top-0 pointer-events-none'} style={{ width: '0px', height: '0px', overflow: 'visible' }} data-scada-overlay>
+          {nodes}
+        </div>
+      )
     }
 
     return () => {
       const l = layout.value
       const editing = scada.editing
       const s = scale.value
-      const gridStyle = editing
+      const multi = scada.selectedIds.length > 1
+      const gridStyle = editing && scada.gridOn
         ? {
           backgroundImage: 'linear-gradient(to right, rgba(0,0,0,.07) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,.07) 1px, transparent 1px)',
           backgroundSize: `${l.canvas.grid}px ${l.canvas.grid}px`
@@ -543,9 +733,15 @@ export default defineComponent({
               ...gridStyle
             }}
             onPointerdown={onCanvasPointerDown}
+            onPointermove={onPointerMove}
+            onPointerup={onPointerUp}
+            onPointercancel={onPointerUp}
           >
             {l.widgets.map(w => {
-              const selected = editing && scada.selectedId === w.id
+              const selected = editing && selectedSet.value.has(w.id)
+              // 多选时参考对象（最先选中的）用橙色外框，其余蓝色
+              const isRef = selected && multi && scada.referenceId === w.id
+              const tf = transformCss(w)
               return (
                 <div
                   key={w.id}
@@ -554,33 +750,25 @@ export default defineComponent({
                   data-widget-type={w.type}
                   style={{
                     left: w.x + 'px', top: w.y + 'px', width: w.w + 'px', height: w.h + 'px',
+                    // 旋转 / 翻转直接作用在 wrapper 上：命中区域、外框都跟着画面走（只有 90° 的倍数，外框仍是轴对齐矩形）
+                    transform: tf || undefined,
+                    transformOrigin: tf ? '50% 50%' : undefined,
+                    opacity: w.hidden && editing ? 0.35 : undefined,
+                    display: w.hidden && !editing ? 'none' : undefined,
                     touchAction: editing ? 'none' : 'auto',
-                    cursor: editing ? (canvasView.spaceDown ? 'grab' : 'move') : 'default',
-                    outline: selected ? '2px solid #2563eb' : editing ? '1px dashed rgba(37,99,235,.35)' : 'none',
+                    cursor: editing ? (canvasView.spaceDown ? 'grab' : w.locked ? 'default' : 'move') : 'default',
+                    outline: selected ? `2px solid ${isRef ? '#f59e0b' : '#2563eb'}` : editing ? '1px dashed rgba(37,99,235,.35)' : 'none',
                     outlineOffset: '1px'
                   }}
-                  onPointerdown={(e: PointerEvent) => onWidgetPointerDown(e, w, 'move')}
-                  onPointermove={onPointerMove}
-                  onPointerup={onPointerUp}
-                  onPointercancel={onPointerUp}
+                  onPointerdown={(e: PointerEvent) => onWidgetPointerDown(e, w)}
                 >
                   <div class={'w-full h-full'} style={{ pointerEvents: editing ? 'none' : 'auto' }}>
                     <WidgetHost widget={w} editing={editing} />
                   </div>
-                  {selected && (
-                    <div
-                      class={'absolute rounded-sm bg-blue-600 border-2 border-solid border-white shadow'}
-                      style={{
-                        right: '-9px', bottom: '-9px',
-                        width: Math.max(16, 18 / s) + 'px', height: Math.max(16, 18 / s) + 'px',
-                        cursor: canvasView.spaceDown ? 'grab' : 'nwse-resize', touchAction: 'none'
-                      }}
-                      onPointerdown={(e: PointerEvent) => onWidgetPointerDown(e, w, 'resize')}
-                    />
-                  )}
                 </div>
               )
             })}
+            {renderOverlay(s)}
           </div>
           {editing && (canvasView.zoom !== 1 || canvasView.panX !== 0 || canvasView.panY !== 0) && (
             <div

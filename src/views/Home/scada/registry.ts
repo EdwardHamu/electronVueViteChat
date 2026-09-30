@@ -19,3 +19,6 @@ export const registerWidget = (def: WidgetDefinition) => {
 export const getWidgetDefinition = (type: string) => definitions.find(d => d.type === type)
 
 export const widgetDefinitions = () => definitions as readonly WidgetDefinition[]
+
+/** 组件的显示名：用户填的标题优先，其次组件类型名（图层栏 / 排列工具栏 / 多选面板用） */
+export const widgetName = (w: { type: string; title?: string }) => w.title || getWidgetDefinition(w.type)?.label() || w.type

@@ -12,7 +12,9 @@
  *       zip 读写（STORE / DEFLATE）、组态包导出（宿主资源 + 内嵌图 → zip）/ 解析 / 清点 / 执行导入（上传 / 复用 / 内嵌 / 失败）、右键菜单导出下载与导入弹窗流程、图片经 SaveResourceFile 上传到 https://pic.nt.local/。
  *       任务 42：宿主打包（ExportScadaPackage 另存为 / PreviewScadaPackage 清点 → 导入弹窗 → ImportScadaPackage 解压并替换布局、取消 / 失败 / 编辑模式）、
  *       嵌套属性里的资源引用、保存 / 展示模式导入后经 ListResourceFiles + DeleteResourceFile 清理未引用的 GUID 文件（老宿主没有这些接口时退回前端 zip 流程 —— 前面的用例就是在没有这些接口的桥上跑的）。
- *       任务 43：颜色字段自动收起（打开另一个颜色字段 / 焦点或点按落到别的输入框时收起；面板内操作与面板外空白处不收起）。
+ *       任务 43 / 59：颜色字段改成向上弹出的浮动面板（Teleport 到 body、fixed 定位、头顶放不下翻到下方、靠右缘时左移、滚动 / 缩放跟随），打开另一个 / 点面板外 / 焦点落到别处 / Esc / ✕ 收起，面板内操作不收起。
+ *       任务 59：排列运算纯函数（对齐 / 居中 / 分布 / 等宽高 / 旋转 / 翻转 / 八点缩放 / 图层顺序 / 旋转几何 / 布局反序列化 / 指针落点换算）、Ctrl·⌘·Shift 多选与参考对象、八个缩放手柄（单个 / 多选 / Shift 等比 / 边界 / 最小尺寸）、网格开关、
+ *       排列工具栏（按钮状态 / 对齐 / 画面居中下拉 / 分布 / 等宽高 / 旋转 / 翻转 / 组合 / 锁定 / 层次）、图层栏（选择同步 / 拖动排序 / 眼睛 / 挂锁 / 旗标 / 显隐开关 / 竖屏位置）、全屏（冻结整页尺寸 / Esc / Fullscreen API 桩）、属性面板（多选面板 / 锁定 / 旋转 / 翻转）、保存与读回。
  * 说明：@/store、@/store/config 与 @/utils/callm 被 stubs/ 里的桩替换（真实模块会把 echarts 等整套依赖拉进来）。
  */
 import { build } from 'esbuild'
@@ -51,6 +53,11 @@ import { CUSTOM_TEMPLATE, CUSTOM_RUNTIME, buildCustomDoc } from '@/views/Home/sc
 export { CUSTOM_TEMPLATE, CUSTOM_RUNTIME, buildCustomDoc }
 import { highlight } from '@/views/Home/scada/highlight'
 export { highlight }
+import * as arrange from '@/views/Home/scada/arrange'
+import { visualRect, layoutFromVisual, unionRect, normRotate, clampLayoutRect, transformCss } from '@/views/Home/scada/geometry'
+import { normalizeLayout } from '@/views/Home/scada/layout'
+import { localFraction } from '@/views/Home/scada/widgets/common'
+export { arrange, visualRect, layoutFromVisual, unionRect, normRotate, clampLayoutRect, transformCss, normalizeLayout, localFraction }
 import { encodeQr, qrToPath } from '@/views/Home/scada/codes/qrcode'
 import { encodeBarcode, eanCheckDigit } from '@/views/Home/scada/codes/barcode'
 import { resolveTemplate } from '@/views/Home/scada/widgets/codes'
@@ -93,7 +100,8 @@ const { window } = dom
 for (const k of ['window', 'document', 'navigator', 'HTMLElement', 'Element', 'Node', 'SVGElement', 'getComputedStyle', 'localStorage', 'Event', 'InputEvent', 'MouseEvent', 'KeyboardEvent', 'WheelEvent', 'requestAnimationFrame', 'cancelAnimationFrame', 'CSS', 'MutationObserver', 'Text', 'Comment', 'DocumentFragment', 'HTMLInputElement', 'Blob', 'File', 'FileReader', 'HTMLAnchorElement']) {
   if (window[k] !== undefined) globalThis[k] = window[k]
 }
-globalThis.ResizeObserver = class { observe() {} disconnect() {} unobserve() {} }
+globalThis.__resizeCallbacks = []
+globalThis.ResizeObserver = class { constructor(cb) { globalThis.__resizeCallbacks.push(cb) } observe() {} disconnect() {} unobserve() {} }
 globalThis.PointerEvent = window.PointerEvent || class PointerEvent extends window.MouseEvent {
   constructor(type, init = {}) { super(type, init); this.pointerId = init.pointerId ?? 1; this.pointerType = init.pointerType ?? 'mouse' }
 }
@@ -139,6 +147,7 @@ const { canvasView, zoomCanvas, resetCanvasView, compileTransform, runTransform,
 const { normalizeHex, hexToHsv, hsvToHex, isLightColor, useColorPresets, DEFAULT_COLOR_PRESETS, COLOR_PRESETS_KEY } = m
 const { createZip, readZip, zipEntryText, crc32, buildPackage, parsePackage, planImport, applyPackage, PACKAGE_REF_PREFIX, collectResourceRefs, RESOURCE_BASE_URL, RESOURCE_MAX_BYTES, INLINE_MAX_BYTES } = m
 const { CUSTOM_TEMPLATE, CUSTOM_RUNTIME, buildCustomDoc, highlight, encodeQr, qrToPath, encodeBarcode, eanCheckDigit, resolveTemplate } = m
+const { arrange, visualRect, layoutFromVisual, unionRect, normRotate, clampLayoutRect, transformCss, normalizeLayout, localFraction } = m
 i18n.global.setLocaleMessage('zh-CN', JSON.parse(fs.readFileSync(path.join(repo, 'public/locales/zh-CN.json'), 'utf8')))
 i18n.global.locale.value = 'zh-CN'
 
@@ -230,7 +239,7 @@ wrapper.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 
 wrapper.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 153, clientY: 128, pointerId: 3 }))
 await nextTick()
 check('拖动按网格吸附', () => { assert.equal(w.x, x0 + 50); assert.equal(w.y, y0 + 30) })
-const handle = [...root.querySelectorAll('div')].find(d => d.style.cursor === 'nwse-resize')
+const handle = root.querySelector('[data-handle="se"]')
 const w0 = w.w
 handle.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 0, clientY: 0, pointerId: 4 }))
 wrapper.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 44, clientY: -100, pointerId: 4 }))
@@ -324,18 +333,37 @@ check('颜色工具函数', () => {
 })
 scada.select(w.id); await nextTick()
 const fields = () => [...root.querySelectorAll('[data-color-field]')]
-check('属性面板颜色字段改为行内色块按钮（不再用 NColorPicker 弹层）', () => { assert.equal(fields().length, 2); assert.ok(!root.querySelector('.n-color-picker')); assert.ok(!root.querySelector('[data-color-panel]')) })
+const popups = () => [...document.body.querySelectorAll('[data-color-popup]')]
+const popup = () => popups()[0]
+const panel = () => document.body.querySelector('[data-color-panel]')
+check('属性面板颜色字段是「标签 + 色块按钮」：没有行内面板、没有 NColorPicker 弹层，面板没打开时 body 里也没有浮层', () => {
+  assert.equal(fields().length, 2); assert.ok(!root.querySelector('.n-color-picker')); assert.ok(!root.querySelector('[data-color-panel]')); assert.equal(popups().length, 0)
+  assert.ok(fields()[0].querySelector('[data-color-trigger]').textContent.includes('▲'), '色块按钮上的小箭头朝上，提示向上弹出')
+})
 const bgField = fields()[0]
-bgField.querySelector('[data-color-trigger]').click(); await nextTick()
-const panel = () => bgField.querySelector('[data-color-panel]')
+const trig = f => f.querySelector('[data-color-trigger]')
+/** jsdom 没有布局：给色块按钮一个屏幕位置（窗口 1024×768） */
+const placeTrigger = (f, left, top, width = 200) => { trig(f).getBoundingClientRect = () => ({ left, top, width, height: 28, right: left + width, bottom: top + 28 }) }
+placeTrigger(bgField, 700, 500)
+trig(bgField).click(); await nextTick()
+check('点色块：在 body 下弹出浮动面板（Teleport 到 body 的 fixed 浮层，不在属性面板 / 字段行里），向上弹出——底边贴在色块上沿之上、小箭头指向色块', () => {
+  assert.ok(popup() && panel()); assert.ok(!bgField.contains(popup())); assert.equal(popup().parentElement, document.body); assert.ok(popup().classList.contains('fixed'))
+  assert.equal(popup().dataset.placement, 'top'); assert.equal(popup().style.bottom, '276px', popup().getAttribute('style'))   // 768 - 500 + 8
+  assert.equal(popup().style.top, ''); assert.equal(popup().style.width, '272px'); assert.equal(popup().style.left, '664px')   // 以色块中心 800 为基准居中
+  assert.ok(Number(popup().style.zIndex) >= 2100, '浮层要高于 naive 的弹窗层（2000 起）')
+  assert.equal(panel().style.maxHeight, '484px')   // 上方可用高度 = 500 - 8 - 8
+  assert.ok(popup().querySelector('div[style*="rotate(45deg)"]'), '有指向色块的小箭头')
+  assert.ok(trig(bgField).textContent.includes('▼'), '打开时色块按钮的小箭头翻转')
+})
 check('点开后第一界面是预设颜色表（默认 24 色），此时没有调色盘', () => {
   assert.ok(panel()); assert.equal(panel().querySelectorAll('[data-color]').length, DEFAULT_COLOR_PRESETS.length)
   assert.ok(!panel().querySelector('[data-color-sv]')); assert.ok(panel().textContent.includes('预设颜色')); assert.ok(!panel().textContent.includes('false'))
+  assert.ok(panel().querySelector('[data-color-close]') && panel().querySelector('[data-color-switch]'))
 })
 panel().querySelector('[data-color="#ff8d3f"]').click(); await nextTick()
-check('点预设色块 → 写入组件属性并高亮选中', () => {
+check('点预设色块 → 写入组件属性并高亮选中（面板保持打开，可以接着试别的颜色）', () => {
   assert.equal(wA().props.bg, '#ff8d3f'); assert.ok(panel().querySelector('[data-color="#ff8d3f"]').textContent.includes('✓'))
-  assert.ok(bgField.querySelector('[data-color-trigger]').textContent.includes('#ff8d3f'))
+  assert.ok(trig(bgField).textContent.includes('#ff8d3f')); assert.ok(popup())
 })
 panel().querySelector('[data-color-switch]').click(); await nextTick()
 check('按钮切换到调色盘：SV 面板 + 色相条 + hex 输入', () => {
@@ -346,7 +374,7 @@ const sv = panel().querySelector('[data-color-sv]')
 sv.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 100, right: 100, bottom: 100 })
 sv.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 0, pointerId: 21, button: 0 }))
 sv.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 100, clientY: 0, pointerId: 21 })); await nextTick()
-check('在 SV 面板上点按 → 按当前色相取纯色写回', () => assert.equal(wA().props.bg, hsvToHex({ ...hexToHsv('#ff8d3f'), s: 1, v: 1 })))
+check('在 SV 面板上点按 → 按当前色相取纯色写回（面板内的点按不会收起面板）', () => { assert.equal(wA().props.bg, hsvToHex({ ...hexToHsv('#ff8d3f'), s: 1, v: 1 })); assert.ok(popup()) })
 const hexInput = panel().querySelector('input')
 hexInput.value = '#123456'; hexInput.dispatchEvent(new InputEvent('input', { bubbles: true })); await nextTick()
 check('hex 输入满 6 位立即生效', () => assert.equal(wA().props.bg, '#123456'))
@@ -366,33 +394,55 @@ check('管理模式点色块 → 从预设移除并持久化（组件属性不�
   assert.equal(JSON.parse(localStorage.getItem(COLOR_PRESETS_KEY)).length, DEFAULT_COLOR_PRESETS.length); assert.equal(wA().props.bg, '#123456')
 })
 ;[...panel().querySelectorAll('button')].find(b => b.textContent.trim() === '清除').click(); await nextTick()
-check('“清除”恢复为组件默认色（空值）', () => { assert.equal(wA().props.bg, ''); assert.ok(bgField.querySelector('[data-color-trigger]').textContent.includes('默认')) })
-bgField.querySelector('[data-color-trigger]').click(); await nextTick()
-check('再次点击色块按钮收起面板', () => assert.ok(!panel()))
-// ---- 自动收起：打开另一个颜色字段 / 焦点或点按落到别的输入框；面板内操作、面板外空白处不收起 ----
+check('“清除”恢复为组件默认色（空值）', () => { assert.equal(wA().props.bg, ''); assert.ok(trig(bgField).textContent.includes('默认')) })
+trig(bgField).click(); await nextTick()
+check('再次点击色块按钮收起面板（浮层从 body 里消失）', () => { assert.ok(!panel()); assert.equal(popups().length, 0) })
+// ---- 自动收起：打开另一个颜色字段 / 焦点或点按落到面板和色块之外的任何地方 / Esc / ✕；面板内部的操作不收起 ----
 const fgField = fields()[1]
-const trig = f => f.querySelector('[data-color-trigger]')
-const panelOf = f => f.querySelector('[data-color-panel]')
+const panelOf = () => panel()
+placeTrigger(fgField, 700, 560)
 trig(bgField).click(); await nextTick(); trig(fgField).click(); await nextTick()
-check('打开另一个颜色字段：先前展开的自动收起，同一时间只有一个面板', () => { assert.ok(!panelOf(bgField)); assert.ok(panelOf(fgField)); assert.equal(root.querySelectorAll('[data-color-panel]').length, 1) })
+check('打开另一个颜色字段：先前展开的自动收起，同一时间只有一个浮层', () => { assert.equal(popups().length, 1); assert.ok(popup().textContent.includes(fgField.querySelector('.truncate').textContent)); assert.equal(popup().style.bottom, '216px') })   // 768 - 560 + 8
 const otherInput = [...root.querySelectorAll('input')].find(i => !i.closest('[data-color-field]'))
 assert.ok(otherInput, '属性面板里应有别的输入框')
 otherInput.focus(); await nextTick()
-check('焦点移到别的输入框（focusin）：颜色面板收起', () => { assert.equal(document.activeElement, otherInput); assert.ok(!panelOf(fgField)) })
+check('焦点移到别的输入框（focusin）：颜色面板收起', () => { assert.equal(document.activeElement, otherInput); assert.equal(popups().length, 0) })
 otherInput.blur(); await nextTick()
-trig(fgField).click(); await nextTick(); assert.ok(panelOf(fgField))
+trig(fgField).click(); await nextTick(); assert.ok(panelOf())
 otherInput.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 31, button: 0 })); await nextTick()
-check('在别的输入框上按下（触摸等拿不到焦点的场景）：颜色面板收起', () => assert.ok(!panelOf(fgField)))
-trig(fgField).click(); await nextTick(); panelOf(fgField).querySelector('[data-color-switch]').click(); await nextTick()
-const ownHex = panelOf(fgField).querySelector('input'); ownHex.focus(); await nextTick()
+check('在别的输入框上按下（触摸等拿不到焦点的场景）：颜色面板收起', () => assert.equal(popups().length, 0))
+trig(fgField).click(); await nextTick(); panelOf().querySelector('[data-color-switch]').click(); await nextTick()
+const ownHex = panelOf().querySelector('input'); ownHex.focus(); await nextTick()
 ownHex.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 32, button: 0 })); await nextTick()
-root.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 33, button: 0 })); await nextTick()
-check('面板内自己的 hex 输入框获得焦点 / 点按，以及点面板外的空白处：都不收起', () => { assert.ok(panelOf(fgField)); assert.ok(panelOf(fgField).querySelector('[data-color-sv]')) })
+check('面板内自己的 hex 输入框获得焦点 / 点按：不收起', () => { assert.ok(panelOf()); assert.ok(panelOf().querySelector('[data-color-sv]')) })
 ownHex.blur(); await nextTick()
+root.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 33, button: 0 })); await nextTick()
+check('点面板外的空白处：浮层收起（浮层不是行内面板，点外面就关）', () => assert.equal(popups().length, 0))
+trig(fgField).click(); await nextTick()
 trig(bgField).dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 34, button: 0 })); trig(bgField).click(); await nextTick()
-check('按下另一个颜色字段的按钮：旧面板先收起、新面板打开且回到预设表', () => { assert.ok(!panelOf(fgField)); assert.ok(panelOf(bgField)); assert.ok(panelOf(bgField).querySelector('[data-color-presets]')) })
+check('按下另一个颜色字段的按钮：旧面板先收起、新面板打开且回到预设表', () => { assert.equal(popups().length, 1); assert.ok(popup().textContent.includes(bgField.querySelector('.truncate').textContent)); assert.ok(panelOf().querySelector('[data-color-presets]')) })
+document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await nextTick()
+check('按 Esc 收起', () => assert.equal(popups().length, 0))
+trig(bgField).click(); await nextTick(); panel().querySelector('[data-color-close]').click(); await nextTick()
+check('点面板右上角 ✕ 收起', () => assert.equal(popups().length, 0))
+// 定位：头顶放不下时翻到下方；靠近窗口右缘时左移、箭头仍指向色块；属性面板滚动 / 窗口缩放时跟随色块
+placeTrigger(bgField, 960, 40, 60)
 trig(bgField).click(); await nextTick()
-check('收起后没有任何颜色面板残留', () => assert.equal(root.querySelectorAll('[data-color-panel]').length, 0))
+check('头顶放不下（色块离窗口上沿只有 40px）而下方宽裕：翻到色块下方；靠近右缘时面板左移贴边、箭头仍指向色块中心', () => {
+  assert.equal(popup().dataset.placement, 'bottom'); assert.equal(popup().style.top, '76px', popup().getAttribute('style')); assert.equal(popup().style.bottom, '')   // 40 + 28 + 8
+  assert.equal(popup().style.left, '744px'); assert.equal(panel().style.maxHeight, String(768 - 68 - 16) + 'px')   // 1024 - 272 - 8
+  assert.ok(popup().querySelector('div[style*="left: 241px"]'), popup().innerHTML.slice(-300))   // 色块中心 990 - 744 = 246，箭头左边缘 246 - 5
+})
+placeTrigger(bgField, 100, 600, 200)
+window.dispatchEvent(new window.Event('resize')); await nextTick()
+check('窗口缩放 / 滚动时面板重新定位并回到向上弹出', () => { assert.equal(popup().dataset.placement, 'top'); assert.equal(popup().style.bottom, '176px'); assert.equal(popup().style.left, '64px') })   // 768 - 600 + 8；中心 200 - 136
+placeTrigger(bgField, 100, 500, 200)
+document.dispatchEvent(new window.Event('scroll')); await nextTick()
+check('监听属性面板滚动（捕获阶段）', () => assert.equal(popup().style.bottom, '276px'))
+trig(bgField).click(); await nextTick()
+check('收起后没有任何颜色面板残留，滚动监听也已移除', () => {
+  assert.equal(popups().length, 0); placeTrigger(bgField, 100, 300, 200); window.dispatchEvent(new window.Event('resize')); assert.equal(popups().length, 0)
+})
 
 // ---------------- 视图缩放 / 平移（编辑模式） ----------------
 const container = canvasView.el.parentElement
@@ -559,10 +609,10 @@ paletteCol().querySelector('[data-palette-view="grid"]').click(); await nextTick
 check('切回网格视图', () => { assert.equal(localStorage.getItem('scadaPaletteView'), 'grid'); assert.ok(paletteCol().querySelector('[data-palette-item="line"]').className.includes('flex-col')) })
 
 root.querySelector('[data-scada-help]').click(); await nextTick(); await sleep(30)
-check('顶栏“?”按钮打开操作说明弹窗：5 节（组件库 / 画布 / 组件 / 展示模式 / 控制组件），含缩放 / 平移 / 微调说明', () => {
+check('顶栏“?”按钮打开操作说明弹窗：6 节（组件库 / 画布 / 组件 / 排列与图层 / 展示模式 / 控制组件），含缩放 / 平移 / 微调 / 多选 / 八点缩放 / 图层 / 全屏说明', () => {
   const c = document.body.querySelector('.n-modal-container [data-scada-help-content]'); assert.ok(c)
-  assert.equal(c.children.length, 5); assert.ok(c.querySelectorAll('li').length >= 10)
-  for (const kw of ['滚轮', '空格', '方向键', '右键', '内部变量']) assert.ok(c.textContent.includes(kw), kw)
+  assert.equal(c.children.length, 6); assert.ok(c.querySelectorAll('li').length >= 10)
+  for (const kw of ['滚轮', '空格', '方向键', '右键', '内部变量', 'Ctrl', '8 个手柄', '参考对象', '图层', '全屏']) assert.ok(c.textContent.includes(kw), kw)
   assert.ok(document.body.querySelector('.n-modal-container').textContent.includes('操作说明'))
 })
 document.body.querySelector('.n-modal-container .n-card-header__close').click(); await nextTick(); await sleep(60)
@@ -921,7 +971,8 @@ check('iframe 发 scada:contextmenu → 在 iframe 元素上派发 contextmenu�
   assert.ok(forwarded); assert.equal(forwarded.clientX, 110); assert.equal(forwarded.clientY, 70); assert.ok(forwarded.defaultPrevented)
   assert.ok(menuItem('编辑') && menuItem('刷新数据源'))
 })
-menuItem('刷新数据源').click(); await nextTick(); await sleep(50)
+menuItem('刷新数据源').click(); await nextTick()
+for (let i = 0; i < 40 && menuItems().length; i++) await sleep(50)   // 菜单的关闭动画在 jsdom 里要几十到一百多毫秒（机器忙时更久），轮询等它结束
 check('菜单关闭；仍是展示模式', () => { assert.equal(menuItems().length, 0); assert.ok(!scada.editing) })
 // 恢复到 4 个组件的版面，继续后面的用例
 scada.startEdit(); scada.draft.widgets = scada.draft.widgets.filter(e => keepIds.has(e.id)); await scada.save(); await nextTick()
@@ -1298,6 +1349,700 @@ check('编辑模式确认宿主导入：草稿被替换（dirty），已保存�
 })
 dialogButton('关闭').click(); await nextTick(); await sleep(100)
 scada.cancelEdit(); await nextTick()
+
+// ---------------- 任务 59（一）：排列运算 / 旋转翻转几何 / 八点缩放 / 图层顺序 / 布局反序列化（纯函数） ----------------
+const P = (patches, id) => { const p = patches.find(e => e.id === id); assert.ok(p, `no patch for ${id}`); return { x: p.x, y: p.y, w: p.w, h: p.h } }
+const mkItem = (id, x, y, w, h, extra = {}) => ({ id, x, y, w, h, min: { w: 20, h: 20 }, ...extra })
+check('几何：旋转归一化 / 视觉外框（90° 宽高互换、中心不变）/ 视觉外框与布局外框互逆 / CSS transform 串', () => {
+  assert.deepEqual([0, 90, 180, 270, 360, -90, 450, 45, 'x', undefined, NaN].map(normRotate), [0, 90, 180, 270, 0, 270, 90, 90, 0, 0, 0])
+  assert.deepEqual(visualRect({ x: 400, y: 120, w: 60, h: 20, rotate: 90 }), { x: 420, y: 100, w: 20, h: 60 })
+  assert.deepEqual(visualRect({ x: 400, y: 120, w: 60, h: 20, rotate: 180 }), { x: 400, y: 120, w: 60, h: 20 })
+  assert.deepEqual(visualRect({ x: 400, y: 120, w: 60, h: 20, rotate: 270 }), { x: 420, y: 100, w: 20, h: 60 })
+  for (const r of [0, 90, 180, 270]) { const it = { x: 37, y: 91, w: 70, h: 24, rotate: r }; const v = visualRect(it); assert.deepEqual({ ...layoutFromVisual(v, r), rotate: r }, it) }
+  assert.deepEqual(unionRect([{ x: 10, y: 20, w: 5, h: 5 }, { x: 30, y: 0, w: 10, h: 10 }]), { x: 10, y: 0, w: 30, h: 25 }); assert.equal(unionRect([]), null)
+  assert.equal(transformCss({}), ''); assert.equal(transformCss({ rotate: 90 }), 'rotate(90deg)'); assert.equal(transformCss({ flipX: true }), 'scale(-1, 1)'); assert.equal(transformCss({ rotate: 270, flipX: true, flipY: true }), 'rotate(270deg) scale(-1, -1)')
+  // 画布夹紧按视觉外框：旋转 90° 后视觉外框是 20×60，夹进画布后视觉外框仍完整在画布内
+  const c = clampLayoutRect({ x: 0, y: 0, w: 60, h: 20 }, 90, { width: 200, height: 200 }, { w: 20, h: 20 }); assert.deepEqual(visualRect({ ...c, rotate: 90 }), { x: 20, y: 0, w: 20, h: 60 }, JSON.stringify(c))
+  const c2 = clampLayoutRect({ x: 190, y: 10, w: 60, h: 20 }, 90, { width: 200, height: 200 }, { w: 20, h: 20 }); const v2 = visualRect({ ...c2, rotate: 90 }); assert.ok(v2.x >= 0 && v2.x + v2.w <= 200 && v2.y >= 0 && v2.y + v2.h <= 200, JSON.stringify(v2))
+})
+const R = mkItem('r', 100, 50, 100, 40)
+const B = mkItem('b', 10, 200, 50, 30)
+const C = mkItem('c', 400, 120, 60, 20, { rotate: 90 })   // 视觉外框 (420, 100, 20, 60)
+check('对齐（与参考对象）：左 / 右 / 上 / 下边缘，垂直中心轴 / 水平中心轴 / 中心点；参考对象与锁定的不动；旋转过的组件按视觉外框对齐', () => {
+  const al = k => arrange.alignItems([R, B, C], 'r', k)
+  assert.ok(!al('left').some(p => p.id === 'r'), '参考对象不动')
+  assert.deepEqual(P(al('left'), 'b'), { x: 100, y: 200, w: 50, h: 30 }); assert.deepEqual(P(al('left'), 'c'), { x: 80, y: 120, w: 60, h: 20 })   // 视觉左边缘 80 + 20 = 100
+  assert.deepEqual(P(al('right'), 'b'), { x: 150, y: 200, w: 50, h: 30 }); assert.deepEqual(P(al('right'), 'c'), { x: 160, y: 120, w: 60, h: 20 })
+  assert.deepEqual(P(al('top'), 'b'), { x: 10, y: 50, w: 50, h: 30 }); assert.deepEqual(P(al('top'), 'c'), { x: 400, y: 70, w: 60, h: 20 })
+  assert.deepEqual(P(al('bottom'), 'b'), { x: 10, y: 60, w: 50, h: 30 }); assert.deepEqual(P(al('bottom'), 'c'), { x: 400, y: 50, w: 60, h: 20 })
+  assert.deepEqual(P(al('centerX'), 'b'), { x: 125, y: 200, w: 50, h: 30 }); assert.deepEqual(P(al('centerX'), 'c'), { x: 120, y: 120, w: 60, h: 20 })   // 中心 x 都是 150
+  assert.deepEqual(P(al('centerY'), 'b'), { x: 10, y: 55, w: 50, h: 30 }); assert.deepEqual(P(al('centerY'), 'c'), { x: 400, y: 60, w: 60, h: 20 })   // 中心 y 都是 70
+  assert.deepEqual(P(al('center'), 'b'), { x: 125, y: 55, w: 50, h: 30 })
+  assert.deepEqual(arrange.alignItems([R, { ...B, locked: true }, C], 'r', 'left').map(p => p.id), ['c'], '锁定的不动'); assert.deepEqual(arrange.alignItems([B, C], 'nope', 'left'), [])
+  const vc = patch => visualRect({ ...patch, rotate: 90 }); assert.equal(vc(P(al('left'), 'c')).x, 100); assert.equal(vc(P(al('right'), 'c')).x + 20, 200)
+})
+check('相对整个画面居中：水平（x 居中、y 不变）/ 垂直（y 居中、x 不变）/ 画面中心；每个对象各自居中；锁定的不动', () => {
+  const cv = { width: 1000, height: 600 }
+  assert.deepEqual(P(arrange.centerInCanvas([B, R], cv, 'x'), 'b'), { x: 475, y: 200, w: 50, h: 30 }); assert.deepEqual(P(arrange.centerInCanvas([B, R], cv, 'x'), 'r'), { x: 450, y: 50, w: 100, h: 40 })
+  assert.deepEqual(P(arrange.centerInCanvas([B], cv, 'y'), 'b'), { x: 10, y: 285, w: 50, h: 30 }); assert.deepEqual(P(arrange.centerInCanvas([B], cv, 'both'), 'b'), { x: 475, y: 285, w: 50, h: 30 })
+  assert.deepEqual(P(arrange.centerInCanvas([C], cv, 'both'), 'c'), { x: 470, y: 290, w: 60, h: 20 }, '旋转 90° 的横条：视觉 20×60 居中 → 布局外框中心也在画面中心')
+  assert.deepEqual(arrange.centerInCanvas([{ ...B, locked: true }], cv, 'both'), [])
+})
+check('分布：等间距（两端不动，间隙相等）/ 中心等距；少于 3 个不动；锁定的不动', () => {
+  const g = arrange.distributeItems([R, B, C], 'h', 'gap'); assert.equal(g.length, 1); assert.deepEqual(P(g, 'r'), { x: 190, y: 50, w: 100, h: 40 })   // 间隙 (430 - 170) / 2 = 130
+  const c = arrange.distributeItems([R, B, C], 'h', 'center'); assert.deepEqual(P(c, 'r'), { x: 183, y: 50, w: 100, h: 40 })   // 中心 (35 + 430) / 2 = 232.5 → x 182.5 → 183
+  const v = arrange.distributeItems([mkItem('a', 0, 0, 20, 20), mkItem('d', 0, 200, 20, 20), mkItem('c', 9, 70, 20, 40), mkItem('b', 5, 30, 20, 20)], 'v', 'gap')   // 乱序传入，按位置排序；间隙 (220 - 100) / 3 = 40
+  assert.deepEqual(v.map(p => [p.id, p.y]).sort(), [['b', 60], ['c', 120]], '总高 100、跨度 220 → 每个间隙 40：b = 20 + 40，c = 60 + 20 + 40')
+  assert.deepEqual(arrange.distributeItems([R, B], 'h', 'gap'), []); assert.deepEqual(arrange.distributeItems([B, { ...R, locked: true }, C], 'h', 'gap'), [], '唯一可动的中间项被锁定')
+})
+check('等宽 / 等高 / 等宽高：其它对象的视觉宽 / 高改成参考对象的（左上角不动），旋转过的按视觉尺寸', () => {
+  const w = arrange.sizeItems([R, B, C], 'r', 'w'); assert.deepEqual(P(w, 'b'), { x: 10, y: 200, w: 100, h: 30 }); assert.deepEqual(P(w, 'c'), { x: 440, y: 80, w: 60, h: 100 })   // 视觉 100×60 → 布局 60×100
+  assert.deepEqual(P(arrange.sizeItems([R, B], 'r', 'h'), 'b'), { x: 10, y: 200, w: 50, h: 40 }); assert.deepEqual(P(arrange.sizeItems([R, B], 'r', 'both'), 'b'), { x: 10, y: 200, w: 100, h: 40 })
+  assert.deepEqual(arrange.sizeItems([R, { ...B, locked: true }], 'r', 'both'), [])
+})
+check('旋转 90°：整个选区绕外接框中心转（单个 = 绕自己的中心），rotate 累加 / 取模；翻转：中心镜像 + flip 取反 + rotate 取负（画面镜像在旋转之后）', () => {
+  const cw = arrange.rotateItems([B, R], 1); assert.deepEqual(cw.find(p => p.id === 'b'), { id: 'b', x: 5, y: 55, w: 50, h: 30, rotate: 90 }); assert.deepEqual(cw.find(p => p.id === 'r'), { id: 'r', x: 125, y: 165, w: 100, h: 40, rotate: 90 })
+  const ccw = arrange.rotateItems([B, R], -1); assert.deepEqual(ccw.find(p => p.id === 'b'), { id: 'b', x: 155, y: 195, w: 50, h: 30, rotate: 270 })   // 中心 (35, 215) 绕 (105, 140) 逆时针 → (180, 210)
+  const one = arrange.rotateItems([R], 1)[0]; assert.deepEqual([one.x, one.y, one.w, one.h, one.rotate], [100, 50, 100, 40, 90], '单个组件中心不变')
+  assert.equal(arrange.rotateItems([{ ...R, rotate: 270 }], 1)[0].rotate, 0); assert.equal(arrange.rotateItems([{ ...R, rotate: 0 }], -1)[0].rotate, 270)
+  assert.deepEqual(arrange.rotateItems([{ ...B, locked: true }], 1), [])
+  const fx = arrange.flipItems([B, R], 'x'); assert.deepEqual(fx.find(p => p.id === 'b'), { id: 'b', x: 150, y: 200, w: 50, h: 30, rotate: 0, flipX: true }); assert.deepEqual(fx.find(p => p.id === 'r'), { id: 'r', x: 10, y: 50, w: 100, h: 40, rotate: 0, flipX: true })
+  const fy = arrange.flipItems([{ ...R, rotate: 90, flipY: true }], 'y')[0]; assert.equal(fy.rotate, 270); assert.equal(fy.flipY, false); assert.equal(fy.flipX, undefined)
+  // 连续翻两次 = 原样
+  const once = arrange.flipItems([{ ...R, rotate: 90 }], 'x')[0]; const twice = arrange.flipItems([{ ...R, rotate: once.rotate, flipX: once.flipX }], 'x')[0]; assert.deepEqual([twice.rotate, twice.flipX], [90, false])
+  // 整体超出画布时平移回来
+  const moved = arrange.fitPatchesInside([{ id: 'r', x: -30, y: 10, w: 100, h: 40, rotate: 0 }, { id: 'b', x: 50, y: 10, w: 50, h: 30, rotate: 0 }], [R, B], { width: 500, height: 300 }); assert.deepEqual(moved.map(p => p.x), [0, 80])
+})
+const BOUNDS = { x: 100, y: 100, w: 200, h: 100 }
+const OPT = { grid: 10, canvas: { width: 1000, height: 600 }, minW: 20, minH: 20 }
+check('八点缩放 resizeBounds：八个手柄只动被拖的边（吸附网格），对边不动；不越出画布、不小于最小尺寸', () => {
+  const rb = (h, dx, dy, o = {}) => arrange.resizeBounds(BOUNDS, h, dx, dy, { ...OPT, ...o })
+  assert.deepEqual(rb('se', 55, 33), { x: 100, y: 100, w: 260, h: 130 }); assert.deepEqual(rb('nw', -47, -33), { x: 50, y: 70, w: 250, h: 130 })
+  assert.deepEqual(rb('ne', 30, -30), { x: 100, y: 70, w: 230, h: 130 }); assert.deepEqual(rb('sw', -30, 30), { x: 70, y: 100, w: 230, h: 130 })
+  assert.deepEqual(rb('n', 999, -30), { x: 100, y: 70, w: 200, h: 130 }, '边中点手柄只改一个方向'); assert.deepEqual(rb('s', 999, 30), { x: 100, y: 100, w: 200, h: 130 })
+  assert.deepEqual(rb('e', 30, 999), { x: 100, y: 100, w: 230, h: 100 }); assert.deepEqual(rb('w', -30, 999), { x: 70, y: 100, w: 230, h: 100 })
+  assert.deepEqual(rb('n', 0, 200), { x: 100, y: 180, w: 200, h: 20 }, '拖过对边 = 停在最小尺寸'); assert.deepEqual(rb('s', 0, -500), { x: 100, y: 100, w: 200, h: 20 })
+  assert.deepEqual(rb('w', 500, 0), { x: 280, y: 100, w: 20, h: 100 }); assert.deepEqual(rb('e', -500, 0), { x: 100, y: 100, w: 20, h: 100 })
+  assert.deepEqual(rb('e', 2000, 0), { x: 100, y: 100, w: 900, h: 100 }, '右边缘停在画布边'); assert.deepEqual(rb('w', -500, 0), { x: 0, y: 100, w: 300, h: 100 })
+  assert.deepEqual(rb('n', 0, -500), { x: 100, y: 0, w: 200, h: 200 }); assert.deepEqual(rb('s', 0, 2000), { x: 100, y: 100, w: 200, h: 500 })
+  assert.deepEqual(rb('se', 4, 4, { grid: 1 }), { x: 100, y: 100, w: 204, h: 104 }, '网格关闭：只取整'); assert.deepEqual(rb('se', 4.6, 0, { grid: 1 }), { x: 100, y: 100, w: 205, h: 100 })
+  assert.deepEqual(rb('se', -190, -90, { minW: 80, minH: 60 }), { x: 100, y: 100, w: 80, h: 60 }, '多选时按各组件最小尺寸折算的最小外接框')
+})
+check('Shift 等比缩放（仅四角，以对角为锚点）：取较大的缩放比，受画布边界与最小尺寸限制；边中点手柄忽略 Shift', () => {
+  const rb = (h, dx, dy) => arrange.resizeBounds(BOUNDS, h, dx, dy, { ...OPT, keepAspect: true })
+  assert.deepEqual(rb('se', 100, 10), { x: 100, y: 100, w: 300, h: 150 }); assert.deepEqual(rb('se', -100, -10), { x: 100, y: 100, w: 180, h: 90 })
+  assert.deepEqual(rb('nw', -100, -10), { x: 0, y: 50, w: 300, h: 150 }, '锚点是右下角'); assert.deepEqual(rb('ne', 100, -50), { x: 100, y: 50, w: 300, h: 150 })
+  assert.deepEqual(rb('se', 2000, 0), { x: 100, y: 100, w: 900, h: 450 }, '先碰到哪条画布边就停在哪'); assert.deepEqual(rb('se', -2000, -2000), { x: 100, y: 100, w: 40, h: 20 }, '最小尺寸 20×20 → 缩放比 0.2')
+  assert.deepEqual(rb('e', 50, 50), { x: 100, y: 100, w: 250, h: 100 })
+})
+check('选区缩放 scaleItems / boundsMin：各组件按同一比例缩放 + 平移（边对边取整）；外接框最小值由各组件最小尺寸折算', () => {
+  const items = [mkItem('a', 100, 100, 100, 100), mkItem('b', 250, 100, 50, 100)]
+  const p = arrange.scaleItems(items, BOUNDS, { x: 100, y: 100, w: 400, h: 100 }); assert.deepEqual(P(p, 'a'), { x: 100, y: 100, w: 200, h: 100 }); assert.deepEqual(P(p, 'b'), { x: 400, y: 100, w: 100, h: 100 })
+  const q = arrange.scaleItems(items, BOUNDS, { x: 0, y: 50, w: 100, h: 50 }); assert.deepEqual(P(q, 'a'), { x: 0, y: 50, w: 50, h: 50 }); assert.deepEqual(P(q, 'b'), { x: 75, y: 50, w: 25, h: 50 })
+  assert.deepEqual(arrange.boundsMin(items, BOUNDS), { minW: 80, minH: 20 })   // b 宽 50 → 最小缩放 0.4
+  assert.deepEqual(arrange.boundsMin([mkItem('s', 0, 0, 100, 50, { rotate: 90, min: { w: 40, h: 20 } })], { x: 25, y: -25, w: 50, h: 100 }), { minW: 20, minH: 40 }, '旋转 90° 的最小视觉尺寸宽高互换（布局最小 40×20 → 视觉最小 20×40）')
+  const r90 = arrange.scaleItems([mkItem('t', 0, 0, 100, 50, { rotate: 90 })], { x: 25, y: -25, w: 50, h: 100 }, { x: 25, y: -25, w: 100, h: 200 }); assert.deepEqual(visualRect({ ...P(r90, 't'), rotate: 90 }), { x: 25, y: -25, w: 100, h: 200 })
+})
+check('图层顺序：置顶 / 置底 / 上移一层 / 下移一层（多选时彼此顺序不变、每个只动一格）/ 移到某组件上方 / 下方', () => {
+  const L = ['a', 'b', 'c', 'd', 'e'].map(id => ({ id })); const ids = new Set(['b', 'd']); const o = l => l.map(w => w.id).join('')
+  assert.equal(o(arrange.orderToFront(L, ids)), 'acebd'); assert.equal(o(arrange.orderToBack(L, ids)), 'bdace')
+  assert.equal(o(arrange.orderForward(L, ids)), 'acbed'); assert.equal(o(arrange.orderBackward(L, ids)), 'badce')
+  assert.equal(o(arrange.orderForward(L, new Set(['d', 'e']))), 'abcde', '已在最上面'); assert.equal(o(arrange.orderBackward(L, new Set(['a', 'b']))), 'abcde')
+  assert.equal(o(arrange.orderForward(L, new Set(['a', 'b']))), 'cabde', '相邻的一组一起越过上面的一个'); assert.equal(o(arrange.orderRelative(L, ids, 'e', 'above')), 'acebd'); assert.equal(o(arrange.orderRelative(L, ids, 'a', 'below')), 'bdace')
+  assert.equal(o(arrange.orderRelative(L, ids, 'c', 'below')), 'abdce'); assert.equal(o(arrange.orderRelative(L, ids, 'b', 'above')), 'abcde', '目标在选中里 = 不动')
+})
+check('布局反序列化：旋转 / 翻转 / 锁定 / 隐藏 / 组合都是可选字段（老布局照常读取），非法值丢弃，落单的组合 id 清掉', () => {
+  const mk = (id, extra = {}) => ({ id, type: 'rect', x: 0, y: 0, w: 50, h: 50, props: {}, ...extra })
+  const l = normalizeLayout({ widgets: [mk('a', { rotate: 450, flipX: true, flipY: 'yes', locked: true, hidden: true, groupId: 'g1' }), mk('b', { rotate: 'x', groupId: 'g1' }), mk('c', { groupId: 'lonely', flipY: true }), mk('d')] })
+  const a = l.widgets[0]; assert.equal(a.rotate, 90); assert.equal(a.flipX, true); assert.ok(!('flipY' in a)); assert.equal(a.locked, true); assert.equal(a.hidden, true); assert.equal(a.groupId, 'g1')
+  assert.ok(!('rotate' in l.widgets[1])); assert.equal(l.widgets[1].groupId, 'g1'); assert.ok(!('groupId' in l.widgets[2])); assert.equal(l.widgets[2].flipY, true)
+  assert.deepEqual(Object.keys(l.widgets[3]).sort(), ['binding', 'h', 'id', 'props', 'title', 'type', 'w', 'x', 'y'], '没有新字段的老布局原样')
+})
+check('指针落点换算回组件自己的坐标（滑块被旋转 / 翻转后用）：画面上的 (u, v) → 组件坐标 (fx, fy)', () => {
+  const rect = { left: 0, top: 0, width: 100, height: 200 }   // 画面上的外接框
+  const lf = (x, y, w) => { const r = localFraction(rect, x, y, w); return [Math.round(r.fx * 100) / 100, Math.round(r.fy * 100) / 100] }
+  assert.deepEqual(lf(25, 50, {}), [0.25, 0.25])
+  assert.deepEqual(lf(50, 0, { rotate: 90 }), [0, 0.5], '顺时针 90°：组件的左端在画面上方'); assert.deepEqual(lf(50, 200, { rotate: 90 }), [1, 0.5]); assert.deepEqual(lf(0, 100, { rotate: 90 }), [0.5, 1])
+  assert.deepEqual(lf(25, 50, { rotate: 180 }), [0.75, 0.75]); assert.deepEqual(lf(50, 200, { rotate: 270 }), [0, 0.5], '逆时针 90°：组件的左端在画面下方'); assert.deepEqual(lf(100, 100, { rotate: 270 }), [0.5, 1])
+  assert.deepEqual(lf(100, 0, { flipX: true }), [0, 0]); assert.deepEqual(lf(100, 0, { flipY: true }), [1, 1]); assert.deepEqual(lf(100, 0, { rotate: 90, flipX: true }), [1, 0], '先撤销旋转、再撤销翻转')
+  assert.deepEqual(Object.values(localFraction({ left: 0, top: 0, width: 0, height: 0 }, 5, 5, {})), [0, 0])
+})
+
+
+// ---------------- 任务 59（二）：多选 / 八点缩放 / 锁定 / 网格（画布交互） ----------------
+{
+scada.startEdit(); scada.clearWidgets(); await nextTick()
+scada.setCanvas({ width: 1000, height: 600, grid: 10 })
+const mkW = (type, x, y, w, h) => { const wd = scada.addWidget(type); scada.updateWidgetRect(wd.id, { x, y, w, h }); return wd }
+const A = mkW('rect', 100, 100, 100, 60), B = mkW('rect', 300, 200, 80, 40), C = mkW('rect', 500, 300, 60, 60)
+scada.select(null); await nextTick()
+const hostEl = id => canvasView.el.querySelector(`[data-widget-id="${id}"]`)
+const rectOf = id => { const e = scada.draft.widgets.find(v => v.id === id); return { x: e.x, y: e.y, w: e.w, h: e.h } }
+const widgetOf = id => scada.draft.widgets.find(v => v.id === id)
+let pid59 = 1000
+const ptr = (el, type, x, y, init = {}) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, pointerId: 1, ...init }))
+const clickW = (id, init = {}) => { const el = hostEl(id); const pointerId = ++pid59; ptr(el, 'pointerdown', 5, 5, { pointerId, ...init }); ptr(el, 'pointerup', 5, 5, { pointerId, ...init }) }
+const dragEl = (el, dx, dy, init = {}) => { const pointerId = ++pid59; ptr(el, 'pointerdown', 0, 0, { pointerId, ...init }); ptr(el, 'pointermove', dx, dy, { pointerId, ...init }); ptr(el, 'pointerup', dx, dy, { pointerId, ...init }) }
+const handleEl = h => canvasView.el.querySelector(`[data-handle="${h}"]`)
+const sel = () => [...scada.selectedIds]
+const ids3 = [A.id, B.id, C.id]
+const INIT = { [A.id]: { x: 100, y: 100, w: 100, h: 60 }, [B.id]: { x: 300, y: 200, w: 80, h: 40 }, [C.id]: { x: 500, y: 300, w: 60, h: 60 } }
+const resetAll = () => ids3.forEach(id => scada.updateWidgetRect(id, INIT[id]))
+clickW(A.id); await nextTick()
+check('点击组件选中单个：selectedId 有值、参考对象就是它、画布上有 8 个缩放手柄（没有多选的虚线外框 / 参考标记）', () => {
+  assert.deepEqual(sel(), [A.id]); assert.equal(scada.selectedId, A.id); assert.equal(scada.referenceId, A.id)
+  assert.deepEqual([...canvasView.el.querySelectorAll('[data-handle]')].map(e => e.dataset.handle), ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'])
+  assert.ok(!canvasView.el.querySelector('[data-selection-frame]') && !canvasView.el.querySelector('[data-reference-badge]'))
+  assert.match(hostEl(A.id).style.outline, /2px solid/); assert.ok(/2563eb|37, 99, 235/i.test(hostEl(A.id).style.outline), hostEl(A.id).style.outline)
+})
+clickW(B.id, { ctrlKey: true }); clickW(C.id, { metaKey: true }); await nextTick()
+check('Ctrl（或 ⌘）+ 点击加选：选中顺序 A B C，第一个是参考对象（橙色外框 + 「基准」标记），其余蓝色；有虚线外接框；selectedId 为空（多选）', () => {
+  assert.deepEqual(sel(), ids3); assert.equal(scada.selectedId, null); assert.equal(scada.selected, undefined); assert.equal(scada.referenceId, A.id)
+  assert.ok(/f59e0b|245, 158, 11/i.test(hostEl(A.id).style.outline), hostEl(A.id).style.outline); assert.ok(/2563eb|37, 99, 235/i.test(hostEl(B.id).style.outline) && /2563eb|37, 99, 235/i.test(hostEl(C.id).style.outline))
+  assert.equal(canvasView.el.querySelector('[data-reference-badge]').dataset.referenceBadge, A.id); assert.ok(canvasView.el.querySelector('[data-reference-badge]').textContent.includes('基准'))
+  const f = canvasView.el.querySelector('[data-selection-frame]'); assert.ok(f); assert.equal(f.style.left, '100px'); assert.equal(f.style.top, '100px'); assert.equal(f.style.width, '460px'); assert.equal(f.style.height, '260px')   // A B C 的外接框
+})
+clickW(B.id, { shiftKey: true }); await nextTick()
+check('Shift + 点击已选中的组件（没拖动）：取消它的选中；Shift 再点：又加回末尾', () => { assert.deepEqual(sel(), [A.id, C.id]) })
+clickW(B.id, { shiftKey: true }); await nextTick()
+assert.deepEqual(sel(), [A.id, C.id, B.id])
+const cB = rectOf(C.id)
+dragEl(hostEl(C.id), 40, 0, { ctrlKey: true }); await nextTick()
+check('Ctrl + 按住已选中的组件拖动：不取消选中，整体移动（取消选中只发生在「按下没拖动就抬起」）', () => { assert.deepEqual(sel(), [A.id, C.id, B.id]); assert.equal(rectOf(C.id).x, cB.x + 40) })
+resetAll()
+clickW(A.id); await nextTick()
+check('多选里不按修饰键点一个（没拖动）：选择收缩为它；点空白处取消选择；带 Ctrl 点空白处保持选择', () => {
+  // 点空白处：pointerdown + pointerup 成对发（容器用 pointerup 清掉记录的指针，否则第二个指针会被当成双指捏合）
+  const blank = init => { const pointerId = ++pid59; ptr(canvasView.el, 'pointerdown', 1, 1, { pointerId, ...init }); ptr(canvasView.el, 'pointerup', 1, 1, { pointerId, ...init }) }
+  assert.deepEqual(sel(), [A.id]); scada.setSelection(ids3); blank({ ctrlKey: true }); assert.deepEqual(sel(), ids3)
+  blank({ button: 1 }); assert.deepEqual(sel(), ids3, '中键（平移）点空白处不取消选择'); blank({ button: 2 }); assert.deepEqual(sel(), ids3, '右键也不取消选择')
+  blank(); assert.deepEqual(sel(), [])
+})
+scada.setSelection(ids3); await nextTick()
+const before3 = ids3.map(rectOf)
+dragEl(hostEl(A.id), 53, 28); await nextTick()
+check('多选后拖动其中一个：所有选中的组件整体平移，外接框左上角吸附网格（+50 / +30）；选择不变', () => {
+  assert.deepEqual(ids3.map(rectOf), before3.map(r => ({ ...r, x: r.x + 50, y: r.y + 30 }))); assert.deepEqual(sel(), ids3)
+})
+dragEl(hostEl(B.id), -5000, -5000); await nextTick()
+check('整体拖到画布边缘：外接框贴边停住，组件之间的相对位置不变', () => {
+  const r = ids3.map(rectOf); assert.equal(Math.min(...r.map(e => e.x)), 0); assert.equal(Math.min(...r.map(e => e.y)), 0)
+  assert.equal(r[1].x - r[0].x, before3[1].x - before3[0].x); assert.equal(r[2].y - r[0].y, before3[2].y - before3[0].y)
+})
+resetAll(); await nextTick()
+key('ArrowRight'); key('ArrowDown', { shiftKey: true }); await nextTick()
+check('方向键微调作用于所有选中的组件（1px / Shift 按网格）', () => { assert.deepEqual(ids3.map(rectOf), before3.map(r => ({ ...r, x: r.x + 1, y: r.y + 10 }))) })
+resetAll()
+scada.select(null); key('a', { ctrlKey: true }); await nextTick()
+check('Ctrl + A 全选（选中顺序 = 图层顺序）', () => assert.deepEqual(sel(), ids3))
+{
+  const dummy = document.createElement('button'); document.body.appendChild(dummy); dummy.focus()
+  key('Delete'); key('Backspace'); key('ArrowRight'); await nextTick()
+  check('焦点在按钮 / 色块上时 Delete、Backspace、方向键都不作用于组件（选完颜色顺手按退格不会把组件删掉）', () => { assert.equal(scada.draft.widgets.length, 3); assert.deepEqual(ids3.map(rectOf), ids3.map(id => INIT[id])) })
+  dummy.remove()
+}
+
+// ---- 八点缩放：单个组件 ----
+scada.select(A.id); await nextTick()
+const resetA = () => scada.updateWidgetRect(A.id, { x: 100, y: 100, w: 100, h: 60 })
+const H = { nw: [-20, -10], n: [0, -30], ne: [30, -30], e: [40, 0], se: [30, 20], s: [0, 30], sw: [-30, 30], w: [-40, 0] }
+const HX = { nw: { x: 80, y: 90, w: 120, h: 70 }, n: { x: 100, y: 70, w: 100, h: 90 }, ne: { x: 100, y: 70, w: 130, h: 90 }, e: { x: 100, y: 100, w: 140, h: 60 }, se: { x: 100, y: 100, w: 130, h: 80 }, s: { x: 100, y: 100, w: 100, h: 90 }, sw: { x: 70, y: 100, w: 130, h: 90 }, w: { x: 60, y: 100, w: 140, h: 60 } }
+check('单个组件的 8 个手柄：四角 + 四边中点，光标依次为 nwse / ns / nesw / ew；每个手柄分别拖动，只改变被拖的边（吸附网格 10）', () => {
+  assert.deepEqual(['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(h => handleEl(h).style.cursor), ['nwse-resize', 'ns-resize', 'nesw-resize', 'ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize', 'ew-resize'])
+  for (const h of Object.keys(H)) { resetA(); dragEl(handleEl(h), H[h][0] + (h === 'n' || h === 's' ? 9 : 0), H[h][1] + (h === 'e' || h === 'w' ? 9 : 0)); assert.deepEqual(rectOf(A.id), HX[h], h) }
+})
+await nextTick()
+const minRect = widgetDefinitions().find(d => d.type === 'rect').minSize
+check('缩放到最小尺寸停住、拖过对边不翻转；不会越出画布；旋转前后手柄都围着画面上的外框', () => {
+  resetA(); dragEl(handleEl('se'), -5000, -5000); assert.deepEqual(rectOf(A.id), { x: 100, y: 100, w: minRect.w, h: minRect.h })
+  resetA(); dragEl(handleEl('nw'), 5000, 5000); assert.deepEqual(rectOf(A.id), { x: 200 - minRect.w, y: 160 - minRect.h, w: minRect.w, h: minRect.h })
+  resetA(); dragEl(handleEl('se'), 5000, 5000); assert.deepEqual(rectOf(A.id), { x: 100, y: 100, w: 900, h: 500 })
+  resetA(); dragEl(handleEl('nw'), -5000, -5000); assert.deepEqual(rectOf(A.id), { x: 0, y: 0, w: 200, h: 160 })
+})
+resetA(); await nextTick()
+check('Shift + 拖角点：等比缩放（100×60 → dx=50 时 150×90）；边中点手柄不受 Shift 影响', () => {
+  dragEl(handleEl('se'), 50, 0, { shiftKey: true }); assert.deepEqual(rectOf(A.id), { x: 100, y: 100, w: 150, h: 90 })
+  resetA(); dragEl(handleEl('e'), 50, 0, { shiftKey: true }); assert.deepEqual(rectOf(A.id), { x: 100, y: 100, w: 150, h: 60 })
+})
+resetA(); await nextTick()
+check('点按手柄不动（没超过阈值）不改变尺寸；按住空格时手柄不缩放（交给画布平移）', () => {
+  const p = ++pid59; ptr(handleEl('se'), 'pointerdown', 0, 0, { pointerId: p }); ptr(handleEl('se'), 'pointermove', 1, 1, { pointerId: p }); ptr(handleEl('se'), 'pointerup', 1, 1, { pointerId: p }); assert.deepEqual(rectOf(A.id), { x: 100, y: 100, w: 100, h: 60 })
+  canvasView.spaceDown = true; dragEl(handleEl('se'), 50, 50); canvasView.spaceDown = false; assert.deepEqual(rectOf(A.id), { x: 100, y: 100, w: 100, h: 60 })
+})
+// ---- 八点缩放：多选整体缩放（按外接框等比例） ----
+resetAll(); scada.setSelection([A.id, B.id]); await nextTick()
+const uB = rectOf(B.id)   // B (300,200,80,40)：A B 的外接框 x 100 ~ 380、y 100 ~ 240
+dragEl(handleEl('e'), 280, 0); await nextTick()
+check('多选时手柄围着外接框，拖右边中点 +280（外接框宽 280 → 560）：每个组件按同样的比例缩放 + 平移', () => {
+  assert.deepEqual(rectOf(A.id), { x: 100, y: 100, w: 200, h: 60 }); assert.deepEqual(rectOf(B.id), { x: 500, y: 200, w: 160, h: 40 })
+})
+dragEl(handleEl('nw'), -5000, -5000); await nextTick()
+check('多选缩放同样受画布边界限制', () => { const u = unionRect([A.id, B.id].map(rectOf)); assert.equal(u.x, 0); assert.equal(u.y, 0) })
+resetAll()
+// 最小尺寸：外接框缩到很小时，每个组件都不小于自己的最小尺寸
+scada.setSelection([A.id, B.id]); await nextTick()
+dragEl(handleEl('se'), -5000, -5000); await nextTick()
+check('多选缩到极限：外接框的最小值按各组件最小尺寸折算，没有组件小于最小尺寸', () => { for (const id of [A.id, B.id]) { const r = rectOf(id); assert.ok(r.w >= minRect.w && r.h >= minRect.h, JSON.stringify(r)) } })
+resetAll()
+
+// ---- 网格开关 ----
+scada.select(A.id); await nextTick()
+const gridBtn = () => root.querySelector('[data-tool="grid"]')
+check('网格按钮（默认开）：画布显示网格线；关闭后网格线消失、拖动 / 缩放只取整（不再吸附到 10）', () => {
+  assert.equal(scada.gridOn, true); assert.equal(canvasView.el.style.backgroundSize, '10px 10px'); assert.ok(gridBtn().classList.contains('bg-blue-100'))
+  gridBtn().click(); assert.equal(scada.gridOn, false)
+})
+await nextTick()
+check('网格关闭后：无网格线、拖动精确到 1px、缩放精确到 1px', () => {
+  assert.equal(canvasView.el.style.backgroundSize, ''); assert.ok(!gridBtn().classList.contains('bg-blue-100'))
+  dragEl(hostEl(A.id), 53, 28); assert.deepEqual(rectOf(A.id), { x: 153, y: 128, w: 100, h: 60 }); dragEl(handleEl('se'), 4, 7); assert.deepEqual(rectOf(A.id), { x: 153, y: 128, w: 104, h: 67 })
+})
+gridBtn().click(); await nextTick(); resetA()
+check('再点一次恢复网格', () => { assert.equal(scada.gridOn, true); assert.equal(canvasView.el.style.backgroundSize, '10px 10px') })
+// ---- 排列工具栏（第二行）：对齐 / 画面居中 / 分布 / 等宽高 ----
+resetAll(); scada.select(null); await nextTick()
+const tool = k => root.querySelector(`[data-tool="${k}"]`)
+const caret = k => root.querySelector(`[data-tool-caret="${k}"]`)
+const status = () => root.querySelector('[data-tool-status]').textContent
+/** 等上一个下拉菜单的关闭动画结束（jsdom 里要几十到一百多毫秒，机器忙时更久），否则 menuItems() 会混进残影 */
+const menusGone = async () => { for (let i = 0; i < 60 && menuItems().length; i++) await sleep(50) }
+const order59 = () => scada.draft.widgets.map(e => e.id).filter(id => ids3.includes(id))
+const TOOLS = ['alignLeft', 'alignRight', 'alignTop', 'alignBottom', 'alignCenterX', 'alignCenterY', 'centerPoint', 'distributeH', 'distributeV', 'sameWidth', 'sameHeight', 'sameSize', 'rotateCw', 'rotateCcw', 'flipH', 'flipV', 'group', 'ungroup', 'lock', 'unlock', 'toFront', 'toBack', 'forward', 'backward', 'grid']
+check('排列工具栏是编辑模式顶部的第二行（在第一行工具栏之下、画布之上）：按参考图的顺序排列 25 个按钮（中心点 / 两个分布带下拉小三角）；没选中时除网格外全部灰', () => {
+  const bar = root.querySelector('[data-scada-arrange]'); assert.ok(bar); assert.ok(bar.className.includes('h-9')); assert.ok(bar.previousElementSibling.className.includes('h-11')); assert.equal(bar.parentElement, root.firstElementChild)
+  assert.deepEqual([...bar.querySelectorAll('[data-tool]')].map(b => b.dataset.tool), TOOLS); assert.deepEqual([...bar.querySelectorAll('[data-tool-caret]')].map(b => b.dataset.toolCaret), ['centerPoint', 'distributeH', 'distributeV'])
+  for (const k of TOOLS) assert.equal(tool(k).disabled, k !== 'grid', k)
+  for (const k of ['centerPoint', 'distributeH', 'distributeV']) assert.ok(caret(k).disabled, k)
+  assert.ok(status().includes('未选中')); assert.equal(bar.querySelectorAll('[data-tool] svg').length, 25, '每个按钮一个图标')
+  assert.ok(tool('alignLeft').title.startsWith('左对齐：') && tool('alignLeft').title.includes('参考对象的左边缘')); assert.ok(tool('alignCenterX').title.includes('垂直中心坐标轴')); assert.ok(tool('alignCenterY').title.includes('水平中心坐标轴'))
+  assert.ok(tool('centerPoint').title.startsWith('中心点对齐：')); assert.ok(tool('distributeH').title.startsWith('水平等间距：')); assert.ok(tool('rotateCw').title.includes('顺时针')); assert.ok(tool('flipH').title.startsWith('左右翻转'))
+})
+scada.select(A.id); await nextTick()
+const enabledOf = () => TOOLS.filter(k => !tool(k).disabled)
+check('选中 1 个：旋转 / 翻转 / 锁定 / 层次 / 网格可用；对齐、等宽高、分布、组合 / 取消组合 / 解锁灰；中心点图标本体灰（要参考对象）但下拉里的三个「相对画面居中」可用', () => {
+  assert.deepEqual(enabledOf(), ['rotateCw', 'rotateCcw', 'flipH', 'flipV', 'lock', 'toFront', 'toBack', 'forward', 'backward', 'grid'])
+  assert.ok(caret('centerPoint') && !caret('centerPoint').disabled); assert.ok(caret('distributeH').disabled); assert.ok(status().includes('已选 1 个'))
+})
+scada.setSelection([A.id, B.id]); await nextTick()
+check('选中 2 个：对齐 / 等宽高 / 组合 / 中心点可用，分布仍灰（至少 3 个）；状态栏显示数量和参考对象', () => {
+  assert.deepEqual(enabledOf(), ['alignLeft', 'alignRight', 'alignTop', 'alignBottom', 'alignCenterX', 'alignCenterY', 'centerPoint', 'sameWidth', 'sameHeight', 'sameSize', 'rotateCw', 'rotateCcw', 'flipH', 'flipV', 'group', 'lock', 'toFront', 'toBack', 'forward', 'backward', 'grid'])
+  assert.ok(status().includes('已选 2 个') && status().includes('基准') && status().includes('矩形'), status())
+})
+scada.setSelection(ids3); await nextTick()
+check('选中 3 个：分布也可用', () => { assert.ok(!tool('distributeH').disabled && !tool('distributeV').disabled && !caret('distributeH').disabled); assert.ok(status().includes('已选 3 个')) })
+const al = async (k, exp) => { resetAll(); tool(k).click(); await nextTick(); assert.deepEqual([rectOf(B.id), rectOf(C.id)], exp, k); assert.deepEqual(rectOf(A.id), INIT[A.id], k + '：参考对象不动') }
+const rb = INIT[B.id], rc = INIT[C.id]
+await al('alignLeft', [{ ...rb, x: 100 }, { ...rc, x: 100 }]); await al('alignRight', [{ ...rb, x: 120 }, { ...rc, x: 140 }])
+await al('alignTop', [{ ...rb, y: 100 }, { ...rc, y: 100 }]); await al('alignBottom', [{ ...rb, y: 120 }, { ...rc, y: 100 }])
+await al('alignCenterX', [{ ...rb, x: 110 }, { ...rc, x: 120 }]); await al('alignCenterY', [{ ...rb, y: 110 }, { ...rc, y: 100 }])
+await al('sameWidth', [{ ...rb, w: 100 }, { ...rc, w: 100 }]); await al('sameHeight', [{ ...rb, h: 60 }, { ...rc, h: 60 }]); await al('sameSize', [{ ...rb, w: 100, h: 60 }, { ...rc, w: 100, h: 60 }])
+check('点击对齐 / 等宽高按钮：以参考对象（最先选中的 A）为准：左 / 右 / 上 / 下边缘、垂直 / 水平中心轴、等宽 / 等高 / 等宽高；参考对象不动', () => { assert.ok(true) })
+resetAll(); await nextTick()
+await menusGone(); caret('centerPoint').click(); await nextTick(); await sleep(80)
+check('「中心点」下拉：中心点对齐 + 三个相对整个画面居中的功能（水平 / 垂直 / 画面中心），带图标', () => {
+  assert.deepEqual(menuItems().map(o => o.textContent.trim()), ['中心点对齐', '水平居中于画面', '垂直居中于画面', '画面中心']); assert.ok(menuItems().every(o => o.querySelector('svg')))
+})
+menuItem('水平居中于画面').click(); await nextTick(); await sleep(60)
+check('选「水平居中于画面」：每个选中对象的中心落在画面水平中线上（x = 画布宽 / 2），纵向位置不变；图标本体记住这一项并可直接重复', () => {
+  assert.deepEqual(ids3.map(id => rectOf(id).x + rectOf(id).w / 2), [500, 500, 500]); assert.deepEqual(ids3.map(id => rectOf(id).y), [100, 200, 300])
+  assert.ok(tool('centerPoint').title.startsWith('水平居中于画面：')); assert.equal(tool('centerPoint').disabled, false)
+})
+resetAll(); await nextTick(); tool('centerPoint').click(); await nextTick()
+check('再点图标本体 = 重复执行上次选的项', () => assert.deepEqual(ids3.map(id => rectOf(id).x + rectOf(id).w / 2), [500, 500, 500]))
+resetAll(); await nextTick(); await menusGone(); caret('centerPoint').click(); await nextTick(); await sleep(80); menuItem('画面中心').click(); await nextTick(); await sleep(60)
+check('选「画面中心」：中心都落在画面中心点（500, 300）', () => { assert.deepEqual(ids3.map(id => [rectOf(id).x + rectOf(id).w / 2, rectOf(id).y + rectOf(id).h / 2]), [[500, 300], [500, 300], [500, 300]]) })
+resetAll(); await nextTick(); await menusGone(); caret('centerPoint').click(); await nextTick(); await sleep(80); menuItem('垂直居中于画面').click(); await nextTick(); await sleep(60)
+check('选「垂直居中于画面」：y 居中、x 不变', () => { assert.deepEqual(ids3.map(id => rectOf(id).y + rectOf(id).h / 2), [300, 300, 300]); assert.deepEqual(ids3.map(id => rectOf(id).x), [100, 300, 500]) })
+resetAll(); await nextTick(); await menusGone(); caret('centerPoint').click(); await nextTick(); await sleep(80); menuItem('中心点对齐').click(); await nextTick(); await sleep(60)
+check('选「中心点对齐」：其它对象的中心与参考对象 A 的中心（150, 130）重合', () => { assert.deepEqual([B.id, C.id].map(id => [rectOf(id).x + rectOf(id).w / 2, rectOf(id).y + rectOf(id).h / 2]), [[150, 130], [150, 130]]) })
+resetAll(); scada.select(B.id); await nextTick(); await menusGone(); caret('centerPoint').click(); await nextTick(); await sleep(80)
+check('只选中 1 个时：「中心点对齐」项灰，画面居中项可用', () => { assert.equal(menuItem('中心点对齐').closest('.n-dropdown-option').querySelector('.n-dropdown-option-body--disabled') !== null, true); assert.equal(menuItem('画面中心').classList.contains('n-dropdown-option-body--disabled'), false) })
+// 点下拉菜单外面关掉它（naive 的 clickoutside 监听 mousedown / mouseup）
+document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); document.body.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); await sleep(120)
+scada.setSelection(ids3); resetAll(); await nextTick()
+tool('distributeH').click(); await nextTick()
+check('水平分布（默认等间距）：最靠两端的 A、C 不动，B 移到间隙相等的位置（A 右边缘 200 → B 起点 310 → B 右边缘 390 → C 起点 500，间隙都是 110）', () => {
+  assert.equal(rectOf(B.id).x, 310); assert.deepEqual([rectOf(A.id).x, rectOf(C.id).x], [100, 500]); assert.equal(rectOf(B.id).y, 200)
+})
+resetAll(); await menusGone(); caret('distributeH').click(); await nextTick(); await sleep(80)
+check('分布下拉：等间距 / 中心等距；选中心等距：B 的中心落在 A、C 中心的正中（340）', () => { assert.deepEqual(menuItems().map(o => o.textContent.trim()), ['水平等间距', '水平中心等距']); menuItem('水平中心等距').click() })
+await nextTick(); await sleep(60)
+check('中心等距执行后 B.x = 300（中心 340）；图标本体标题换成「水平中心等距」', () => { assert.equal(rectOf(B.id).x, 300); assert.ok(tool('distributeH').title.startsWith('水平中心等距：')) })
+resetAll(); tool('distributeV').click(); await nextTick()
+check('垂直分布（等间距）：A 下边缘 160 → B 起点 210 → B 下边缘 250 → C 起点 300，间隙 50', () => { assert.equal(rectOf(B.id).y, 210); assert.deepEqual([rectOf(A.id).y, rectOf(C.id).y], [100, 300]) })
+resetAll(); await nextTick()
+// ---- 旋转 / 翻转 ----
+const wrapTransform = id => hostEl(id).style.transform || (hostEl(id).getAttribute('style') || '').match(/transform:\s*([^;]+)/)?.[1] || ''
+const geoInputs = () => [...propsCol().querySelectorAll('.n-input-number')].filter(el => !el.querySelector('.n-input-number-suffix, .n-button') && !el.hasAttribute('data-multi-bounds')).map(el => el.querySelector('input').value)
+scada.select(B.id); resetAll(); await nextTick()
+tool('rotateCw').click(); await nextTick()
+check('顺时针旋转 90°：组件 rotate = 90，x / y / w / h 不变（中心不变）；wrapper 带 CSS rotate(90deg)；手柄围着画面上的外框（宽高互换）；位置尺寸输入框显示画面上的 x / y / w / h', () => {
+  assert.equal(widgetOf(B.id).rotate, 90); assert.deepEqual(rectOf(B.id), INIT[B.id]); assert.equal(wrapTransform(B.id), 'rotate(90deg)')
+  const se = handleEl('se'); assert.ok(Math.abs(parseFloat(se.style.left) + parseFloat(se.style.width) / 2 - 360) < 0.01, se.style.left); assert.ok(Math.abs(parseFloat(se.style.top) + parseFloat(se.style.height) / 2 - 260) < 0.01, se.style.top)   // 视觉外框 (320, 180, 40, 80)
+  assert.deepEqual(geoInputs(), ['320', '180', '40', '80']); assert.ok(propsCol().querySelector('[data-scada-rotate]').textContent.includes('90°'))
+})
+dragEl(handleEl('se'), 30, 20); await nextTick()
+check('旋转后拖右下角手柄：改的是画面上的宽高（视觉 40×80 → 70×100），换算回布局外框 100×70（w = 视觉高，h = 视觉宽）；视觉左上角不动', () => {
+  assert.deepEqual(visualRect(widgetOf(B.id)), { x: 320, y: 180, w: 70, h: 100 }); assert.deepEqual([widgetOf(B.id).w, widgetOf(B.id).h], [100, 70])
+})
+scada.updateWidgetRect(B.id, INIT[B.id]); await nextTick()
+tool('rotateCw').click(); tool('rotateCw').click(); tool('rotateCw').click(); await nextTick()
+check('转满 4 次回到 0°：rotate 字段被移除，没有 transform', () => { assert.ok(!('rotate' in widgetOf(B.id))); assert.equal(wrapTransform(B.id), ''); assert.deepEqual(rectOf(B.id), INIT[B.id]) })
+tool('rotateCcw').click(); await nextTick()
+check('逆时针旋转 90°：0° → 270°', () => { assert.equal(widgetOf(B.id).rotate, 270); assert.equal(wrapTransform(B.id), 'rotate(270deg)') })
+tool('rotateCw').click(); await nextTick()
+scada.updateWidgetRect(B.id, { x: 0, y: 0, w: 200, h: 20 }); tool('rotateCw').click(); await nextTick()
+check('旋转后视觉外框超出画布时被夹回画布内（200×20 的横条在左上角转 90° → 视觉 20×200，夹紧后完整在画布内）', () => { const v = visualRect(widgetOf(B.id)); assert.deepEqual([v.x >= 0, v.y >= 0, v.x + v.w <= 1000, v.y + v.h <= 600], [true, true, true, true], JSON.stringify(v)) })
+scada.updateWidgetRect(B.id, INIT[B.id]); scada.setRotation(B.id, 0); await nextTick()
+tool('flipH').click(); await nextTick()
+check('左右翻转：flipX = true，wrapper 带 scale(-1, 1)，位置不变；再翻一次恢复（字段被移除）', () => {
+  assert.equal(widgetOf(B.id).flipX, true); assert.equal(wrapTransform(B.id), 'scale(-1, 1)'); assert.deepEqual(rectOf(B.id), INIT[B.id])
+  tool('flipH').click()
+})
+await nextTick()
+check('翻两次 = 原样', () => { assert.ok(!('flipX' in widgetOf(B.id))); assert.equal(wrapTransform(B.id), '') })
+tool('flipV').click(); await nextTick()
+assert.equal(widgetOf(B.id).flipY, true); assert.equal(wrapTransform(B.id), 'scale(1, -1)'); tool('flipV').click(); await nextTick()
+tool('rotateCw').click(); tool('flipH').click(); await nextTick()
+check('先转 90° 再左右翻转：画面镜像在旋转之后 → rotate 变 270、flipX = true；CSS 先翻转再旋转', () => { assert.equal(widgetOf(B.id).rotate, 270); assert.equal(widgetOf(B.id).flipX, true); assert.equal(wrapTransform(B.id), 'rotate(270deg) scale(-1, 1)') })
+tool('flipH').click(); tool('rotateCcw').click(); await nextTick()
+check('反向操作后回到原样', () => { assert.ok(!('rotate' in widgetOf(B.id)) && !('flipX' in widgetOf(B.id))); assert.equal(wrapTransform(B.id), '') })
+resetAll(); scada.setSelection(ids3); await nextTick()
+const u0 = unionRect(ids3.map(rectOf)); tool('rotateCw').click(); await nextTick()
+check('多选旋转：整个选区绕外接框中心转 90°（像 PPT），每个组件的 rotate 都 +90；外接框宽高互换且中心不变', () => {
+  assert.deepEqual(ids3.map(id => widgetOf(id).rotate), [90, 90, 90])
+  const u1 = unionRect(ids3.map(id => visualRect(widgetOf(id)))); assert.deepEqual([u1.w, u1.h], [u0.h, u0.w], JSON.stringify(u1)); assert.ok(Math.abs(u1.x + u1.w / 2 - (u0.x + u0.w / 2)) <= 1 && Math.abs(u1.y + u1.h / 2 - (u0.y + u0.h / 2)) <= 1)
+})
+tool('rotateCcw').click(); await nextTick()
+check('再逆时针转回：各组件 rotate 清掉、位置回到原处（±1px 取整误差）', () => { assert.ok(ids3.every(id => !('rotate' in widgetOf(id)))); ids3.forEach(id => { const r = rectOf(id), i = INIT[id]; assert.ok(Math.abs(r.x - i.x) <= 1 && Math.abs(r.y - i.y) <= 1 && r.w === i.w && r.h === i.h, id + JSON.stringify(r)) }) })
+resetAll(); tool('flipH').click(); await nextTick()
+check('多选左右翻转：中心按外接框中心线镜像（A 在最左 → 到最右），flipX 各自取反', () => {
+  assert.deepEqual(ids3.map(id => widgetOf(id).flipX), [true, true, true]); assert.deepEqual(ids3.map(id => rectOf(id).x), [460, 280, 100])   // 外接框 100 ~ 560，中心线 x = 330
+})
+resetAll(); ids3.forEach(id => { delete widgetOf(id).flipX }); await nextTick()
+
+// ---- 组合 / 取消组合 ----
+scada.setSelection([A.id, B.id]); await nextTick()
+tool('group').click(); await nextTick()
+check('组合：选中的组件得到同一个 groupId（C 没有）；取消组合按钮变可用；图层栏里同组的行左边有同色竖条', () => {
+  const g = widgetOf(A.id).groupId; assert.ok(g && widgetOf(B.id).groupId === g && !widgetOf(C.id).groupId); assert.ok(!tool('ungroup').disabled)
+  const rows = id => root.querySelector(`[data-layer-id="${id}"]`); assert.ok(rows(A.id).style.borderLeft.includes('3px') && !/transparent/.test(rows(A.id).style.borderLeft), rows(A.id).style.borderLeft); assert.equal(rows(A.id).style.borderLeft, rows(B.id).style.borderLeft); assert.ok(/transparent/.test(rows(C.id).style.borderLeft))
+})
+scada.select(null); await nextTick(); clickW(B.id); await nextTick()
+check('点组合里的任意一个：整个组合一起选中（被点的排第一 = 参考对象）；Alt + 点击只选这一个', () => {
+  assert.deepEqual(sel(), [B.id, A.id]); clickW(A.id, { altKey: true }); assert.deepEqual(sel(), [A.id])
+})
+clickW(B.id); await nextTick()
+dragEl(hostEl(B.id), 30, 20); await nextTick()
+check('拖动组合里的一个：整个组合一起移动（+30 / +20）', () => { assert.deepEqual([rectOf(A.id), rectOf(B.id)], [{ ...INIT[A.id], x: 130, y: 120 }, { ...INIT[B.id], x: 330, y: 220 }]) })
+resetAll(); clickW(C.id, { ctrlKey: true }); await nextTick()
+check('Ctrl + 点击别的组件：把它加进选择；Ctrl + 点击已选中的组合成员：整个组合一起取消选中', () => {
+  assert.deepEqual(sel(), [B.id, A.id, C.id]); clickW(A.id, { ctrlKey: true }); assert.deepEqual(sel(), [C.id])
+})
+scada.setSelection([A.id, B.id]); await nextTick(); tool('ungroup').click(); await nextTick()
+check('取消组合：groupId 移除，取消组合按钮变灰；再点击一个只选中它自己', () => {
+  assert.ok(!widgetOf(A.id).groupId && !widgetOf(B.id).groupId); assert.ok(tool('ungroup').disabled); scada.select(null); clickW(A.id); assert.deepEqual(sel(), [A.id])
+})
+// 合并：组合里只选了一部分 + 另一个组件再组合 → 旧组合整个并入
+scada.setSelection([A.id, B.id]); scada.groupSelection(); scada.setSelection([C.id, A.id]); scada.groupSelection(); await nextTick()
+check('再组合时涉及的旧组合整体并入新组合（A B 已成组，再把 C 和 A 组合 → A B C 同组）；只选一个时不能组合', () => {
+  const g = widgetOf(A.id).groupId; assert.ok(g && ids3.every(id => widgetOf(id).groupId === g)); assert.deepEqual(sel().sort(), ids3.slice().sort())
+  scada.select(A.id); assert.equal(scada.groupSelection(), true, '选中 A 时 groupSelection 会把它所在组合的成员并入（整体仍是一组）'); scada.ungroupSelection()
+  scada.select(A.id); assert.equal(scada.groupSelection(), false); assert.ok(!widgetOf(A.id).groupId)
+})
+resetAll(); await nextTick()
+
+// ---- 锁定 / 解锁 ----
+scada.setSelection([A.id, B.id]); await nextTick()
+tool('lock').click(); await nextTick()
+check('锁定：选中的组件 locked = true；每个锁定组件角上有小锁标记；锁定按钮灰、解锁可用；对齐 / 旋转 / 翻转灰（没有可动的组件）；没有缩放手柄，光标不是 move', () => {
+  assert.deepEqual([A.id, B.id].map(id => widgetOf(id).locked), [true, true]); assert.deepEqual([...canvasView.el.querySelectorAll('[data-lock-badge]')].map(e => e.dataset.lockBadge).sort(), [A.id, B.id].sort())
+  assert.ok(tool('lock').disabled && !tool('unlock').disabled && tool('alignLeft').disabled && tool('rotateCw').disabled && tool('flipH').disabled && tool('sameSize').disabled)
+  assert.equal(canvasView.el.querySelectorAll('[data-handle]').length, 0); assert.equal(hostEl(A.id).style.cursor, 'default')
+  assert.ok(root.querySelector(`[data-layer-lock="${A.id}"]`).className.includes('text-gray-800'), '图层栏里挂锁高亮')
+})
+warns.length = 0
+dragEl(hostEl(A.id), 50, 50); await nextTick()
+check('拖动被锁定的组件：不动并提示「已锁定」（每次拖动只提示一次）；方向键 / Delete 同样被拦下并提示', () => {
+  assert.deepEqual([rectOf(A.id), rectOf(B.id)], [INIT[A.id], INIT[B.id]]); assert.equal(warns.length, 1); assert.ok(warns[0].includes('锁定'), warns[0])
+  key('ArrowRight'); assert.deepEqual(rectOf(A.id), INIT[A.id]); assert.equal(warns.length, 2)
+  key('Delete'); assert.ok(widgetOf(A.id) && widgetOf(B.id)); assert.equal(warns.length, 3)
+})
+scada.select(A.id); await nextTick()
+check('属性面板：锁定的组件位置 / 尺寸 / 旋转 / 翻转输入框全部禁用，显示锁定提示，删除按钮禁用，锁定开关为开', () => {
+  const inputs = [...propsCol().querySelectorAll('.n-input-number')].filter(el => !el.querySelector('.n-input-number-suffix, .n-button')); assert.equal(inputs.length, 4); assert.ok(inputs.every(el => el.classList.contains('n-input-number--disabled') || el.querySelector('input').disabled), 'geometry disabled')
+  assert.ok(propsCol().textContent.includes('已锁定：不能移动、缩放或删除')); assert.ok(propsCol().querySelector('[data-scada-rotate]').classList.contains('n-select--disabled') || propsCol().querySelector('[data-scada-rotate] .n-base-selection--disabled'))
+  assert.ok([...propsCol().querySelectorAll('button')].find(b => b.textContent.trim() === '删除').disabled); assert.ok(propsCol().querySelector('[data-scada-lock-switch]').classList.contains('n-switch--active'))
+})
+scada.setLocked([B.id], false); scada.setSelection([A.id, B.id]); await nextTick()
+const bBefore = rectOf(B.id)
+dragEl(hostEl(B.id), 30, 20); await nextTick()
+check('选中里有锁定的：拖动只移动没锁的（A 锁定不动，B +30 / +20）；缩放手柄围着可动的那部分（只有 B）', () => {
+  assert.deepEqual(rectOf(A.id), INIT[A.id]); assert.deepEqual(rectOf(B.id), { ...bBefore, x: bBefore.x + 30, y: bBefore.y + 20 })
+  const se = handleEl('se'); assert.ok(Math.abs(parseFloat(se.style.left) + parseFloat(se.style.width) / 2 - (rectOf(B.id).x + rectOf(B.id).w)) < 0.01)
+  assert.ok(!tool('lock').disabled && !tool('unlock').disabled, '锁定 / 解锁都可用'); assert.ok(!tool('alignLeft').disabled, '参考对象 A 锁定也能当基准，B 是可动的')
+})
+tool('alignLeft').click(); await nextTick()
+const dW = scada.addWidget('rect'); scada.updateWidgetRect(dW.id, { x: 700, y: 400, w: 60, h: 60 }); scada.setSelection([A.id, dW.id]); warns.length = 0; await nextTick()
+key('Delete'); await nextTick()
+check('对齐以锁定的 A 为参考对象：B 对齐过去、A 不动；Delete 只删没锁的（D 被删，锁定的 A 留下）并提示', () => {
+  assert.equal(rectOf(B.id).x, INIT[A.id].x); assert.deepEqual(rectOf(A.id), INIT[A.id]); assert.ok(!widgetOf(dW.id) && widgetOf(A.id)); assert.equal(warns.length, 1)
+})
+scada.setSelection([A.id]); await nextTick(); tool('unlock').click(); await nextTick()
+check('解锁：locked 字段移除，小锁标记消失，手柄回来，又能拖动', () => {
+  assert.ok(!('locked' in widgetOf(A.id))); assert.equal(canvasView.el.querySelectorAll('[data-lock-badge]').length, 0); assert.equal(canvasView.el.querySelectorAll('[data-handle]').length, 8)
+  dragEl(hostEl(A.id), 20, 0); assert.equal(rectOf(A.id).x, INIT[A.id].x + 20)
+})
+resetAll(); await nextTick()
+
+// ---- 层次：置顶 / 置底 / 上移一层 / 下移一层 ----
+const domOrder = () => [...canvasView.el.querySelectorAll('[data-widget-id]')].map(e => e.dataset.widgetId).filter(id => ids3.includes(id))
+check('图层顺序初始为 A B C（数组顺序 = 层级，DOM 顺序一致）', () => { assert.deepEqual(order59(), ids3); assert.deepEqual(domOrder(), ids3) })
+scada.select(A.id); await nextTick(); tool('toFront').click(); await nextTick()
+check('置于顶层：A 移到最后（最上面），DOM 顺序同步', () => { assert.deepEqual(order59(), [B.id, C.id, A.id]); assert.deepEqual(domOrder(), [B.id, C.id, A.id]) })
+tool('toBack').click(); await nextTick()
+check('置于底层：A 回到最前（最下面）', () => assert.deepEqual(order59(), ids3))
+scada.setSelection([A.id, B.id]); await nextTick(); tool('forward').click(); await nextTick()
+check('上移一层（多选）：A B 各越过上面紧邻的一个未选中的（C）→ C A B；彼此顺序不变', () => assert.deepEqual(order59(), [C.id, A.id, B.id]))
+tool('backward').click(); await nextTick()
+check('下移一层（多选）：回到 A B C；已在最底层的再下移不变', () => { assert.deepEqual(order59(), ids3); scada.setSelection([A.id]); tool('backward').click(); assert.deepEqual(order59(), ids3) })
+// ---- 图层栏（左侧）：上下层关系 ----
+resetAll(); scada.select(null); await nextTick()
+const layers = () => root.querySelector('[data-scada-layers]')
+const layerRows = () => [...root.querySelectorAll('[data-layer-id]')]
+const layerIds = () => layerRows().map(e => e.dataset.layerId).filter(id => ids3.includes(id))
+const rowOf = id => root.querySelector(`[data-layer-id="${id}"]`)
+const clickRow = (id, init = {}) => rowOf(id).dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ...init }))
+const layerAct = k => layers().querySelector(`[data-layer-action="${k}"]`)
+check('图层栏在左栏里、组件库之下：标题「图层」+ 数量 + 四个层次按钮（没选中时灰）；列表从上到下 = 画布上层到下层（C B A）；每行有拖动手柄 / 图标 / 名称 / 眼睛 / 挂锁', () => {
+  const left = paletteCol(); assert.ok(left.className.includes('flex-col')); assert.ok(left.children[0].querySelector('[data-palette-item]')); assert.ok(left.children[1].contains(layers()))
+  assert.ok(layers().textContent.includes('图层') && layers().querySelector('.n-scrollbar')); assert.equal(layerRows().length, 3); assert.deepEqual(layerIds(), [C.id, B.id, A.id])
+  assert.deepEqual([...layers().querySelectorAll('[data-layer-action]')].map(b => b.dataset.layerAction), ['front', 'forward', 'backward', 'back']); assert.ok([...layers().querySelectorAll('[data-layer-action]')].every(b => b.disabled))
+  for (const row of layerRows()) { assert.ok(row.querySelector('[data-layer-grip]') && row.querySelector('[data-layer-hide]') && row.querySelector('[data-layer-lock]') && row.querySelector('svg')); assert.ok(row.textContent.includes('矩形')) }
+  assert.ok(layers().querySelector('.n-scrollbar') && !layers().querySelector('.overflow-y-auto'), '悬浮滚动条 NScrollbar')
+})
+clickRow(B.id); await nextTick()
+check('点击图层行选中该组件（与画布选中同步）；选中的行高亮；层次按钮可用', () => {
+  assert.deepEqual(sel(), [B.id]); assert.equal(rowOf(B.id).dataset.layerSelected, '1'); assert.ok(!rowOf(A.id).dataset.layerSelected); assert.ok(layerAct('front') && !layerAct('front').disabled)
+  assert.match(hostEl(B.id).style.outline, /2px solid/)
+})
+clickRow(A.id, { ctrlKey: true }); await nextTick()
+check('Ctrl + 点击行加减多选；多选时已选中的行出现「参考对象」旗标（第一个选中的高亮）', () => {
+  assert.deepEqual(sel(), [B.id, A.id]); assert.deepEqual([...layers().querySelectorAll('[data-layer-ref]')].map(b => b.dataset.layerRef), [A.id, B.id].sort((x, y) => layerIds().indexOf(x) - layerIds().indexOf(y)))
+  assert.ok(layers().querySelector(`[data-layer-ref="${B.id}"]`).classList.contains('text-amber-500')); assert.ok(!layers().querySelector(`[data-layer-ref="${A.id}"]`).classList.contains('text-amber-500'))
+})
+clickRow(C.id, { shiftKey: true }); await nextTick()
+check('Shift + 点击行：选中从上次点击的行（A）到这一行（C）的一段；起点排第一 = 参考对象', () => assert.deepEqual(sel(), [A.id, C.id, B.id]))
+layers().querySelector(`[data-layer-ref="${C.id}"]`).click(); await nextTick()
+check('点行上的旗标：把它设为参考对象（移到选择的最前）；画布上「基准」标记和橙色外框跟着换；点旗标不会改变选择内容', () => {
+  assert.deepEqual(sel(), [C.id, A.id, B.id]); assert.equal(scada.referenceId, C.id); assert.equal(canvasView.el.querySelector('[data-reference-badge]').dataset.referenceBadge, C.id); assert.ok(/f59e0b|245, 158, 11/i.test(hostEl(C.id).style.outline))
+  assert.ok(status().includes('基准') && status().includes('矩形'))
+})
+clickW(A.id); await nextTick()
+check('画布上选中 → 图层栏同步（只有 A 那一行高亮）', () => { assert.deepEqual(layerRows().filter(r => r.dataset.layerSelected).map(r => r.dataset.layerId), [A.id]) })
+scada.select(B.id); await nextTick()
+layerAct('front').click(); await nextTick()
+check('标题栏「置顶」：B 移到最上；图层栏列表与画布 DOM 顺序同步', () => { assert.deepEqual(order59(), [A.id, C.id, B.id]); assert.deepEqual(layerIds(), [B.id, C.id, A.id]); assert.deepEqual(domOrder(), [A.id, C.id, B.id]) })
+layerAct('back').click(); await nextTick(); layerAct('forward').click(); await nextTick()
+check('「置底」→「上移」：B 到最下，再上移一层', () => assert.deepEqual(order59(), [A.id, B.id, C.id]))
+layerAct('backward').click(); await nextTick(); scada.sendToBack(A.id); await nextTick()
+check('「下移」一层；排回 A B C', () => assert.deepEqual(order59(), ids3))
+// 拖动排序：手柄按下 → 移动 → 松手；jsdom 没有布局，给每行一个屏幕位置（自上而下每行 30px）
+const mockRows = () => layerRows().forEach((el, i) => { el.getBoundingClientRect = () => ({ left: 0, top: i * 30, width: 200, height: 30, right: 200, bottom: i * 30 + 30 }) })
+const gripOf = id => rowOf(id).querySelector('[data-layer-grip]')
+const dragRow = (id, y0, y1, hold) => { const pointerId = ++pid59; ptr(gripOf(id), 'pointerdown', 10, y0, { pointerId }); ptr(gripOf(id), 'pointermove', 10, y1, { pointerId }); if (hold) hold(); ptr(gripOf(id), 'pointerup', 10, y1, { pointerId }) }
+mockRows(); scada.select(null); await nextTick()
+dragRow(A.id, 75, 5); await nextTick()
+check('图层栏拖动排序：拖最下面的 A（手柄）到最上面一行 C 的上半部分 → A 成为最上层；按下手柄会先选中该行；松手后插入指示线消失', () => {
+  assert.deepEqual(order59(), [B.id, C.id, A.id]); assert.deepEqual(layerIds(), [A.id, C.id, B.id]); assert.deepEqual(sel(), [A.id]); assert.equal(root.querySelectorAll('[data-layer-drop]').length, 0)
+})
+mockRows()
+{
+  const pointerId = ++pid59; ptr(gripOf(B.id), 'pointerdown', 10, 75, { pointerId }); ptr(gripOf(B.id), 'pointermove', 10, 20, { pointerId }); await nextTick()
+  check('拖动过程中：指针在最上面一行（A）的下半部分 → 那一行底部出现蓝色「下方」插入指示线', () => { const d = root.querySelectorAll('[data-layer-drop]'); assert.equal(d.length, 1); assert.equal(d[0].dataset.layerDrop, 'below'); assert.equal(d[0].parentElement.dataset.layerId, A.id) })
+  ptr(gripOf(B.id), 'pointerup', 10, 20, { pointerId }); await nextTick()
+}
+check('松手：B 放到 A 的下方（自上而下 A B C）', () => assert.deepEqual(layerIds(), [A.id, B.id, C.id]))
+mockRows(); scada.setSelection([A.id, B.id]); await nextTick()
+dragRow(B.id, 45, 85); await nextTick()
+check('选中多个时拖其中一行：整批一起移动、保持彼此顺序——A B 一起放到最下面一行 C 的下方', () => { assert.deepEqual(order59(), [B.id, A.id, C.id]); assert.deepEqual(sel(), [A.id, B.id]) })
+mockRows(); dragRow(A.id, 15, 15); await nextTick()
+check('没拖动（位移不足阈值）不改变顺序', () => assert.deepEqual(order59(), [B.id, A.id, C.id]))
+scada.sendToBack(A.id); scada.select(null); await nextTick()
+const hideBtn = id => root.querySelector(`[data-layer-hide="${id}"]`), lockBtn = id => root.querySelector(`[data-layer-lock="${id}"]`)
+hideBtn(B.id).click(); await nextTick()
+check('眼睛：隐藏组件（hidden = true）——编辑模式下半透明仍可见 / 可选，行变淡、图标换成划线眼睛；点眼睛不会选中该行；再点恢复（字段移除）', () => {
+  assert.equal(widgetOf(B.id).hidden, true); assert.equal(hostEl(B.id).style.opacity, '0.35'); assert.notEqual(hostEl(B.id).style.display, 'none'); assert.ok(rowOf(B.id).className.includes('opacity-60')); assert.deepEqual(sel(), [])
+  assert.ok(hideBtn(B.id).title.includes('显示')); hideBtn(B.id).click()
+})
+await nextTick()
+check('再点眼睛恢复显示', () => { assert.ok(!('hidden' in widgetOf(B.id))); assert.equal(hostEl(B.id).style.opacity, '') })
+lockBtn(C.id).click(); await nextTick()
+check('挂锁：锁定 / 解锁该组件（与工具栏的锁定同一个字段），画布上出现小锁标记', () => {
+  assert.equal(widgetOf(C.id).locked, true); assert.ok(canvasView.el.querySelector(`[data-lock-badge="${C.id}"]`)); assert.ok(lockBtn(C.id).title.includes('解锁')); lockBtn(C.id).click()
+})
+await nextTick()
+check('再点解锁', () => { assert.ok(!('locked' in widgetOf(C.id))); assert.ok(!canvasView.el.querySelector('[data-lock-badge]')) })
+const layersToggle = () => root.querySelector('[data-scada-layers-toggle]')
+check('第一行工具栏有「图层」开关：关掉后图层栏消失（组件库仍在，占满左栏）；再开回来', () => {
+  assert.ok(layersToggle().textContent.includes('图层')); layersToggle().click()
+})
+await nextTick()
+check('图层栏关闭后左栏只剩组件库', () => { assert.ok(!layers()); assert.ok(paletteCol().querySelector('[data-palette-item]')); layersToggle().click() })
+await nextTick()
+const paletteToggle = () => [...root.querySelectorAll('button')].find(b => b.textContent.trim() === '组件库')
+paletteToggle().click(); await nextTick()
+check('再打开；把组件库关掉则图层栏占满整个左栏', () => {
+  assert.ok(layers()); assert.ok(!paletteCol().querySelector('[data-palette-item]')); assert.ok(layers().parentElement.className.includes('flex-1')); assert.ok(paletteCol().className.includes('w-[200px]')); paletteToggle().click()
+})
+await nextTick()
+main.isLandscape = false; await nextTick()
+check('竖屏：图层栏在画布下方一行的左侧（组件库条带在上、属性面板在右，分两栏）', () => {
+  const body = bodyRow(); const first = body.children[0], last = body.children[body.children.length - 1]
+  assert.ok(first.className.includes('h-[92px]') && first.querySelector('[data-palette-item]')); assert.ok(last.className.includes('flex-row')); assert.ok(last.children[0].contains(layers()) && last.children[0].className.includes('w-[30%]')); assert.ok(last.children[1].querySelector('.columns-2'))
+  assert.ok(!paletteCol().querySelector('[data-scada-layers]') || paletteCol() === first)
+})
+main.isLandscape = true; await nextTick()
+check('回到横屏：图层栏回到左栏', () => { assert.ok(bodyRow().className.includes('flex-row')); assert.ok(bodyRow().children[0].contains(layers())) })
+
+// ---- 全屏 ----
+const scadaRoot = root.firstElementChild
+const fsBtn = () => root.querySelector('[data-scada-fullscreen]')
+const setSize = (w, h) => { Object.defineProperty(scadaRoot, 'clientWidth', { value: w, configurable: true }); Object.defineProperty(scadaRoot, 'clientHeight', { value: h, configurable: true }) }
+const fireResize = () => globalThis.__resizeCallbacks.forEach(cb => { try { cb([]) } catch { /* 已卸载的 observer */ } })
+const fitBtn = () => [...propsCol().querySelectorAll('button')].find(b => b.textContent.includes('适配当前屏幕'))
+scada.select(null); setSize(800, 600); fireResize(); await nextTick()
+check('全屏按钮在第一行工具栏（取消 / 保存之前）：默认「全屏」，根元素是页面里的 w-full h-full；「适配当前屏幕」按整页尺寸 800×600', () => {
+  assert.ok(fsBtn()); assert.equal(fsBtn().textContent.trim(), '全屏'); assert.ok(fsBtn().title === '全屏'); assert.ok(fsBtn().parentElement.className.includes('h-11')); assert.ok(scadaRoot.className.includes('w-full') && scadaRoot.className.includes('h-full') && !scadaRoot.className.includes('fixed'))
+  assert.ok(fitBtn().textContent.includes('(800×600)'), fitBtn().textContent); assert.equal(scada.fullscreen, false)
+})
+fsBtn().click(); await nextTick()
+check('点全屏：编辑器根元素变成 fixed inset-0 铺满整个窗口（z-index 1990，低于 naive 弹窗层的 2000，这样下拉 / 弹窗 / 颜色浮层仍在它上面）；按钮变「退出全屏」；工具栏 / 图层 / 画布都还在', () => {
+  assert.equal(scada.fullscreen, true); assert.ok(scadaRoot.classList.contains('fixed') && scadaRoot.classList.contains('inset-0')); assert.ok(scadaRoot.className.includes('z-[1990]')); assert.equal(scadaRoot.dataset.fullscreen, '1')
+  assert.equal(fsBtn().textContent.trim(), '退出全屏'); assert.ok(fsBtn().className.includes('bg-blue-100')); assert.ok(root.querySelector('[data-scada-arrange]') && layers() && canvasView.el)
+})
+setSize(1920, 1080); fireResize(); await nextTick()
+check('全屏期间不重新量「整页尺寸」：「适配当前屏幕」仍然是没全屏时的 800×600（否则会把画布适配成整个窗口）', () => assert.ok(fitBtn().textContent.includes('(800×600)'), fitBtn().textContent))
+fsBtn().click(); await nextTick(); await nextTick()
+check('再点一次退出全屏：恢复页面里的布局，并重新量整页尺寸（现在 1920×1080）', () => {
+  assert.equal(scada.fullscreen, false); assert.ok(!scadaRoot.classList.contains('fixed')); assert.equal(fsBtn().textContent.trim(), '全屏'); assert.ok(fitBtn().textContent.includes('(1920×1080)'), fitBtn().textContent)
+})
+delete scadaRoot.clientWidth; delete scadaRoot.clientHeight
+fsBtn().click(); await nextTick(); window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await nextTick()
+check('Esc 退出全屏（没有弹窗时；关闭后留下的空 .n-modal-container 壳、正在播放关闭动画的下拉菜单都不算弹窗）', () => assert.equal(scada.fullscreen, false))
+fsBtn().click(); await nextTick(); root.querySelector('[data-scada-help]').click(); await nextTick(); await sleep(60)
+window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await nextTick()
+check('操作说明弹窗打开时 Esc 先留给弹窗：不退出全屏；弹窗关掉后再按 Esc 才退出', () => {
+  assert.equal(scada.fullscreen, true); assert.ok(document.body.querySelector('.n-modal-container [data-scada-help-content]'))
+})
+document.body.querySelector('.n-modal-container .n-card-header__close').click(); await nextTick(); await sleep(80)
+window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await nextTick()
+check('弹窗关闭后 Esc 退出全屏', () => assert.equal(scada.fullscreen, false))
+// 浏览器 Fullscreen API（jsdom 没有，这里桩一个）：请求整页（documentElement）真全屏；用户在真全屏里按 Esc → fullscreenchange → 编辑器同步退出
+let fsEl = null, fsReq = 0, fsExit = 0
+Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => fsEl })
+document.documentElement.requestFullscreen = () => { fsReq++; fsEl = document.documentElement; document.dispatchEvent(new window.Event('fullscreenchange')); return Promise.resolve() }
+document.exitFullscreen = () => { fsExit++; fsEl = null; document.dispatchEvent(new window.Event('fullscreenchange')); return Promise.resolve() }
+fsBtn().click(); await sleep(30)
+check('有 Fullscreen API 时：对整页（documentElement）请求真全屏，编辑器同时进入全屏', () => { assert.equal(fsReq, 1); assert.equal(scada.fullscreen, true); assert.equal(fsEl, document.documentElement) })
+fsBtn().click(); await sleep(30)
+check('再点退出：调用 document.exitFullscreen，编辑器退出全屏', () => { assert.equal(fsExit, 1); assert.equal(scada.fullscreen, false); assert.equal(fsEl, null) })
+fsBtn().click(); await sleep(30); fsEl = null; document.dispatchEvent(new window.Event('fullscreenchange')); await nextTick()
+check('用户在真全屏里按 Esc（浏览器退出全屏并触发 fullscreenchange）：编辑器同步退出，不会卡在全屏样式', () => { assert.equal(fsReq, 2); assert.equal(scada.fullscreen, false); assert.ok(!scadaRoot.classList.contains('fixed')) })
+document.documentElement.requestFullscreen = () => Promise.reject(new Error('denied'))
+fsBtn().click(); await sleep(30)
+check('真全屏被浏览器 / 宿主拒绝：保留「编辑器盖住整个窗口」的效果，不报错', () => assert.equal(scada.fullscreen, true))
+fsBtn().click(); await nextTick()
+document.documentElement.requestFullscreen = () => { fsReq++; fsEl = document.documentElement; document.dispatchEvent(new window.Event('fullscreenchange')); return Promise.resolve() }
+
+// ---- 属性面板：多选面板 / 单个组件的锁定 · 旋转 · 翻转 ----
+resetAll(); scada.setSelection(ids3); await nextTick()
+const multiInfo = () => propsCol().querySelector('[data-multi-info]')
+const boundsVals = () => [...propsCol().querySelectorAll('[data-multi-bounds]')].map(el => el.querySelector('input').value)
+const typeInto = async (input, v) => { input.value = String(v); input.dispatchEvent(new InputEvent('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); input.dispatchEvent(new Event('blur')); await nextTick() }
+check('多选面板：「多选」标题、已选中 3 个组件、参考对象名称、选区位置 / 尺寸 = 外接框 (100, 100, 460, 260)、操作按钮 置顶 / 置底 / 复制 / 删除；不显示单个组件的数据绑定 / 属性', () => {
+  assert.ok(multiInfo()); assert.ok(multiInfo().textContent.includes('已选中 3 个组件') && multiInfo().textContent.includes('参考对象：矩形'), multiInfo().textContent)
+  assert.ok(propsCol().textContent.includes('多选') && propsCol().textContent.includes('选区位置 / 尺寸') && propsCol().textContent.includes('Ctrl 或 Shift'))
+  assert.deepEqual(boundsVals(), ['100', '100', '460', '260'])
+  const names = [...propsCol().querySelectorAll('button')].map(b => b.textContent.trim()); for (const n of ['置顶', '置底', '复制', '删除']) assert.ok(names.includes(n), n)
+  assert.ok(!propsCol().textContent.includes('数据绑定') && !propsCol().textContent.includes('数据处理函数'))
+})
+await typeInto(propsCol().querySelector('[data-multi-bounds="w"] input'), 690)
+check('多选面板改选区宽度 460 → 690（×1.5）：每个组件按同样的比例缩放 + 平移（A 150 宽 / B 移到 400 宽 120 / C 移到 700 宽 90）', () => {
+  assert.deepEqual([A.id, B.id, C.id].map(rectOf), [{ x: 100, y: 100, w: 150, h: 60 }, { x: 400, y: 200, w: 120, h: 40 }, { x: 700, y: 300, w: 90, h: 60 }])
+})
+resetAll(); await nextTick()
+await typeInto(propsCol().querySelector('[data-multi-bounds="x"] input'), 200)
+check('改选区 x = 200：整体右移 100，相对位置不变', () => assert.deepEqual(ids3.map(id => rectOf(id).x), [200, 400, 600]))
+resetAll(); scada.setLocked([C.id], true); await nextTick()
+check('选中里有锁定的：多选面板提示「其中 1 个已锁定」，选区外接框只算没锁的（A B：100, 100, 280, 140）', () => { assert.ok(multiInfo().textContent.includes('其中 1 个已锁定')); assert.deepEqual(boundsVals(), ['100', '100', '280', '140']) })
+scada.setLocked([C.id], false); scada.setSelection(ids3); scada.groupSelection(); const g0 = widgetOf(A.id).groupId; await nextTick()
+const btnByText = t => [...propsCol().querySelectorAll('button')].find(b => b.textContent.trim() === t)
+propsCol().querySelector('[data-multi-duplicate]').click(); await nextTick()
+const copies = sel()
+check('多选面板「复制」：三个副本整体偏移两格（+20 / +20）、追加到最上层并成为新的选中（参考对象的副本仍排第一）；副本自成一个新组合，不和原组合混在一起', () => {
+  assert.equal(scada.draft.widgets.length, 6); assert.equal(copies.length, 3); assert.ok(copies.every(id => !ids3.includes(id)))
+  assert.deepEqual(copies.map(rectOf), ids3.map(id => ({ ...INIT[id], x: INIT[id].x + 20, y: INIT[id].y + 20 })))
+  const gc = widgetOf(copies[0]).groupId; assert.ok(gc && gc !== g0 && copies.every(id => widgetOf(id).groupId === gc)); assert.ok(ids3.every(id => widgetOf(id).groupId === g0))
+  assert.deepEqual(scada.draft.widgets.slice(-3).map(e => e.id), copies); assert.equal(scada.referenceId, copies[0])
+})
+scada.removeWidgets(copies); await nextTick()
+check('删掉副本：回到三个组件，选中里已经不存在的 id 被清掉', () => { assert.equal(scada.draft.widgets.length, 3); assert.deepEqual(sel(), []) })
+scada.setSelection(ids3); scada.ungroupSelection(); await nextTick()
+const dW2 = scada.addWidget('rect'); scada.setSelection([A.id, dW2.id]); scada.groupSelection(); assert.ok(widgetOf(A.id).groupId)
+scada.removeWidgets([dW2.id]); await nextTick()
+check('组合里的成员被删到只剩一个：落单的 groupId 自动清掉（取消组合按钮不会误亮）', () => { assert.ok(!('groupId' in widgetOf(A.id))); scada.select(A.id); assert.ok(tool('ungroup').disabled) })
+scada.select(A.id); await nextTick()
+check('单个组件面板：有「锁定」开关、旋转下拉（0°）、左右 / 上下翻转开关；位置 / 尺寸四个输入框', () => {
+  assert.ok(propsCol().querySelector('[data-scada-lock-switch]') && propsCol().querySelector('[data-scada-rotate]') && propsCol().querySelector('[data-scada-flip-x]') && propsCol().querySelector('[data-scada-flip-y]'))
+  assert.ok(propsCol().querySelector('[data-scada-rotate]').textContent.includes('0°')); assert.deepEqual(geoInputs(), ['100', '100', '100', '60'])
+  assert.ok(propsCol().textContent.includes('旋转') && propsCol().textContent.includes('翻转') && propsCol().textContent.includes('锁定'))
+})
+propsCol().querySelector('[data-scada-lock-switch]').click(); await nextTick()
+check('锁定开关：打开 → 组件 locked、位置输入框禁用；关闭 → 解除', () => {
+  assert.equal(widgetOf(A.id).locked, true); assert.ok(propsCol().querySelector('[data-scada-lock-switch]').classList.contains('n-switch--active')); propsCol().querySelector('[data-scada-lock-switch]').click()
+})
+await nextTick()
+propsCol().querySelector('[data-scada-flip-x]').click(); propsCol().querySelector('[data-scada-flip-y]').click(); await nextTick()
+check('翻转开关：flipX / flipY 直接写进组件（位置不变），wrapper 带 scale(-1, -1)；关掉后移除', () => {
+  assert.ok(!('locked' in widgetOf(A.id))); assert.equal(widgetOf(A.id).flipX, true); assert.equal(widgetOf(A.id).flipY, true); assert.equal(wrapTransform(A.id), 'scale(-1, -1)'); assert.deepEqual(rectOf(A.id), INIT[A.id])
+  propsCol().querySelector('[data-scada-flip-x]').click(); propsCol().querySelector('[data-scada-flip-y]').click()
+})
+await nextTick()
+scada.setRotation(A.id, 90); await nextTick()
+check('旋转 90° 后面板显示画面上的外框：x / y / w / h = 120 / 80 / 60 / 100（布局外框 100×60 → 视觉 60×100）；下拉显示 90°', () => {
+  assert.ok(!('flipX' in widgetOf(A.id)) && !('flipY' in widgetOf(A.id))); assert.deepEqual(geoInputs(), ['120', '80', '60', '100']); assert.ok(propsCol().querySelector('[data-scada-rotate]').textContent.includes('90°'))
+})
+await typeInto([...propsCol().querySelectorAll('.n-input-number')].filter(el => !el.querySelector('.n-input-number-suffix, .n-button'))[2].querySelector('input'), 80)
+check('在面板里改画面宽度 60 → 80：按视觉外框换算回布局外框（100 × 80），视觉左上角 (120, 80) 不动', () => {
+  assert.deepEqual(visualRect(widgetOf(A.id)), { x: 120, y: 80, w: 80, h: 100 }); assert.deepEqual([widgetOf(A.id).w, widgetOf(A.id).h], [100, 80])
+})
+scada.setRotation(A.id, 0); resetAll(); await nextTick()
+
+// ---- 保存：字段落地、展示模式隐藏 / 旋转 / 翻转；再次编辑读回 ----
+scada.setRotation(A.id, 90); scada.setFlip(A.id, 'x', true); scada.setLocked([B.id], true); scada.setHidden([C.id], true); scada.setSelection([A.id, B.id]); scada.groupSelection(); await nextTick()
+fsBtn().click(); await sleep(30); assert.equal(scada.fullscreen, true)
+await scada.save(); await nextTick(); await sleep(30)
+check('保存退出编辑：自动退出全屏（含真全屏），展示模式没有顶栏 / 排列工具栏 / 图层栏', () => {
+  assert.equal(scada.fullscreen, false); assert.equal(fsEl, null); assert.ok(!scadaRoot.classList.contains('fixed')); assert.ok(!root.querySelector('[data-scada-arrange]') && !root.querySelector('[data-scada-fullscreen]') && !layers())
+})
+check('保存到 localStorage 带上 rotate / flipX / locked / hidden / groupId（没用到的字段不写）；展示模式：隐藏的组件 display:none，旋转 / 翻转照常显示，没有手柄 / 小锁 / 选中框', () => {
+  const saved = JSON.parse(localStorage.getItem('scadaLayout')); const by = id => saved.widgets.find(w => w.id === id)
+  assert.equal(by(A.id).rotate, 90); assert.equal(by(A.id).flipX, true); assert.equal(by(B.id).locked, true); assert.equal(by(C.id).hidden, true); assert.ok(by(A.id).groupId && by(A.id).groupId === by(B.id).groupId)
+  assert.ok(!('groupId' in by(C.id)) && !('rotate' in by(B.id)) && !('flipY' in by(A.id)) && !('hidden' in by(A.id)) && !('locked' in by(A.id)))
+  assert.equal(hostEl(C.id).style.display, 'none'); assert.notEqual(hostEl(A.id).style.display, 'none'); assert.equal(wrapTransform(A.id), 'rotate(90deg) scale(-1, 1)')
+  assert.equal(canvasView.el.querySelectorAll('[data-handle], [data-lock-badge], [data-selection-frame]').length, 0); assert.ok(!/outline: [^;]*solid/.test(hostEl(A.id).getAttribute('style') || ''), '展示模式没有选中 / 虚线外框')
+})
+scada.startEdit(); await nextTick()
+check('再次编辑：字段原样读回——隐藏的组件半透明（0.35）但仍可见 / 可选，锁定的带小锁标记，A B 仍是一个组合；图层栏里隐藏 / 锁定的图标高亮', () => {
+  assert.equal(hostEl(C.id).style.opacity, '0.35'); assert.notEqual(hostEl(C.id).style.display, 'none'); assert.ok(canvasView.el.querySelector(`[data-lock-badge="${B.id}"]`))
+  assert.equal(widgetOf(A.id).rotate, 90); assert.equal(widgetOf(A.id).groupId, widgetOf(B.id).groupId); clickW(A.id); assert.deepEqual(sel(), [A.id, B.id])
+  assert.ok(root.querySelector(`[data-layer-hide="${C.id}"]`).className.includes('text-red-400')); assert.ok(root.querySelector(`[data-layer-lock="${B.id}"]`).className.includes('text-gray-800'))
+})
+scada.cancelEdit(); await nextTick()
+delete document.documentElement.requestFullscreen; delete document.exitFullscreen; delete document.fullscreenElement
+// <<< 任务 59 画布交互测试结束（后面的用例追加在这一行之前的块里）
+}
 
 app.unmount()
 check('卸载后恢复虚拟键盘', () => assert.equal(main.globalKeyBoardBlocked, false))

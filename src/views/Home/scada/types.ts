@@ -101,6 +101,20 @@ export interface WidgetInstance extends WidgetRect {
   transform?: string
   /** 组件自定义属性，结构由 WidgetDefinition.propSchema 描述 */
   props: Record<string, any>
+  /**
+   * 顺时针旋转角度，只有 0 / 90 / 180 / 270（工具栏按 90° 步进）；缺省 = 0。
+   * x / y / w / h 描述「旋转前」的外框，旋转 / 翻转绕外框中心进行（画面上的外框见 geometry.ts 的 visualRect）
+   */
+  rotate?: number
+  /** 左右 / 上下翻转（镜像）；渲染时先翻转、再旋转。缺省 = 不翻转 */
+  flipX?: boolean
+  flipY?: boolean
+  /** 锁定：不能被拖动 / 缩放 / 对齐 / 旋转 / 翻转 / 删除（仍可选中、改属性、调层级） */
+  locked?: boolean
+  /** 组合：groupId 相同的组件一起选中、移动、缩放（至少两个成员才有意义，反序列化时会清理落单的） */
+  groupId?: string
+  /** 图层里隐藏：展示模式不显示，编辑模式半透明（仍可选中） */
+  hidden?: boolean
 }
 
 /**
