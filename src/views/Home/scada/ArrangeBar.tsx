@@ -5,11 +5,13 @@
  *  - 对齐组：左 / 右 / 上 / 下边缘，垂直中心轴（中心 x 相同）、水平中心轴（中心 y 相同），「中心点 ▾」= 中心点对齐 + 三个相对整个画面居中的功能；
  *  - 分布 ▾（至少 3 个）：水平 / 垂直，等间距 或 中心等距；等宽 / 等高 / 等宽高（至少 2 个）；
  *  - 旋转 90° / 翻转（按整个选区做，单个组件绕自己的中心）；组合 / 取消组合；锁定 / 解锁；置顶 / 置底 / 上移一层 / 下移一层；网格开关。
+ * 最左边是撤销 / 重做（Ctrl + Z / Ctrl + Y，最多回溯最近 10 步，角标是当前步数）。
  * 不可用的按钮变灰（例如没选够数量、全是锁定组件）。按钮不抢焦点（mousedown 不默认聚焦），点完之后方向键 / Delete 仍然作用于画布。
  */
 import { NDropdown, type DropdownOption } from 'naive-ui'
 import { computed, defineComponent, ref } from 'vue'
 import type { CanvasCenterKind, DistributeMode } from './arrange'
+import { HISTORY_LIMIT } from './history'
 import { widgetName } from './registry'
 import { useScadaStore } from './store'
 import { toolIcons } from './toolIcons'
@@ -78,6 +80,32 @@ export default defineComponent({
       </button>
     )
     const sep = (k: string) => <span key={k} class={'shrink-0 w-px h-5 mx-1 bg-gray-300'} />
+    /** 撤销 / 重做：工具栏最左边两个按钮（用 data-tool-history，不混进下面排列按钮的 data-tool 序列）；右下角小角标 = 当前可撤销 / 可重做的步数（最多 10） */
+    const histBtn = (kind: 'undo' | 'redo') => {
+      const enabled = kind === 'undo' ? scada.canUndo : scada.canRedo
+      const n = kind === 'undo' ? scada.historyUndo : scada.historyRedo
+      const keys = kind === 'undo' ? 'Ctrl+Z' : 'Ctrl+Y'
+      return (
+        <button
+          type="button"
+          key={kind}
+          data-tool-history={kind}
+          title={`${tt('scada.tool.' + kind)} (${keys})：${tt('scada.tool.' + kind + 'Desc', { max: HISTORY_LIMIT, n })}`}
+          tabindex={-1}
+          disabled={!enabled}
+          class={[BTN, 'relative', enabled ? 'text-slate-700 hover:bg-blue-50 active:bg-blue-100' : 'opacity-40 cursor-not-allowed']}
+          onMousedown={prevent}
+          onClick={() => (kind === 'undo' ? scada.undo() : scada.redo())}
+        >
+          {toolIcons[kind]()}
+          {enabled ? (
+            <span data-history-count class={'absolute -right-0.5 -bottom-0.5 min-w-[11px] h-[11px] px-[2px] rounded-full bg-blue-600 text-white text-[8px] leading-[11px] text-center pointer-events-none'}>
+              {n}
+            </span>
+          ) : null}
+        </button>
+      )
+    }
     /** 图标 + 小三角：图标本体执行当前项，三角展开选项（选中即执行并记为当前项） */
     const split = (key: string, icon: string, title: string, enabled: boolean, run: () => void, options: DropdownOption[], anyEnabled: boolean, onSelect: (k: string) => void) => (
       <div key={key} class={'shrink-0 inline-flex items-center'} data-tool-split={key}>
@@ -125,6 +153,9 @@ export default defineComponent({
           style={{ touchAction: 'pan-x' }}
           data-scada-arrange
         >
+          {histBtn('undo')}
+          {histBtn('redo')}
+          {sep('s0')}
           {btn('alignLeft', canAlign.value, () => scada.alignSelection('left'))}
           {btn('alignRight', canAlign.value, () => scada.alignSelection('right'))}
           {btn('alignTop', canAlign.value, () => scada.alignSelection('top'))}

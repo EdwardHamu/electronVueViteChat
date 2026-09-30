@@ -53,6 +53,21 @@ export const resetCanvasView = () => {
   canvasView.panY = 0
 }
 
+let viewCenterHandler: (() => { x: number; y: number } | null) | null = null
+/**
+ * 当前窗口视野正中央对应的画布逻辑坐标（已夹进「视野 ∩ 画布」）：组件库点按组件时把它放在这里，而不是画布左上角。
+ * 画布容器还没量出尺寸（没挂载 / 测试环境）返回 null。
+ */
+export const viewCenterInCanvas = () => (viewCenterHandler ? viewCenterHandler() : null)
+
+let focusProbe: (() => boolean) | null = null
+/** 键盘焦点是否在页面空白（body）或画布容器内（页面级快捷键 Tab / Esc 取消选中用：焦点在按钮 / 输入框 / 下拉上时让控件自己处理） */
+export const canvasFocused = () => (focusProbe ? focusProbe() : true)
+
+let focusStrictProbe: (() => boolean) | null = null
+/** 键盘焦点是否确实在画布容器内（页面空白 body 不算）：用户刚点过画布 / 组件才成立，Ctrl + C 据此判断「复制组件」还是「复制页面上选着的文字」 */
+export const canvasHasFocus = () => (focusStrictProbe ? focusStrictProbe() : false)
+
 export const clientToCanvas = (clientX: number, clientY: number) => {
   const el = canvasView.el
   if (!el) return null
@@ -164,7 +179,10 @@ interface DragState {
   click: { id: string; action: 'toggle' | 'collapse'; group: boolean } | null
   /** 锁定提示每次拖动只弹一次 */
   warned: boolean
+  /** 撤销历史的合并键：这一次拖动 / 缩放手势里的所有改动只算一步 */
+  key: string
 }
+let dragSeq = 0
 
 /** 点按与拖动的分界（屏幕像素） */
 const DRAG_THRESHOLD = 3
@@ -229,6 +247,25 @@ export default defineComponent({
       if (!el) return
       size.w = el.clientWidth
       size.h = el.clientHeight
+    }
+    /**
+     * 视野正中央在画布逻辑坐标里的位置：容器（= 当前窗口视野）中心按当前缩放 / 平移反算，再夹进「视野 ∩ 画布」——
+     * 画布被平移到一侧、容器中心落在画布外时，取视野里最靠近中心的那一点。容器没量出尺寸时返回 null
+     */
+    const viewCenter = () => {
+      if (!size.w || !size.h) return null
+      const s = scale.value
+      if (!s || !Number.isFinite(s)) return null
+      const c = layout.value.canvas
+      const o = offset.value
+      const x0 = Math.max(0, -o.x / s)
+      const x1 = Math.min(c.width, (size.w - o.x) / s)
+      const y0 = Math.max(0, -o.y / s)
+      const y1 = Math.min(c.height, (size.h - o.y) / s)
+      if (x1 <= x0 || y1 <= y0) return { x: c.width / 2, y: c.height / 2 }
+      const cx = (size.w / 2 - o.x) / s
+      const cy = (size.h / 2 - o.y) / s
+      return { x: Math.min(x1, Math.max(x0, cx)), y: Math.min(y1, Math.max(y0, cy)) }
     }
 
     watchEffect(() => {
@@ -399,6 +436,9 @@ export default defineComponent({
       // 滚轮需要 preventDefault，必须以非 passive 方式注册
       containerRef.value?.addEventListener('wheel', onWheel, { passive: false })
       zoomHandler = zoomAt
+      viewCenterHandler = viewCenter
+      focusProbe = focusOnCanvas
+      focusStrictProbe = canvasContainsFocus
     })
     onBeforeUnmount(() => {
       if (ro) ro.disconnect()
@@ -408,6 +448,9 @@ export default defineComponent({
       window.removeEventListener('blur', onWindowBlur)
       containerRef.value?.removeEventListener('wheel', onWheel)
       if (zoomHandler === zoomAt) zoomHandler = null
+      if (viewCenterHandler === viewCenter) viewCenterHandler = null
+      if (focusProbe === focusOnCanvas) focusProbe = null
+      if (focusStrictProbe === canvasContainsFocus) focusStrictProbe = null
       resetGestures()
       resetCanvasView()
       if (canvasView.el === canvasRef.value) canvasView.el = null
@@ -421,6 +464,10 @@ export default defineComponent({
     const focusOnCanvas = () => {
       const active = typeof document !== 'undefined' ? document.activeElement : null
       return !active || active === document.body || !!(containerRef.value && containerRef.value.contains(active))
+    }
+    const canvasContainsFocus = () => {
+      const active = typeof document !== 'undefined' ? document.activeElement : null
+      return !!(active && containerRef.value && containerRef.value.contains(active))
     }
     /** 被锁定的组件拦下了操作：提示一下，免得用户以为没反应 */
     const notifyLocked = () => {
@@ -509,7 +556,7 @@ export default defineComponent({
       const items = movable.value.map(toArrangeItem)
       const bounds = unionRect(items.map(visualRect)) || { x: 0, y: 0, w: 0, h: 0 }
       const min = boundsMin(items, bounds)
-      drag = { mode, handle, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, items, bounds, minW: min.minW, minH: min.minH, moved: false, click, warned: false }
+      drag = { mode, handle, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, items, bounds, minW: min.minW, minH: min.minH, moved: false, click, warned: false, key: `drag:${++dragSeq}` }
       capturePointer(capture || undefined, e.pointerId)
     }
     const onWidgetPointerDown = (e: PointerEvent, w: WidgetInstance) => {
@@ -575,10 +622,10 @@ export default defineComponent({
         // 整体平移：外接框左上角吸附网格，整体不越出画布
         const nx = Math.max(0, Math.min(snap(b.x + dx, grid), canvas.width - b.w))
         const ny = Math.max(0, Math.min(snap(b.y + dy, grid), canvas.height - b.h))
-        scada.applyPatches(drag.items.map(i => ({ id: i.id, x: i.x + (nx - b.x), y: i.y + (ny - b.y), w: i.w, h: i.h })))
+        scada.applyPatches(drag.items.map(i => ({ id: i.id, x: i.x + (nx - b.x), y: i.y + (ny - b.y), w: i.w, h: i.h })), { merge: drag.key })
       } else if (drag.handle) {
         const next = resizeBounds(b, drag.handle, dx, dy, { grid, canvas, minW: drag.minW, minH: drag.minH, keepAspect: e.shiftKey })
-        scada.applyPatches(scaleItems(drag.items, b, next))
+        scada.applyPatches(scaleItems(drag.items, b, next), { merge: drag.key })
       }
     }
     const onPointerUp = (e: PointerEvent) => {

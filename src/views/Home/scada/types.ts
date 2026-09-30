@@ -194,9 +194,22 @@ export interface CanvasConfig {
   grid: number
 }
 
+/**
+ * 内部变量（数据源 local）的定义：key 是稳定的标识（形如 var17，自动编号、不复用），name 是用户起的名字（空 = 用默认名「变量 N」）。
+ * 定义随布局一起保存 / 导出 / 撤销；变量的「值」是运行期数据，不在布局里（见 dataSource/localSource.ts）。
+ */
+export interface LocalVarDef {
+  key: string
+  name: string
+}
+
 export interface ScadaLayout {
   version: number
   canvas: CanvasConfig
   widgets: WidgetInstance[]
+  /** 内部变量定义；老布局没有这个字段，读入时补默认的 var1 ~ var16（layout.ts） */
+  variables?: LocalVarDef[]
+  /** 下一个自动编号（删掉 var17 后新增得到 var18，不复用旧标识） */
+  variableSeq?: number
   updatedAt?: number
 }

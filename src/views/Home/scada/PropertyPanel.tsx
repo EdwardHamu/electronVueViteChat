@@ -19,6 +19,7 @@ import { transformErrors } from './transform'
 import TransformDialog from './TransformDialog'
 import CodeDialog, { codeParts } from './CodeDialog'
 import type { PropField, WidgetInstance } from './types'
+import { LOCAL_SOURCE_ID } from './variables'
 import { tt } from './widgets/common'
 
 const Row = (props: { label: string }, { slots }: { slots: any }) => (
@@ -248,6 +249,14 @@ export default defineComponent({
               />
             </Row>
             {itemOptions.value.length === 0 && <div class={'text-xs text-orange-500 mt-1'}>{tt('scada.panel.noOptions')}</div>}
+            {/* 内部变量可以增删改名：从这里直接打开管理弹窗 */}
+            {sourceId.value === LOCAL_SOURCE_ID ? (
+              <div class={'mt-1'}>
+                <NButton size="tiny" quaternary type="primary" data-scada-vars-manage onClick={() => (scada.varsShow = true)}>
+                  {tt('scada.vars.manage')}
+                </NButton>
+              </div>
+            ) : null}
           </Section>
           <Section title={tt('scada.panel.geometry')}>
             {/* 两列紧凑排布：标签只占 1 个字符宽、不显示 +/- 按钮，否则 300px 侧栏里每格只剩 40px，数字显示不出来 */}
@@ -438,10 +447,13 @@ export default defineComponent({
             const cf = codeField.value
             if (!cf) return
             const w = scada.draft?.widgets.find(e => e.id === cf.widgetId)
-            codeParts(cf.field).forEach(p => {
-              // 只写回真正改动的段，避免无谓地触发 iframe 重载
-              if (!w || String(w.props[p.key] ?? '') !== String(values[p.key] ?? '')) scada.setWidgetProp(cf.widgetId, p.key, values[p.key] ?? '')
-            })
+            // HTML / CSS 同时改了也只算撤销历史里的一步
+            scada.batch(() =>
+              codeParts(cf.field).forEach(p => {
+                // 只写回真正改动的段，避免无谓地触发 iframe 重载
+                if (!w || String(w.props[p.key] ?? '') !== String(values[p.key] ?? '')) scada.setWidgetProp(cf.widgetId, p.key, values[p.key] ?? '')
+              })
+            )
           }}
           onClose={() => (codeField.value = null)}
         />

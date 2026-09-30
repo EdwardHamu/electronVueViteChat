@@ -15,6 +15,7 @@
  *       任务 43 / 59：颜色字段改成向上弹出的浮动面板（Teleport 到 body、fixed 定位、头顶放不下翻到下方、靠右缘时左移、滚动 / 缩放跟随），打开另一个 / 点面板外 / 焦点落到别处 / Esc / ✕ 收起，面板内操作不收起。
  *       任务 59：排列运算纯函数（对齐 / 居中 / 分布 / 等宽高 / 旋转 / 翻转 / 八点缩放 / 图层顺序 / 旋转几何 / 布局反序列化 / 指针落点换算）、Ctrl·⌘·Shift 多选与参考对象、八个缩放手柄（单个 / 多选 / Shift 等比 / 边界 / 最小尺寸）、网格开关、
  *       排列工具栏（按钮状态 / 对齐 / 画面居中下拉 / 分布 / 等宽高 / 旋转 / 翻转 / 组合 / 锁定 / 层次）、图层栏（选择同步 / 拖动排序 / 眼睛 / 挂锁 / 旗标 / 显隐开关 / 竖屏位置）、全屏（冻结整页尺寸 / Esc / Fullscreen API 桩）、属性面板（多选面板 / 锁定 / 旋转 / 翻转）、保存与读回。
+ *       任务 60：撤销 / 重做（历史栈纯函数：最多 10 步 / 同键 1 秒窗口合并 / 撤销后不再合并；按钮与角标、一次拖动 / 连续打字 / 方向键连按各算一步、batch、没有实际改动不占步数、选中项与 dirty 回溯、退出编辑清空）、Ctrl+S 保存并继续（留在编辑、历史保留、延后清理资源、输入框先失焦、弹窗 / 非编辑状态不响应）+「保存并继续」按钮、组件库点按放到视野正中央（量不出尺寸退画布中心 / 缩放平移后换算 / 中心在画布外时夹紧 / 连续点按错开两格 / 拖放不变）、内部变量管理（变量定义进布局、弹窗增删改名查重、被引用时确认删除并解绑、撤销 / 取消 / Ctrl+Enter、key 不复用、随保存落盘并在退出保存时清值、属性面板入口）、快捷键（Ctrl+C/X/V/D/L、Ctrl+] [、Tab、Esc、F11、F1；输入框 / 弹窗里不拦截）
  * 说明：@/store、@/store/config 与 @/utils/callm 被 stubs/ 里的桩替换（真实模块会把 echarts 等整套依赖拉进来）。
  */
 import { build } from 'esbuild'
@@ -66,6 +67,12 @@ export { createZip, readZip, zipEntryText, crc32, buildPackage, parsePackage, pl
 import { replaceResourceRefs, cleanupUnusedResources, listResourceFiles, deleteResourceFile, HOST_GENERATED_NAME } from '@/views/Home/scada/resource'
 import { exportPackageViaHost, previewPackageViaHost, importPackageViaHost, layoutFromHostImport } from '@/views/Home/scada/package'
 export { replaceResourceRefs, cleanupUnusedResources, listResourceFiles, deleteResourceFile, HOST_GENERATED_NAME, exportPackageViaHost, previewPackageViaHost, importPackageViaHost, layoutFromHostImport }
+import * as hist from '@/views/Home/scada/history'
+import * as sc from '@/views/Home/scada/shortcuts'
+import * as vars from '@/views/Home/scada/variables'
+import { viewCenterInCanvas, canvasFocused } from '@/views/Home/scada/Canvas'
+import { localDataSource, pruneLocalVarValues, resetLocalVars, LOCAL_VARS_KEY } from '@/views/Home/scada/dataSource/localSource'
+export { hist, sc, vars, viewCenterInCanvas, canvasFocused, localDataSource, pruneLocalVarValues, resetLocalVars, LOCAL_VARS_KEY }
 `)
 const stubs = {
   '@/store': path.join(here, 'stubs', 'store.ts'),
@@ -609,10 +616,10 @@ paletteCol().querySelector('[data-palette-view="grid"]').click(); await nextTick
 check('切回网格视图', () => { assert.equal(localStorage.getItem('scadaPaletteView'), 'grid'); assert.ok(paletteCol().querySelector('[data-palette-item="line"]').className.includes('flex-col')) })
 
 root.querySelector('[data-scada-help]').click(); await nextTick(); await sleep(30)
-check('顶栏“?”按钮打开操作说明弹窗：6 节（组件库 / 画布 / 组件 / 排列与图层 / 展示模式 / 控制组件），含缩放 / 平移 / 微调 / 多选 / 八点缩放 / 图层 / 全屏说明', () => {
+check('顶栏“?”按钮打开操作说明弹窗：8 节（组件库 / 画布 / 组件 / 排列与图层 / 快捷键 / 内部变量 / 展示模式 / 控制组件），含缩放 / 平移 / 微调 / 多选 / 八点缩放 / 图层 / 全屏 / 撤销 / 快捷键说明', () => {
   const c = document.body.querySelector('.n-modal-container [data-scada-help-content]'); assert.ok(c)
-  assert.equal(c.children.length, 6); assert.ok(c.querySelectorAll('li').length >= 10)
-  for (const kw of ['滚轮', '空格', '方向键', '右键', '内部变量', 'Ctrl', '8 个手柄', '参考对象', '图层', '全屏']) assert.ok(c.textContent.includes(kw), kw)
+  assert.equal(c.children.length, 8); assert.ok(c.querySelectorAll('li').length >= 10)
+  for (const kw of ['滚轮', '空格', '方向键', '右键', '内部变量', 'Ctrl', '8 个手柄', '参考对象', '图层', '全屏', '快捷键', 'Ctrl + Z', 'Ctrl + S', '视野的正中央']) assert.ok(c.textContent.includes(kw), kw)
   assert.ok(document.body.querySelector('.n-modal-container').textContent.includes('操作说明'))
 })
 document.body.querySelector('.n-modal-container .n-card-header__close').click(); await nextTick(); await sleep(60)
@@ -1913,7 +1920,7 @@ const fireResize = () => globalThis.__resizeCallbacks.forEach(cb => { try { cb([
 const fitBtn = () => [...propsCol().querySelectorAll('button')].find(b => b.textContent.includes('适配当前屏幕'))
 scada.select(null); setSize(800, 600); fireResize(); await nextTick()
 check('全屏按钮在第一行工具栏（取消 / 保存之前）：默认「全屏」，根元素是页面里的 w-full h-full；「适配当前屏幕」按整页尺寸 800×600', () => {
-  assert.ok(fsBtn()); assert.equal(fsBtn().textContent.trim(), '全屏'); assert.ok(fsBtn().title === '全屏'); assert.ok(fsBtn().parentElement.className.includes('h-11')); assert.ok(scadaRoot.className.includes('w-full') && scadaRoot.className.includes('h-full') && !scadaRoot.className.includes('fixed'))
+  assert.ok(fsBtn()); assert.equal(fsBtn().textContent.trim(), '全屏'); assert.ok(fsBtn().title === '全屏'); assert.ok(fsBtn().closest('[data-scada-toolbar]').className.includes('h-11')); assert.ok(scadaRoot.className.includes('w-full') && scadaRoot.className.includes('h-full') && !scadaRoot.className.includes('fixed'))
   assert.ok(fitBtn().textContent.includes('(800×600)'), fitBtn().textContent); assert.equal(scada.fullscreen, false)
 })
 fsBtn().click(); await nextTick()
@@ -2043,6 +2050,559 @@ scada.cancelEdit(); await nextTick()
 delete document.documentElement.requestFullscreen; delete document.exitFullscreen; delete document.fullscreenElement
 // <<< 任务 59 画布交互测试结束（后面的用例追加在这一行之前的块里）
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// >>> 任务 60 测试开始
+
+// ---------------- 任务 60：撤销 / 重做 · 组件库点按居中 · 内部变量管理 · Ctrl+S 保存并继续 · 快捷键 ----------------
+{
+const { hist, sc, vars, viewCenterInCanvas, canvasFocused, localDataSource, pruneLocalVarValues, resetLocalVars, LOCAL_VARS_KEY } = m
+const msgs = []
+const prevMsg = window.$message
+window.$message = { success: t => msgs.push(['success', t]), warning: t => msgs.push(['warning', t]), error: t => msgs.push(['error', t]) }
+const lastMsg = () => msgs[msgs.length - 1]
+resetLocalVars()
+
+// ---- 纯函数：历史栈 / 快捷键匹配 / 变量整理 / 布局读写 ----
+check('撤销历史（纯函数）：最多 10 步（丢最早的）、撤销 / 重做往返、新改动清空重做栈', () => {
+  const E = n => ({ json: 'J' + n, selection: [], label: 'a' + n })
+  const h = hist.createHistory('S0')
+  assert.equal(hist.HISTORY_LIMIT, 10)
+  for (let i = 0; i < 12; i++) hist.pushStep(h, E(i), undefined, 1000 + i)
+  assert.equal(h.undo.length, 10); assert.equal(h.undo[0].json, 'J2'); assert.equal(h.undo[9].json, 'J11')
+  assert.equal(hist.takeUndo(h, E('cur')).json, 'J11'); assert.equal(h.undo.length, 9); assert.equal(h.redo.length, 1)
+  assert.equal(hist.takeRedo(h, E('cur2')).json, 'Jcur'); assert.equal(h.undo.length, 10); assert.equal(h.redo.length, 0)
+  assert.equal(hist.takeRedo(h, E('none')), null)
+  hist.takeUndo(h, E('c')); hist.pushStep(h, E('new'), undefined, 9000); assert.equal(h.redo.length, 0)
+  const empty = hist.createHistory(); assert.equal(hist.takeUndo(empty, E('x')), null); assert.equal(empty.redo.length, 0)
+  hist.resetHistory(h, 'S1'); assert.deepEqual([h.undo.length, h.redo.length, h.savedJson, h.lastKey], [0, 0, 'S1', undefined])
+})
+check('撤销历史（纯函数）：同键在窗口期内合并（窗口 1 秒、合并会刷新时间、Infinity 不限时），撤销之后不再合并', () => {
+  const E = n => ({ json: 'J' + n, selection: [], label: 'a' + n })
+  const g = hist.createHistory('S')
+  assert.equal(hist.canMerge(g, 'k', 1000), false) // 栈空
+  hist.pushStep(g, E(1), 'k', 1000)
+  assert.equal(hist.canMerge(g, 'k', 2000), true); assert.equal(hist.canMerge(g, 'k', 2001), false)
+  assert.equal(hist.canMerge(g, 'other', 1100), false); assert.equal(hist.canMerge(g, undefined, 1100), false)
+  assert.equal(hist.canMerge(g, 'k', 1e9, Infinity), true)
+  hist.mergeStep(g, 1900); assert.equal(hist.canMerge(g, 'k', 2800), true); assert.equal(g.undo.length, 1)
+  hist.takeUndo(g, E('x')); assert.equal(g.lastKey, undefined); assert.equal(hist.canMerge(g, 'k', 2800), false)
+  assert.equal(hist.snapshotJson({ canvas: { a: 1 }, widgets: [], variables: [{ key: 'var1', name: '' }], variableSeq: 2, updatedAt: 5 }), JSON.stringify({ canvas: { a: 1 }, widgets: [], variables: [{ key: 'var1', name: '' }], variableSeq: 2 }))
+})
+check('快捷键匹配（纯函数）：Ctrl / ⌘ + Z Y S C X V D L [ ]，Tab，Esc，F11，F1；多按修饰键 / 没按 Ctrl 的不匹配（Ctrl+A / G 等留给画布）', () => {
+  const M = (key, init = {}) => sc.matchShortcut({ key, ...init })
+  assert.equal(M('z', { ctrlKey: true }), 'undo'); assert.equal(M('Z', { metaKey: true }), 'undo')
+  assert.equal(M('z', { ctrlKey: true, shiftKey: true }), 'redo'); assert.equal(M('Z', { ctrlKey: true, shiftKey: true }), 'redo'); assert.equal(M('y', { ctrlKey: true }), 'redo')
+  for (const [k, id] of [['s', 'save'], ['c', 'copy'], ['x', 'cut'], ['v', 'paste'], ['d', 'duplicate'], ['l', 'lock']]) { assert.equal(M(k, { ctrlKey: true }), id, k); assert.equal(M(k.toUpperCase(), { metaKey: true }), id, k) }
+  assert.equal(M(']', { ctrlKey: true, code: 'BracketRight' }), 'forward'); assert.equal(M('}', { ctrlKey: true, shiftKey: true, code: 'BracketRight' }), 'toFront')
+  assert.equal(M('[', { ctrlKey: true, code: 'BracketLeft' }), 'backward'); assert.equal(M('{', { ctrlKey: true, shiftKey: true, code: 'BracketLeft' }), 'toBack'); assert.equal(M(']', { ctrlKey: true }), 'forward')
+  assert.equal(M('Tab'), 'selectNext'); assert.equal(M('Tab', { shiftKey: true }), 'selectPrev'); assert.equal(M('Escape'), 'deselect'); assert.equal(M('F11'), 'fullscreen'); assert.equal(M('F1'), 'help')
+  const none = [M('z'), M('s'), M('z', { ctrlKey: true, altKey: true }), M('s', { ctrlKey: true, shiftKey: true }), M('a', { ctrlKey: true }), M('g', { ctrlKey: true }), M('Tab', { ctrlKey: true }), M('Escape', { altKey: true }), M('F11', { ctrlKey: true }), M('Delete'), M('ArrowLeft')]
+  none.forEach((r, i) => assert.equal(r, null, String(i))); assert.equal(sc.matchShortcut(null), null)
+  const mk = (tag, attrs = {}) => { const el = document.createElement(tag); Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v)); return el }
+  assert.ok(sc.isTextEntry(mk('input')) && sc.isTextEntry(mk('textarea')) && sc.isTextEntry(mk('select'))); assert.ok(!sc.isTextEntry(mk('button')) && !sc.isTextEntry(mk('div')) && !sc.isTextEntry(null) && !sc.isTextEntry(window))
+})
+check('内部变量（纯函数）：默认 var1~16、默认名 / 显示名、自动编号不复用、整理（丢非法 / 重复 key、名字限长）、使用者 / 解绑', () => {
+  assert.deepEqual(vars.defaultVariables().map(v => v.key), Array.from({ length: 16 }, (_, i) => 'var' + (i + 1)))
+  assert.equal(vars.varDisplayName({ key: 'var3', name: '' }, '变量'), '变量 3'); assert.equal(vars.varDisplayName({ key: 'var3', name: ' 压力 ' }, '变量'), '压力'); assert.equal(vars.varDisplayName({ key: 'p_1' }, '变量'), '变量 p_1')
+  assert.equal(vars.nextVarSeq(vars.defaultVariables()), 17); assert.equal(vars.nextVarSeq([{ key: 'var3' }], 10), 10); assert.equal(vars.nextVarSeq([{ key: 'var30' }], 10), 31); assert.equal(vars.nextVarSeq([], undefined), 1); assert.equal(vars.nextVarSeq([], 'x'), 1)
+  assert.equal(vars.sanitizeVariables('x'), null)
+  const s = vars.sanitizeVariables([{ key: 'var1', name: '  a  ' }, { key: 'var1', name: 'dup' }, { key: 'bad key' }, null, { key: 'x'.repeat(40) }, { key: 'var2', name: 'n'.repeat(60) }, { key: 7 }, { key: 'ok-1' }])
+  assert.deepEqual(s.map(v => v.key), ['var1', 'var2', 'ok-1']); assert.equal(s[0].name, 'a'); assert.equal(s[1].name.length, 40); assert.equal(s[2].name, '')
+  const W = (id, binding, props = {}) => ({ id, binding, props })
+  const ws = [W('a', { source: 'local', key: 'var3' }), W('b', { source: 'product', key: 'var3' }), W('c', null, { source: 'local', items: ['var3', 'var4'] }), W('d', null, { source: 'sim', items: ['var3'] }), W('e', null)]
+  assert.deepEqual(vars.variableUsers(ws, 'var3').map(w => w.id), ['a', 'c']); assert.deepEqual(vars.variableUsers(ws, 'var9'), [])
+  assert.equal(vars.unbindVariables(ws, new Set(['var3'])), 1); assert.equal(ws[0].binding, null); assert.ok(ws[1].binding); assert.deepEqual(ws[2].props.items, ['var3', 'var4'])
+})
+check('布局读写：老布局 / 新布局补默认 var1~16（下一个编号 17）；带 variables 的按整理后的保留；空数组就是空；编号不小于已有 + 1；序列化往返', () => {
+  const a = normalizeLayout({ canvas: { width: 800, height: 400 }, widgets: [] }); assert.equal(a.variables.length, 16); assert.equal(a.variableSeq, 17)
+  const b = normalizeLayout({ widgets: [], variables: [{ key: 'var2', name: '压力' }, { key: 'var2' }, { key: 'bad key' }], variableSeq: 30 })
+  assert.deepEqual(b.variables, [{ key: 'var2', name: '压力' }]); assert.equal(b.variableSeq, 30)
+  const c = normalizeLayout({ widgets: [], variables: [] }); assert.deepEqual(c.variables, []); assert.equal(c.variableSeq, 1)
+  assert.equal(normalizeLayout({ widgets: [], variables: [{ key: 'var40', name: '' }], variableSeq: 3 }).variableSeq, 41)
+  assert.deepEqual(normalizeLayout(JSON.parse(JSON.stringify(b))).variables, b.variables)
+})
+
+// ---- 公用小工具 ----
+let pid60 = 6000
+const ptr60 = (el, type, x, y, init = {}) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, pointerId: 1, ...init }))
+const dragMoves = (el, pts) => { const pointerId = ++pid60; ptr60(el, 'pointerdown', 0, 0, { pointerId }); pts.forEach(([x, y]) => ptr60(el, 'pointermove', x, y, { pointerId })); const [lx, ly] = pts[pts.length - 1]; ptr60(el, 'pointerup', lx, ly, { pointerId }) }
+const press = (k, init = {}, target = window) => { const ev = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init }); target.dispatchEvent(ev); return ev }
+const ctrl = (k, init = {}, target = window) => press(k, { ctrlKey: true, ...init }, target)
+const undoBtn = () => root.querySelector('[data-tool-history="undo"]')
+const redoBtn = () => root.querySelector('[data-tool-history="redo"]')
+const W = id => scada.draft.widgets.find(w => w.id === id)
+const order = () => scada.draft.widgets.map(w => w.id)
+const hostOf = id => canvasView.el.querySelector(`[data-widget-id="${id}"]`)
+const fresh = async () => {
+  if (scada.editing) scada.cancelEdit()
+  await nextTick()
+  await scada.applyLayout(normalizeLayout({ canvas: { width: 1000, height: 600, grid: 10 }, widgets: [] }))
+  scada.startEdit(); await nextTick(); await nextTick()
+}
+const textInput = () => { const el = document.createElement('input'); el.type = 'text'; document.body.appendChild(el); el.focus(); return el }
+
+// ---- 撤销 / 重做：按钮 + 步数 ----
+await fresh()
+check('进入编辑：撤销 / 重做是排列工具栏最左边的两个按钮（不混进 25 个排列按钮）、都置灰、没有步数角标', () => {
+  const bar = root.querySelector('[data-scada-arrange]'); const btns = [...bar.querySelectorAll('button')]
+  assert.equal(btns[0], undoBtn()); assert.equal(btns[1], redoBtn()); assert.equal(bar.querySelectorAll('[data-tool]').length, 25)
+  assert.ok(undoBtn().disabled && redoBtn().disabled); assert.ok(!undoBtn().querySelector('[data-history-count]'))
+  assert.equal(scada.canUndo, false); assert.equal(scada.canRedo, false); assert.equal(scada.dirty, false)
+})
+const A1 = scada.addWidget('rect', { x: 200, y: 100 }); await nextTick()
+check('加一个组件 = 一步：撤销按钮亮起（角标 1；提示含 Ctrl+Z 与「最近 10 步」）、重做仍置灰、草稿变脏', () => {
+  assert.equal(scada.historyUndo, 1); assert.ok(!undoBtn().disabled); assert.equal(undoBtn().querySelector('[data-history-count]').textContent.trim(), '1'); assert.ok(redoBtn().disabled); assert.equal(scada.dirty, true)
+  assert.ok(undoBtn().title.includes('Ctrl+Z') && undoBtn().title.includes('10') && undoBtn().title.includes('撤销'), undoBtn().title); assert.ok(redoBtn().title.includes('Ctrl+Y') && redoBtn().title.includes('重做'), redoBtn().title)
+})
+const a1Rect = { x: W(A1.id).x, y: W(A1.id).y }
+undoBtn().click(); await nextTick()
+check('点撤销：组件消失、回到起点（dirty 复位）、选中项恢复成操作之前（无）、重做亮起并带角标 1、撤销置灰', () => {
+  assert.equal(scada.draft.widgets.length, 0); assert.equal(scada.dirty, false); assert.deepEqual([...scada.selectedIds], []); assert.equal(scada.historyUndo, 0); assert.equal(scada.historyRedo, 1)
+  assert.ok(undoBtn().disabled); assert.ok(!redoBtn().disabled); assert.equal(redoBtn().querySelector('[data-history-count]').textContent.trim(), '1')
+})
+redoBtn().click(); await nextTick()
+check('点重做：同一个组件（id / 位置不变）回来并重新选中，dirty 重新为 true', () => {
+  assert.equal(scada.draft.widgets.length, 1); assert.equal(W(A1.id).x, a1Rect.x); assert.equal(W(A1.id).y, a1Rect.y); assert.deepEqual([...scada.selectedIds], [A1.id]); assert.equal(scada.dirty, true); assert.equal(scada.historyRedo, 0); assert.equal(scada.historyUndo, 1)
+  assert.ok(hostOf(A1.id), '画布按恢复后的数据重新渲染')
+})
+
+// ---- 最多 10 步 + 快捷键 ----
+await fresh()
+for (let i = 0; i < 12; i++) scada.addWidget('rect', { x: 100 + i * 60, y: 100 })
+check('历史最多 10 步：连续 12 次添加只能撤销 10 次，更早的两次回不去；重做栈同样最多 10 步', () => {
+  assert.equal(scada.historyUndo, 10); assert.equal(scada.draft.widgets.length, 12)
+  for (let i = 0; i < 10; i++) assert.equal(scada.undo(), true)
+  assert.equal(scada.draft.widgets.length, 2); assert.equal(scada.undo(), false); assert.equal(scada.historyUndo, 0); assert.equal(scada.historyRedo, 10)
+  for (let i = 0; i < 10; i++) assert.equal(scada.redo(), true)
+  assert.equal(scada.draft.widgets.length, 12); assert.equal(scada.redo(), false)
+})
+const evZ = ctrl('z'); await nextTick()
+check('Ctrl+Z 撤销并 preventDefault；Ctrl+Y、Ctrl+Shift+Z、⌘+Z / ⌘+Shift+Z 同样有效', () => {
+  assert.ok(evZ.defaultPrevented); assert.equal(scada.draft.widgets.length, 11)
+  const y = ctrl('y'); assert.ok(y.defaultPrevented); assert.equal(scada.draft.widgets.length, 12)
+  ctrl('z'); assert.equal(scada.draft.widgets.length, 11); ctrl('Z', { shiftKey: true }); assert.equal(scada.draft.widgets.length, 12)
+  press('z', { metaKey: true }); assert.equal(scada.draft.widgets.length, 11); press('Z', { metaKey: true, shiftKey: true }); assert.equal(scada.draft.widgets.length, 12)
+})
+
+// ---- 合并规则：拖动 / 打字 / 方向键 ----
+await fresh()
+const D = scada.addWidget('rect', { x: 300, y: 200 }); await nextTick()
+const dx0 = W(D.id).x; const n0 = scada.historyUndo
+dragMoves(hostOf(D.id), [[10, 5], [20, 10], [33, 18], [48, 25], [53, 28]]); await nextTick()
+check('画布上拖一次 = 一步（整个手势只记一步，中途每次 pointermove 都不另记）；撤销回到拖之前', () => {
+  assert.equal(scada.historyUndo, n0 + 1); assert.equal(W(D.id).x, dx0 + 50)
+  scada.undo(); assert.equal(W(D.id).x, dx0); assert.equal(scada.historyUndo, n0); scada.redo(); assert.equal(W(D.id).x, dx0 + 50)
+})
+const afterFirst = { x: W(D.id).x, y: W(D.id).y }
+dragMoves(hostOf(D.id), [[30, 0], [60, 0]]); dragMoves(hostOf(D.id), [[0, 30], [0, 60]]); await nextTick()
+check('连着拖两次 = 两步（合并键按手势区分）；各自撤销', () => {
+  assert.equal(scada.historyUndo, n0 + 3); assert.ok(W(D.id).x > afterFirst.x && W(D.id).y > afterFirst.y)
+  scada.undo(); scada.undo(); assert.deepEqual({ x: W(D.id).x, y: W(D.id).y }, afterFirst)
+})
+const T = scada.addWidget('textLabel', { x: 600, y: 400 }); const nT = scada.historyUndo
+scada.setWidgetProp(T.id, 'text', 'a'); scada.setWidgetProp(T.id, 'text', 'ab'); scada.setWidgetProp(T.id, 'text', 'abc')
+check('同一属性 1 秒内连续改动（输入框打字）合并成一步；换一个属性另起一步；撤销回到打字之前', () => {
+  assert.equal(scada.historyUndo, nT + 1); scada.setWidgetProp(T.id, 'fontSize', 20); assert.equal(scada.historyUndo, nT + 2)
+  scada.undo(); assert.equal(W(T.id).props.fontSize, 0); assert.equal(W(T.id).props.text, 'abc'); scada.undo(); assert.equal(W(T.id).props.text, ''); assert.equal(scada.historyUndo, nT)
+})
+check('撤销之后再改同一属性不会并进已被撤销的那一步：重做栈清空，再撤销回到原值（不是 abc）', () => {
+  scada.setWidgetProp(T.id, 'text', 'Z'); assert.equal(scada.historyRedo, 0); assert.equal(scada.historyUndo, nT + 1); scada.undo(); assert.equal(W(T.id).props.text, '')
+})
+{
+  const realNow = Date.now; let clock = realNow(); Date.now = () => clock
+  try {
+    const n1 = scada.historyUndo
+    scada.setWidgetProp(T.id, 'text', 'x1'); clock += 400; scada.setWidgetProp(T.id, 'text', 'x2'); clock += 900; scada.setWidgetProp(T.id, 'text', 'x3')
+    const merged = scada.historyUndo - n1; clock += 1100; scada.setWidgetProp(T.id, 'text', 'x4'); const split = scada.historyUndo - n1
+    check('合并有 1 秒窗口：每次合并都刷新计时（900ms 间隔一直并），停顿超过 1 秒再改就另起一步', () => { assert.equal(merged, 1); assert.equal(split, 2); scada.undo(); assert.equal(W(T.id).props.text, 'x3'); scada.undo(); assert.equal(W(T.id).props.text, '') })
+  } finally { Date.now = realNow }
+}
+scada.select(D.id); const dxN = W(D.id).x; const nN = scada.historyUndo
+for (let i = 0; i < 5; i++) press('ArrowRight'); await nextTick()
+check('方向键连按微调合并成一步（撤销一次回到按键之前）', () => { assert.equal(W(D.id).x, dxN + 5); assert.equal(scada.historyUndo, nN + 1); scada.undo(); assert.equal(W(D.id).x, dxN) })
+
+// ---- 撤销覆盖的其它改动 + 不该记的不记 ----
+await fresh()
+const P = scada.addWidget('rect', { x: 200, y: 200 }), Q = scada.addWidget('circle', { x: 500, y: 300 }); await nextTick()
+check('撤销把选中项恢复成操作之前：选 P 再加 Q（选中 Q），撤销后选中回到 P', () => { scada.select(P.id); scada.addWidget('ellipse', { x: 800, y: 500 }); scada.undo(); assert.deepEqual([...scada.selectedIds], [P.id]) })
+check('删除组件可撤销（回到原来的层级位置）；置顶可撤销；画布属性（尺寸）可撤销并带回被收拢的组件；重做都能重来', () => {
+  const o0 = order(); scada.select(P.id); scada.removeSelected(); assert.equal(scada.draft.widgets.length, 1); scada.undo(); assert.deepEqual(order(), o0); assert.ok(W(P.id))
+  scada.bringToFront(P.id); assert.deepEqual(order(), [Q.id, P.id]); scada.undo(); assert.deepEqual(order(), o0)
+  const qx = W(Q.id).x; scada.setCanvas({ width: 300 }); assert.ok(W(Q.id).x < qx); assert.equal(scada.draft.canvas.width, 300); scada.undo(); assert.equal(scada.draft.canvas.width, 1000); assert.equal(W(Q.id).x, qx)
+  scada.redo(); assert.equal(scada.draft.canvas.width, 300); scada.undo(); assert.equal(scada.draft.canvas.width, 1000)
+})
+check('没有实际改动的调用不占历史（重复设置相同值 / 相同位置 / 对齐没变 / 重复锁定状态），选择 / 网格开关 / 全选这类视图状态也不记', () => {
+  const n = scada.historyUndo; const r = { x: W(P.id).x, y: W(P.id).y, w: W(P.id).w, h: W(P.id).h }
+  scada.setWidgetProp(P.id, 'radius', W(P.id).props.radius); scada.updateWidgetRect(P.id, r); scada.setLocked([P.id], false); scada.setHidden([P.id], false)
+  scada.select(P.id); scada.selectAll(); scada.setSelection([Q.id]); scada.gridOn = !scada.gridOn; scada.gridOn = !scada.gridOn; scada.alignSelection('left')
+  assert.equal(scada.historyUndo, n)
+})
+check('batch：几个连续改动并成一步，一次撤销全部回去', () => {
+  const n = scada.historyUndo; const before = JSON.stringify([W(P.id).props, W(P.id).x, W(P.id).title])
+  scada.batch(() => { scada.setWidgetProp(P.id, 'radius', 9); scada.updateWidget(P.id, { title: 'T' }); scada.updateWidgetRect(P.id, { x: 10, y: 10, w: 150, h: 90 }) })
+  assert.equal(scada.historyUndo, n + 1); assert.equal(W(P.id).title, 'T'); scada.undo(); assert.equal(JSON.stringify([W(P.id).props, W(P.id).x, W(P.id).title]), before)
+})
+scada.cancelEdit(); await nextTick()
+check('退出编辑后历史清空（undo 返回 false、没有撤销按钮）；重新进入编辑从 0 步开始', () => {
+  assert.equal(scada.undo(), false); assert.equal(scada.redo(), false); assert.equal(scada.canUndo, false); assert.equal(scada.historyUndo, 0); assert.equal(scada.historyRedo, 0); assert.ok(!undoBtn())
+  scada.startEdit(); assert.equal(scada.historyUndo, 0); assert.equal(scada.canUndo, false); scada.cancelEdit()
+})
+
+// ---- Ctrl+S / 「保存并继续」：保存但留在编辑模式 ----
+await fresh()
+const saveStayBtn = () => root.querySelector('[data-scada-save-stay]')
+const saveBtn = () => root.querySelector('[data-scada-save]')
+check('第一行工具栏：「内部变量」按钮、「保存并继续」排在「保存」前面', () => {
+  assert.equal(saveStayBtn().textContent.trim(), '保存并继续'); assert.equal(saveBtn().textContent.trim(), '保存'); assert.ok(saveStayBtn().compareDocumentPosition(saveBtn()) & 4, '保存并继续 → 保存')
+  assert.equal(root.querySelector('[data-scada-vars]').textContent.trim(), '内部变量'); assert.ok(!saveStayBtn().disabled && !saveBtn().disabled)
+})
+check('第一行工具栏分两半：左半边（编辑标签 / 面板开关 / 内部变量 / 缩放 / ? / ⋯）窄屏时横向滚动，右半边（全屏 / 取消 / 保存并继续 / 保存）固定在右侧不被挤出屏幕', () => {
+  const tb = root.querySelector('[data-scada-toolbar]'), left = tb.querySelector('[data-scada-toolbar-left]'), right = tb.querySelector('[data-scada-toolbar-right]')
+  assert.ok(tb.className.includes('h-11')); assert.ok(left.className.includes('overflow-x-auto') && left.className.includes('min-w-0') && left.className.includes('flex-1')); assert.ok(right.className.includes('shrink-0'))
+  assert.deepEqual([...right.querySelectorAll('button')].map(b => b.textContent.trim()), ['全屏', '取消', '保存并继续', '保存']); assert.ok(left.contains(root.querySelector('[data-scada-vars]')) && left.contains(root.querySelector('[data-scada-help]')) && !left.contains(saveBtn()))
+  assert.equal(tb.nextElementSibling, root.querySelector('[data-scada-arrange]'))
+})
+const S1 = scada.addWidget('rect', { x: 400, y: 300 }); await nextTick()
+const savedBefore = localStorage.getItem('scadaLayout'); let listN = calls.list || 0
+msgs.length = 0
+const evS = ctrl('s'); await sleep(60); await nextTick()
+check('Ctrl+S：preventDefault、落到 localStorage、仍在编辑模式、草稿 / 撤销历史保留、dirty 复位、提示「组态已保存，可继续编辑」；此时不清理宿主资源', () => {
+  assert.ok(evS.defaultPrevented); assert.equal(scada.editing, true); assert.ok(scada.draft); assert.equal(scada.dirty, false); assert.equal(scada.saving, false)
+  const saved = JSON.parse(localStorage.getItem('scadaLayout')); assert.equal(saved.widgets.length, 1); assert.equal(saved.widgets[0].id, S1.id); assert.notEqual(localStorage.getItem('scadaLayout'), savedBefore)
+  assert.equal(scada.layout.widgets.length, 1); assert.deepEqual(lastMsg(), ['success', '组态已保存，可继续编辑']); assert.equal(scada.historyUndo, 1)
+  assert.ok(root.querySelector('[data-scada-arrange]'), '编辑工具栏还在'); assert.equal(calls.list || 0, listN, '留在编辑模式不清理未引用的资源（撤销还可能找回它们）')
+})
+check('保存之后还能撤销到保存之前（dirty 重新为 true，已保存的布局不受影响）；重做回到保存时的状态 dirty 又复位', () => {
+  scada.undo(); assert.equal(scada.draft.widgets.length, 0); assert.equal(scada.dirty, true); assert.equal(scada.layout.widgets.length, 1)
+  scada.redo(); assert.equal(scada.draft.widgets.length, 1); assert.equal(scada.dirty, false)
+})
+scada.setWidgetProp(S1.id, 'radius', 5); ctrl('s'); await sleep(60); scada.setWidgetProp(S1.id, 'radius', 6)
+check('保存之后的第一下改动不会并进保存之前的那一步（同一属性也一样）：撤销一次回到保存时的值、仍算未保存', () => {
+  assert.equal(scada.historyUndo, 3); scada.undo(); assert.equal(W(S1.id).props.radius, 5); assert.equal(scada.dirty, false, '回到保存时的内容 = 没有未保存的修改')
+  scada.undo(); assert.equal(W(S1.id).props.radius, 0); assert.equal(scada.dirty, true)
+})
+scada.addWidget('circle', { x: 700, y: 200 }); scada.cancelEdit(); await nextTick()
+check('保存并继续之后再「取消」：丢弃的是最后一次保存之后的改动，已保存的内容保留', () => { assert.equal(scada.editing, false); assert.equal(scada.layout.widgets.length, 1); assert.equal(JSON.parse(localStorage.getItem('scadaLayout')).widgets[0].props.radius, 5) })
+scada.startEdit(); scada.addWidget('circle', { x: 700, y: 200 }); await nextTick()
+saveStayBtn().click(); await sleep(60); await nextTick()
+check('「保存并继续」按钮等同 Ctrl+S', () => { assert.equal(scada.editing, true); assert.equal(scada.dirty, false); assert.equal(scada.layout.widgets.length, 2); assert.equal(JSON.parse(localStorage.getItem('scadaLayout')).widgets.length, 2); assert.deepEqual(lastMsg(), ['success', '组态已保存，可继续编辑']) })
+scada.addWidget('ellipse', { x: 300, y: 500 }); const inp1 = textInput()
+const evI = ctrl('s', {}, inp1); await sleep(60); await nextTick()
+check('焦点在输入框里 Ctrl+S 也保存（先让输入框失焦再存，免得漏掉正在输入的值）', () => { assert.ok(evI.defaultPrevented); assert.notEqual(document.activeElement, inp1); assert.equal(scada.editing, true); assert.equal(scada.layout.widgets.length, 3); assert.equal(scada.dirty, false); inp1.remove() })
+scada.addWidget('rect', { x: 100, y: 500 }); root.querySelector('[data-scada-help]').click(); await nextTick(); await sleep(60)
+const evM = ctrl('s'); await sleep(40)
+check('弹窗（操作说明）打开时 Ctrl+S 不响应（不 preventDefault、不保存）', () => { assert.equal(evM.defaultPrevented, false); assert.equal(scada.dirty, true); assert.equal(scada.layout.widgets.length, 3) })
+document.body.querySelector('.n-modal-container .n-card-header__close').click(); await nextTick(); await sleep(80)
+listN = calls.list || 0
+saveBtn().click(); await sleep(80); await nextTick()
+check('「保存」按钮：保存并退出编辑（提示「组态已保存」、历史清空），这时才清理宿主里不再引用的资源', () => {
+  assert.equal(scada.editing, false); assert.equal(scada.layout.widgets.length, 4); assert.deepEqual(lastMsg(), ['success', '组态已保存']); assert.equal(scada.historyUndo, 0); assert.ok(!undoBtn()); assert.equal(calls.list || 0, listN + 1)
+})
+const evN = ctrl('s'); await sleep(30)
+check('不在编辑模式：Ctrl+S / Ctrl+Z / F11 都不响应', () => { assert.equal(evN.defaultPrevented, false); assert.equal(ctrl('z').defaultPrevented, false); assert.equal(press('F11').defaultPrevented, false); assert.equal(scada.fullscreen, false) })
+
+// ---- 组件库点按：放到视野正中央 ----
+await fresh()
+const palClick = async type => { const it = root.querySelector(`[data-palette-item="${type}"]`); const pointerId = ++pid60; it.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 10, clientY: 10, pointerId })); it.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 11, clientY: 11, pointerId })); await nextTick() }
+const lastW = () => scada.draft.widgets[scada.draft.widgets.length - 1]
+const centerOf = w => ({ x: w.x + w.w / 2, y: w.y + w.h / 2 })
+const near = (p, x, y, tol = 5.01) => Math.abs(p.x - x) <= tol && Math.abs(p.y - y) <= tol
+const box = () => canvasView.el.closest('[tabindex="-1"]')
+const setBox = async (w, h) => { const c = box(); if (w === null) { delete c.clientWidth; delete c.clientHeight } else { Object.defineProperty(c, 'clientWidth', { value: w, configurable: true }); Object.defineProperty(c, 'clientHeight', { value: h, configurable: true }) } globalThis.__resizeCallbacks.forEach(cb => { try { cb([]) } catch { /* 已卸载的 observer */ } }); await nextTick(); await nextTick() }
+await palClick('rect')
+check('还没量出视口尺寸（jsdom）：viewCenterInCanvas 为 null，点按退到画布正中心 (500, 300)，而不是左上角；新组件被选中', () => { assert.equal(viewCenterInCanvas(), null); assert.equal(scada.draft.widgets.length, 1); assert.ok(near(centerOf(lastW()), 500, 300), JSON.stringify(centerOf(lastW()))); assert.deepEqual([...scada.selectedIds], [lastW().id]) })
+await setBox(800, 500)
+const vc1 = viewCenterInCanvas(); await palClick('circle')
+check('视口 800×500、画布 1000×600（适配比例 0.8）：视野中心 = 画布 (500, 300)；点按圆形 → 圆心落在那里', () => {
+  assert.ok(vc1); assert.ok(Math.abs(canvasView.scale - 0.8) < 1e-9, String(canvasView.scale)); assert.ok(Math.abs(vc1.x - 500) < 1e-6 && Math.abs(vc1.y - 300) < 1e-6, JSON.stringify(vc1))
+  assert.ok(near(centerOf(lastW()), 500, 300), JSON.stringify(centerOf(lastW())))
+})
+canvasView.zoom = 2; canvasView.panX = -300; canvasView.panY = 0; await nextTick()
+{
+  const vc = viewCenterInCanvas(); await palClick('ellipse'); const c = centerOf(lastW())
+  check('放大到 200% 并把画布向左平移 300px：视野中心 = 画布 (437.5, 156.25)；点按的椭圆中心贴着它（网格吸附误差内），整个组件都在看得见的范围里', () => {
+    assert.ok(Math.abs(canvasView.scale - 1.6) < 1e-9); assert.ok(Math.abs(vc.x - 437.5) < 1e-6 && Math.abs(vc.y - 156.25) < 1e-6, JSON.stringify(vc))
+    assert.ok(near(c, 437.5, 156.25), JSON.stringify(c)); const w = lastW(); assert.ok(w.x >= 187.5 && w.x + w.w <= 687.5 && w.y >= 0 && w.y + w.h <= 312.5, JSON.stringify(w))
+  })
+}
+canvasView.zoom = 1; canvasView.panX = 600; canvasView.panY = 0; await nextTick()
+{
+  const vc = viewCenterInCanvas(); await palClick('circle')
+  check('画布被平移到右边、视野中心落在画布外：取「视野 ∩ 画布」里最靠近中心的点（左边缘 x = 0），组件贴左边缘放进视野', () => {
+    assert.ok(Math.abs(vc.x - 0) < 1e-6 && Math.abs(vc.y - 300) < 1e-6, JSON.stringify(vc)); assert.equal(lastW().x, 0); assert.ok(Math.abs(centerOf(lastW()).y - 300) <= 5.01)
+  })
+}
+resetCanvasView(); await nextTick()
+await fresh(); await setBox(800, 500)
+await palClick('rect'); const c1 = { x: lastW().x, y: lastW().y }; await palClick('rect'); const c2 = { x: lastW().x, y: lastW().y }; await palClick('rect'); const c3 = { x: lastW().x, y: lastW().y }
+check('连续点按同一个组件：依次向右下错开两格（20px），不叠成一个；每个都选中新加的', () => {
+  assert.ok(near({ x: c1.x + lastW().w / 2, y: c1.y + lastW().h / 2 }, 500, 300)); assert.deepEqual([c2.x - c1.x, c2.y - c1.y], [20, 20]); assert.deepEqual([c3.x - c1.x, c3.y - c1.y], [40, 40])
+  assert.equal(scada.draft.widgets.length, 3); assert.deepEqual([...scada.selectedIds], [lastW().id])
+  scada.undo(); assert.equal(scada.draft.widgets.length, 2); scada.undo(); scada.undo(); assert.equal(scada.draft.widgets.length, 0)
+})
+await palClick('circle'); await palClick('rect')
+check('错开只针对「同一位置同一大小」：换成别的组件类型（尺寸不同）仍放中央，不被挤开', () => { const a = scada.draft.widgets[0], b = scada.draft.widgets[1]; assert.ok(near(centerOf(a), 500, 300) && near(centerOf(b), 500, 300)) })
+await setBox(null)
+{
+  const pi = root.querySelector('[data-palette-item="textLabel"]'); const pointerId = ++pid60
+  canvasView.el.getBoundingClientRect = () => ({ left: 0, top: 0, right: 1000, bottom: 600, width: 1000, height: 600 })
+  pi.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 5, clientY: 5, pointerId })); pi.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 150, clientY: 120, pointerId })); pi.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 300, clientY: 200, pointerId })); pi.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 300, clientY: 200, pointerId })); await nextTick()
+  check('拖放不变：按住拖到画布上松手 = 放在松手位置（中心在 (300, 200)），不走「视野中央」', () => { assert.equal(scada.draft.widgets.length, 3); assert.equal(lastW().type, 'textLabel'); assert.ok(near(centerOf(lastW()), 300, 200), JSON.stringify(centerOf(lastW()))) })
+  delete canvasView.el.getBoundingClientRect
+}
+
+// ---- 内部变量管理 ----
+await fresh(); resetLocalVars()
+localDataSource.write('var1', 42); localDataSource.write('var2', 'hello'); localDataSource.write('var16', 7)
+const Wa = scada.addWidget('valueCard', { x: 200, y: 100 }); scada.setBinding(Wa.id, { source: 'local', key: 'var3', label: '变量 3' })
+const Wb = scada.addWidget('pie', { x: 650, y: 300 }); scada.setWidgetProp(Wb.id, 'source', 'local'); scada.setWidgetProp(Wb.id, 'items', ['var3', 'var5'])
+await nextTick()
+const dlg = () => document.body.querySelector('.n-modal-container [data-scada-vars-dialog]')
+const row = k => dlg().querySelector(`[data-var-row="${k}"]`)
+const rowsN = () => dlg().querySelectorAll('[data-var-row]').length
+const nameInput = k => row(k).querySelector('[data-var-name] input')
+const setVal = async (input, v) => { input.value = v; input.dispatchEvent(new InputEvent('input', { bubbles: true })); await nextTick() }
+const dlgBtn = sel => document.body.querySelector(`.n-modal-container ${sel}`)
+const dupN = () => dlg().querySelectorAll('[data-var-dup]').length
+const cell = (k, what) => row(k).querySelector(`[data-var-${what}]`).textContent.trim()
+const nUndo0 = scada.historyUndo
+check('初始：16 个默认变量（var1~16，默认名「变量 N」）；内部变量数据源的选项 = 这 16 个', () => {
+  assert.equal(scada.variables.length, 16); assert.deepEqual(localDataSource.options().map(o => o.label), Array.from({ length: 16 }, (_, i) => `变量 ${i + 1}`))
+})
+root.querySelector('[data-scada-vars]').click(); await nextTick(); await sleep(60)
+check('工具栏「内部变量」打开管理弹窗：标题 / 16 行 / 默认名 / 标识 / 当前值（var1=42、var2=hello、var16=7、其余 —）/ 使用数（var3=2、var5=1，其余 —）', () => {
+  assert.ok(dlg()); assert.equal(scada.varsShow, true); assert.ok(dlg().closest('.n-card').textContent.includes('内部变量管理')); assert.equal(rowsN(), 16)
+  assert.equal(nameInput('var1').value, '变量 1'); assert.equal(nameInput('var16').value, '变量 16'); assert.equal(cell('var3', 'key'), 'var3')
+  assert.deepEqual(['var1', 'var2', 'var16', 'var3'].map(k => cell(k, 'value')), ['42', 'hello', '7', '—'])
+  assert.deepEqual(['var3', 'var5', 'var1', 'var9'].map(k => cell(k, 'usage')), ['2', '1', '—', '—']); assert.ok(row('var3').querySelector('[data-var-usage]').title.length > 0, '悬停显示是哪些组件')
+  assert.equal(dupN(), 0); assert.ok(!dlgBtn('[data-var-apply]').disabled); assert.equal(dlg().querySelector('[data-var-count]').textContent.trim(), '共 16 个'); assert.ok(dlg().textContent.includes('Ctrl + Z') && dlg().textContent.includes('名称会出现在组件属性里'))
+})
+dlgBtn('[data-var-add]').click(); await nextTick(); await sleep(40)
+check('添加变量：追加一行（标识 var17、默认名「变量 17」）并让名称框进入编辑（聚焦）；计数 17', () => {
+  assert.equal(rowsN(), 17); assert.ok(row('var17')); assert.equal(nameInput('var17').value, '变量 17'); assert.equal(document.activeElement, nameInput('var17')); assert.equal(dlg().querySelector('[data-var-count]').textContent.trim(), '共 17 个'); assert.equal(cell('var17', 'usage'), '—')
+})
+await setVal(nameInput('var17'), '压力'); await setVal(nameInput('var1'), '压力')
+{
+  const d2 = dupN(), dis = dlgBtn('[data-var-apply]').disabled, err = nameInput('var1').closest('.n-input').classList.contains('n-input--error-status')
+  await setVal(nameInput('var1'), '温度')
+  check('重名：两行都标红并提示「名称重复」、「确定」置灰；改掉其中一个后恢复', () => { assert.equal(d2, 2); assert.equal(dis, true); assert.ok(err); assert.equal(dupN(), 0); assert.ok(!dlgBtn('[data-var-apply]').disabled) })
+}
+await setVal(nameInput('var2'), '变量 4')
+{
+  const d2 = dupN(); await setVal(nameInput('var2'), '')
+  check('默认名也参与查重：把 var2 改成「变量 4」与 var4 的默认名冲突；清空名称 = 用默认名，冲突消失', () => { assert.equal(d2, 2); assert.equal(dupN(), 0) })
+}
+await setVal(nameInput('var6'), 'Flow'); await setVal(nameInput('var7'), 'flow')
+{
+  const d2 = dupN(); await setVal(nameInput('var6'), '流量'); await setVal(nameInput('var7'), '   ')
+  check('名称不区分大小写（Flow / flow 算重名）；全是空格 = 默认名', () => { assert.equal(d2, 2); assert.equal(dupN(), 0) })
+}
+dlgBtn('[data-var-delete="var16"]').click(); await nextTick()
+check('删除没被引用的变量（var16）：直接删，不用确认', () => { assert.ok(!row('var16')); assert.equal(rowsN(), 16) })
+dlgBtn('[data-var-delete="var3"]').click(); await nextTick(); await sleep(80)
+{
+  const pc = document.body.querySelector('.n-popconfirm__panel')
+  check('删除被 2 个组件引用的变量（var3）：先弹确认「有 2 个组件绑定了这个变量…」，确认前这一行还在', () => { assert.ok(pc, '没有弹出确认'); assert.ok(pc.textContent.includes('有 2 个组件绑定了这个变量'), pc.textContent); assert.ok(row('var3')) })
+  ;[...pc.querySelectorAll('button')].find(b => b.textContent.trim() === '确定').click(); await nextTick(); await sleep(60)
+  check('确认后这一行被删掉', () => { assert.ok(!row('var3')); assert.equal(rowsN(), 15) })
+}
+check('点确定之前什么都没改：草稿里仍是 16 个默认变量，组件绑定 / 撤销步数不变', () => { assert.equal(scada.draft.variables.length, 16); assert.equal(W(Wa.id).binding.key, 'var3'); assert.equal(scada.historyUndo, nUndo0) })
+dlgBtn('[data-var-apply]').click(); await nextTick(); await sleep(120)
+check('确定：一次写回草稿（撤销历史 +1）、弹窗关闭；key 列表 / 名称 / 下一个编号（18）正确；被删变量的绑定解除，饼图数据项原样保留（key 不复用）', () => {
+  assert.equal(scada.varsShow, false); assert.ok(!dlg()); assert.equal(scada.historyUndo, nUndo0 + 1)
+  const V = scada.draft.variables
+  assert.deepEqual(V.map(v => v.key), ['var1', 'var2', 'var4', 'var5', 'var6', 'var7', 'var8', 'var9', 'var10', 'var11', 'var12', 'var13', 'var14', 'var15', 'var17'])
+  const by = Object.fromEntries(V.map(v => [v.key, v.name])); assert.equal(by.var1, '温度'); assert.equal(by.var6, '流量'); assert.equal(by.var17, '压力'); assert.equal(by.var2, ''); assert.equal(by.var7, ''); assert.equal(by.var4, '')
+  assert.equal(scada.draft.variableSeq, 18); assert.equal(W(Wa.id).binding, null); assert.deepEqual(W(Wb.id).props.items, ['var3', 'var5'])
+})
+check('数据源跟着变：选项 = 15 项（温度 / 流量 / 压力 + 默认名），没有「变量 3」「变量 16」；被删的 key 读不到、不可写、写入被忽略；新增的变量可读写并持久化', () => {
+  const labels = localDataSource.options().map(o => o.label); assert.equal(labels.length, 15); assert.ok(labels.includes('温度') && labels.includes('流量') && labels.includes('压力') && labels.includes('变量 2') && !labels.includes('变量 3') && !labels.includes('变量 16') && !labels.includes('变量 1'))
+  assert.equal(localDataSource.read('var3'), undefined); assert.equal(localDataSource.writable('var3'), false); localDataSource.write('var3', 9); assert.equal(JSON.parse(localStorage.getItem(LOCAL_VARS_KEY)).var3, undefined)
+  assert.equal(localDataSource.writable('var17'), true); localDataSource.write('var17', 12); assert.equal(localDataSource.read('var17').value, 12); assert.equal(localDataSource.read('var17').name, '压力'); assert.equal(localDataSource.read('var1').name, '温度'); assert.equal(localDataSource.read('var1').value, 42)
+  assert.equal(JSON.parse(localStorage.getItem(LOCAL_VARS_KEY)).var16.value, 7, '被删变量的值留着（撤销还能找回），退出保存时才清理')
+})
+scada.undo(); await nextTick()
+check('撤销：变量列表 / 名称 / 编号 / 组件绑定一起回到修改之前（var3 回来、绑定恢复、值还在）；重做再来一遍', () => {
+  assert.equal(scada.draft.variables.length, 16); assert.ok(scada.draft.variables.every(v => v.name === '')); assert.equal(scada.draft.variableSeq, 17); assert.equal(W(Wa.id).binding.key, 'var3')
+  assert.equal(localDataSource.options()[0].label, '变量 1'); assert.equal(localDataSource.read('var16').value, 7); assert.ok(localDataSource.read('var3'))
+  scada.redo(); assert.equal(scada.draft.variables.length, 15); assert.equal(W(Wa.id).binding, null); assert.equal(localDataSource.options()[0].label, '温度')
+})
+const nUndo1 = scada.historyUndo
+scada.varsShow = true; await nextTick(); await sleep(60)
+dlgBtn('[data-var-add]').click(); await nextTick(); await setVal(nameInput('var18'), '临时'); dlgBtn('[data-var-delete="var2"]').click(); await nextTick()
+dlgBtn('[data-var-cancel]').click(); await nextTick(); await sleep(120)
+scada.varsShow = true; await nextTick(); await sleep(60)
+check('取消：不改任何东西（变量 15 个、撤销步数不变）；再打开看到的是草稿里的真实列表（没有临时行、var2 还在）', () => {
+  assert.equal(scada.draft.variables.length, 15); assert.equal(scada.historyUndo, nUndo1); assert.equal(rowsN(), 15); assert.ok(row('var2')); assert.ok(!row('var18')); assert.equal(nameInput('var1').value, '温度')
+})
+dlgBtn('.n-card-header__close').click(); await nextTick(); await sleep(120)
+check('点弹窗右上角 ✕ 关闭等同取消', () => { assert.equal(scada.varsShow, false); assert.ok(!dlg()); assert.equal(scada.draft.variables.length, 15) })
+scada.varsShow = true; await nextTick(); await sleep(60)
+dlgBtn('[data-var-delete="var17"]').click(); await nextTick(); dlgBtn('[data-var-add]').click(); await nextTick()
+check('删掉 var17 再新增：得到 var18（编号只增不减，不复用）', () => { assert.ok(!row('var17')); assert.ok(row('var18')); assert.equal(nameInput('var18').value, '变量 18') })
+await setVal(nameInput('var18'), '液位')
+document.activeElement && document.activeElement.blur && document.activeElement.blur()
+ctrl('Enter', {}, nameInput('var18')); await nextTick(); await sleep(120)
+check('Ctrl + Enter 在弹窗里等同「确定」；variableSeq 推进到 19', () => {
+  assert.equal(scada.varsShow, false); assert.deepEqual(scada.draft.variables.slice(-1), [{ key: 'var18', name: '液位' }]); assert.ok(!scada.draft.variables.some(v => v.key === 'var17')); assert.equal(scada.draft.variableSeq, 19)
+})
+scada.setBinding(Wa.id, { source: 'local', key: 'var1', label: '温度' }); scada.select(Wa.id); await nextTick()
+check('属性面板：数据源选「内部变量」时数据项下方有「管理内部变量…」链接，点它打开同一个弹窗', () => {
+  const link = propsCol().querySelector('[data-scada-vars-manage]'); assert.ok(link); assert.equal(link.textContent.trim(), '管理内部变量…'); link.click()
+})
+await nextTick(); await sleep(60)
+check('……弹窗打开（行数 = 当前变量数）；取消关闭', () => { assert.ok(dlg()); assert.equal(rowsN(), scada.draft.variables.length); dlgBtn('[data-var-cancel]').click() })
+await nextTick(); await sleep(120)
+scada.setBinding(Wa.id, { source: 'product', key: 'd_od', label: '外径' }); scada.select(null); await nextTick(); scada.select(Wa.id); await nextTick()
+check('数据源是「产品分类数据」时没有这个链接', () => assert.ok(!propsCol().querySelector('[data-scada-vars-manage]')))
+scada.select(null); await nextTick()
+ctrl('s'); await sleep(60)
+{
+  const layoutSaved = JSON.parse(localStorage.getItem('scadaLayout')); const vals = JSON.parse(localStorage.getItem(LOCAL_VARS_KEY))
+  check('Ctrl+S（留在编辑）：变量定义随布局存进 localStorage（含名称和下一个编号）；被删变量的值此时还在', () => {
+    assert.equal(layoutSaved.variables.length, 15); assert.deepEqual(layoutSaved.variables.find(v => v.key === 'var1'), { key: 'var1', name: '温度' }); assert.deepEqual(layoutSaved.variables.slice(-1), [{ key: 'var18', name: '液位' }]); assert.equal(layoutSaved.variableSeq, 19)
+    assert.equal(vals.var16.value, 7); assert.equal(vals.var17.value, 12); assert.equal(vals.var1.value, 42)
+  })
+}
+saveBtn().click(); await sleep(100); await nextTick()
+{
+  const vals = JSON.parse(localStorage.getItem(LOCAL_VARS_KEY))
+  check('「保存」退出编辑：清掉已删变量（var16 / var17）的值，其余保留；展示模式读的是已保存布局里的变量（名称 / 数量）', () => {
+    assert.equal(scada.editing, false); assert.equal(vals.var16, undefined); assert.equal(vals.var17, undefined); assert.equal(vals.var1.value, 42); assert.equal(vals.var2.text, 'hello')
+    assert.equal(scada.variables.length, 15); assert.equal(localDataSource.options()[0].label, '温度'); assert.equal(localDataSource.options().slice(-1)[0].label, '液位'); assert.equal(localDataSource.read('var17'), undefined)
+  })
+}
+check('再次编辑：草稿里的变量 / 编号原样读回；布局序列化往返不丢', () => {
+  scada.startEdit(); assert.deepEqual(scada.draft.variables, scada.layout.variables); assert.equal(scada.draft.variableSeq, 19)
+  const again = normalizeLayout(JSON.parse(JSON.stringify(scada.draft))); assert.deepEqual(again.variables, scada.draft.variables); assert.equal(again.variableSeq, 19); scada.cancelEdit()
+})
+resetLocalVars(); localDataSource.write('var1', 1); localDataSource.write('var2', 2)
+await scada.applyLayout(normalizeLayout({ canvas: { width: 1000, height: 600, grid: 10 }, widgets: [], variables: [{ key: 'var1', name: 'A' }] }))
+check('展示模式导入变量更少的新布局：生效的变量定义换成新的，已不存在的变量的值一并清掉（只留 var1）', () => {
+  const vals = JSON.parse(localStorage.getItem(LOCAL_VARS_KEY)); assert.equal(vals.var1.value, 1); assert.equal(vals.var2, undefined); assert.deepEqual(scada.variables, [{ key: 'var1', name: 'A' }]); assert.deepEqual(localDataSource.options().map(o => o.label), ['A'])
+})
+{
+  const lay = normalizeLayout({ canvas: { width: 1000, height: 600, grid: 10 }, widgets: [], variables: [{ key: 'var1', name: '压力' }, { key: 'var9', name: '' }], variableSeq: 12 })
+  const back = await parsePackage((await buildPackage(lay)).bytes)
+  const legacy = await parsePackage(JSON.stringify({ canvas: { width: 500, height: 300 }, widgets: [] }))
+  check('组态包导出 / 导入带着内部变量定义（名称、下一个编号）；没有 variables 字段的老包导入后补默认 var1~16', () => {
+    assert.deepEqual(back.layout.variables, lay.variables); assert.equal(back.layout.variableSeq, 12)
+    assert.equal(legacy.layout.variables.length, 16); assert.equal(legacy.layout.variableSeq, 17)
+  })
+}
+
+// ---- 快捷键 ----
+await fresh()
+const R1 = scada.addWidget('rect', { x: 100, y: 100 }), R2 = scada.addWidget('circle', { x: 400, y: 300 }), R3 = scada.addWidget('ellipse', { x: 700, y: 400 }); await nextTick()
+const typeCount = t => scada.draft.widgets.filter(w => w.type === t).length
+scada.select(R1.id); msgs.length = 0
+const evC = ctrl('c'); await nextTick()
+check('Ctrl+C 复制选中的组件（preventDefault、提示「已复制 1 个组件」、不改草稿 / 不占撤销步数）', () => { assert.ok(evC.defaultPrevented); assert.equal(scada.clipboardSize, 1); assert.deepEqual(lastMsg(), ['success', '已复制 1 个组件']); assert.equal(scada.draft.widgets.length, 3); assert.equal(scada.historyUndo, 3) })
+const n1 = scada.historyUndo; ctrl('v'); ctrl('v'); await nextTick()
+check('Ctrl+V 粘贴：追加到最上层并选中；第一次偏移 +20 / +20（两格），第二次 +40 / +40；每次粘贴是一步', () => {
+  const [p1, p2] = scada.draft.widgets.slice(3); assert.equal(scada.draft.widgets.length, 5); assert.equal(p1.type, 'rect'); assert.notEqual(p1.id, R1.id)
+  assert.deepEqual([p1.x - W(R1.id).x, p1.y - W(R1.id).y], [20, 20]); assert.deepEqual([p2.x - W(R1.id).x, p2.y - W(R1.id).y], [40, 40]); assert.deepEqual([...scada.selectedIds], [p2.id]); assert.equal(scada.historyUndo, n1 + 2)
+  scada.undo(); assert.equal(scada.draft.widgets.length, 4); scada.undo(); assert.equal(scada.draft.widgets.length, 3)
+})
+scada.select(R2.id); const r2 = { x: W(R2.id).x, y: W(R2.id).y }; msgs.length = 0
+const evX = ctrl('x'); await nextTick()
+check('Ctrl+X 剪切：组件被删掉（一步，可撤销）并进剪贴板，提示「已剪切 1 个组件」；粘贴 = 原位恢复（新 id）', () => {
+  assert.ok(evX.defaultPrevented); assert.ok(!W(R2.id)); assert.equal(scada.draft.widgets.length, 2); assert.deepEqual(lastMsg(), ['success', '已剪切 1 个组件'])
+  ctrl('v'); const back = lastW2(); assert.equal(back.type, 'circle'); assert.deepEqual([back.x, back.y], [r2.x, r2.y]); assert.notEqual(back.id, R2.id); assert.equal(scada.draft.widgets.length, 3)
+})
+function lastW2() { return scada.draft.widgets[scada.draft.widgets.length - 1] }
+scada.setLocked([R3.id], true); scada.select(R3.id); msgs.length = 0; ctrl('x')
+check('锁定的组件不能剪切：提示「所选组件已锁定，请先解锁」，组件仍在', () => { assert.ok(W(R3.id)); assert.deepEqual(lastMsg(), ['warning', '所选组件已锁定，请先解锁']) })
+const nD = typeCount('circle'); scada.select(R1.id); ctrl('d'); await nextTick()
+check('Ctrl+D 原地复制一份（偏移 +20 / +20）并选中副本，一步可撤销', () => {
+  const cp = lastW2(); assert.equal(cp.type, 'rect'); assert.deepEqual([cp.x - W(R1.id).x, cp.y - W(R1.id).y], [20, 20]); assert.deepEqual([...scada.selectedIds], [cp.id]); scada.undo(); assert.equal(scada.draft.widgets.filter(w => w.type === 'rect').length, 1); assert.equal(typeCount('circle'), nD)
+})
+scada.select(R1.id); ctrl('l')
+check('Ctrl+L 切换锁定：选中的都未锁 → 全锁；再按 → 解锁', () => { assert.equal(!!W(R1.id).locked, true); ctrl('l'); assert.equal(!!W(R1.id).locked, false) })
+{
+  const ids = () => scada.draft.widgets.map(w => w.id); const base = ids(); scada.select(R1.id)
+  ctrl(']', { code: 'BracketRight' }); const up = ids().indexOf(R1.id); ctrl('[', { code: 'BracketLeft' }); const down = ids().indexOf(R1.id)
+  ctrl('}', { shiftKey: true, code: 'BracketRight' }); const top = ids().indexOf(R1.id); ctrl('{', { shiftKey: true, code: 'BracketLeft' }); const bottom = ids().indexOf(R1.id)
+  check('Ctrl+] / Ctrl+[ 上移 / 下移一层；Ctrl+Shift+] / [ 置顶 / 置底', () => { assert.equal(base.indexOf(R1.id), 0); assert.equal(up, 1); assert.equal(down, 0); assert.equal(top, ids().length - 1); assert.equal(bottom, 0) })
+}
+;(document.activeElement && document.activeElement.blur && document.activeElement.blur())
+scada.select(null); const evT1 = press('Tab'); const s1 = [...scada.selectedIds]; press('Tab'); const s2 = [...scada.selectedIds]
+press('Tab'); press('Tab'); const s4 = [...scada.selectedIds]; const evT5 = press('Tab'); const s5 = [...scada.selectedIds]; const evTs = press('Tab', { shiftKey: true }); const s6 = [...scada.selectedIds]
+check('Tab / Shift+Tab 在画布上按图层顺序切换选中组件（到头循环；没选中时 Tab 从第一个、Shift+Tab 从最后一个开始）', () => {
+  const ids = scada.draft.widgets.map(w => w.id); assert.ok(evT1.defaultPrevented); assert.deepEqual(s1, [ids[0]]); assert.deepEqual(s2, [ids[1]]); assert.equal(ids.length, 3); assert.deepEqual(s4, [ids[0]]); assert.deepEqual(s5, [ids[1]]); assert.ok(evT5.defaultPrevented); assert.ok(evTs.defaultPrevented); assert.deepEqual(s6, [ids[0]])
+  scada.select(null); press('Tab', { shiftKey: true }); assert.deepEqual([...scada.selectedIds], [ids[2]])
+})
+{
+  const helpBtn = root.querySelector('[data-scada-help]'); helpBtn.focus(); scada.select(null); const evB = press('Tab', {}, helpBtn)
+  check('焦点在工具栏按钮上时 Tab 不拦截（浏览器的焦点切换照常）', () => { assert.equal(canvasFocused(), false); assert.equal(evB.defaultPrevented, false); assert.deepEqual([...scada.selectedIds], []) })
+  helpBtn.blur()
+}
+{
+  const helpBtn = root.querySelector('[data-scada-help]'); scada.select(R1.id); helpBtn.focus(); const evEb = press('Escape', {}, helpBtn)
+  check('焦点在工具栏按钮 / 下拉上时 Esc 不取消选中（那个 Esc 是用来收起它们的）', () => { assert.equal(evEb.defaultPrevented, false); assert.deepEqual([...scada.selectedIds], [R1.id]) })
+  helpBtn.blur()
+}
+{
+  const n0 = scada.clipboardSize; const p = document.createElement('p'); p.textContent = '属性面板里的一段说明文字'; document.body.appendChild(p)
+  const sel = window.getSelection(); sel.removeAllRanges(); sel.selectAllChildren(p); scada.select(R1.id)
+  const evCt = ctrl('c'); const evXt = ctrl('x')
+  check('页面上选着一段文字时 Ctrl+C / Ctrl+X 归浏览器（复制文字），不复制 / 剪切组件', () => { assert.equal(sel.toString(), '属性面板里的一段说明文字'); assert.equal(evCt.defaultPrevented, false); assert.equal(evXt.defaultPrevented, false); assert.equal(scada.clipboardSize, n0); assert.ok(W(R1.id)) })
+  // 点过画布之后（焦点在画布容器里）：别处忘了取消的选区不再挡住组件的复制 / 剪切
+  const box = canvasView.el.closest('[tabindex="-1"]'); box.focus(); const evCc = ctrl('c'); await nextTick()
+  check('焦点在画布里时，页面上残留的文字选区不挡 Ctrl+C：照常复制组件', () => { assert.equal(document.activeElement, box); assert.ok(sel.toString().length > 0); assert.ok(evCc.defaultPrevented); assert.equal(scada.clipboardSize, 1) })
+  box.blur(); sel.removeAllRanges(); p.remove()
+}
+scada.select(R1.id); const evE = press('Escape')
+check('Esc 取消选中（preventDefault）；没有选中时不拦截', () => { assert.ok(evE.defaultPrevented); assert.deepEqual([...scada.selectedIds], []); assert.equal(press('Escape').defaultPrevented, false) })
+scada.select(R1.id); await scada.setFullscreen(true); await nextTick(); press('Escape'); await nextTick(); await sleep(30)
+check('全屏时 Esc 先退出全屏（选中保留），再按一次才取消选中', () => { assert.equal(scada.fullscreen, false); assert.deepEqual([...scada.selectedIds], [R1.id]); press('Escape'); assert.deepEqual([...scada.selectedIds], []) })
+press('F11'); await nextTick(); await sleep(30)
+check('F11 进入 / 退出全屏（preventDefault，走页内全屏 + 浏览器全屏 API）', () => { assert.equal(scada.fullscreen, true); const e = press('F11'); assert.ok(e.defaultPrevented) })
+await sleep(30); await nextTick()
+check('……再按一次退出', () => assert.equal(scada.fullscreen, false))
+press('F1'); await nextTick(); await sleep(60)
+check('F1 打开操作说明；说明里有「快捷键」和「内部变量」两节（共 8 节）', () => {
+  const c = document.body.querySelector('.n-modal-container [data-scada-help-content]'); assert.ok(c); assert.equal(c.children.length, 8); assert.ok(c.textContent.includes('快捷键') && c.textContent.includes('Ctrl + S') && c.textContent.includes('Ctrl + Z') && c.textContent.includes('内部变量'))
+})
+{
+  const n = scada.historyUndo; scada.select(R1.id)
+  const evZ2 = ctrl('z'); const evC2 = ctrl('c'); const evD2 = ctrl('d'); press('Delete'); press('ArrowLeft')
+  check('操作说明（弹窗）打开时快捷键一律不响应：Ctrl+Z / C / D、Delete、方向键都不动草稿', () => { assert.equal(evZ2.defaultPrevented, false); assert.equal(evC2.defaultPrevented, false); assert.equal(evD2.defaultPrevented, false); assert.equal(scada.historyUndo, n); assert.ok(W(R1.id)) })
+}
+document.body.querySelector('.n-modal-container .n-card-header__close').click(); await nextTick(); await sleep(100)
+{
+  const inp = textInput(); scada.select(R1.id)
+  scada.setWidgetProp(R1.id, 'radius', 12); const before = JSON.stringify(scada.draft)
+  const evZ3 = ctrl('z', {}, inp); const evV3 = ctrl('v', {}, inp); const evC3 = ctrl('c', {}, inp); const evD3 = ctrl('d', {}, inp); const evE3 = press('Escape', {}, inp); const evT3 = press('Tab', {}, inp)
+  check('焦点在输入框里：Ctrl+Z / C / V / D、Esc、Tab 都归浏览器（不拦截、不撤销 / 不复制 / 不取消选中）', () => {
+    for (const e of [evZ3, evV3, evC3, evD3, evE3, evT3]) assert.equal(e.defaultPrevented, false); assert.equal(W(R1.id).props.radius, 12); assert.equal(JSON.stringify(scada.draft), before); assert.deepEqual([...scada.selectedIds], [R1.id])
+  })
+  inp.remove()
+}
+{
+  const evZ4 = ctrl('z'); await nextTick()
+  check('回到画布上（没有输入框焦点）Ctrl+Z 恢复可用', () => { assert.ok(evZ4.defaultPrevented); assert.equal(W(R1.id).props.radius, 0) })
+}
+scada.cancelEdit(); await nextTick()
+window.$message = prevMsg
+}
+// <<< 任务 60 测试结束（后面的用例追加在这一行之前的块里）
 
 app.unmount()
 check('卸载后恢复虚拟键盘', () => assert.equal(main.globalKeyBoardBlocked, false))

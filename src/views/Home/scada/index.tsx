@@ -8,6 +8,9 @@
  *    Esc / 再点一次 / 保存或取消编辑都会退出；全屏期间不重新量「整页尺寸」，「适配当前屏幕」仍按展示模式的页面面积算。
  *  - 「适配当前屏幕」与首次建布局用的尺寸都按展示模式（无顶栏）的整页面积计算；
  *  - 本页挂载期间屏蔽全局虚拟键盘（输入框聚焦不弹出）。
+ *  - 保存有两个按钮：「保存」= 保存并退出编辑；「保存并继续」（Ctrl + S）= 保存但留在编辑模式（撤销历史保留）。
+ *  - 「内部变量」按钮 → VariableDialog（增 / 删 / 改名，定义随布局保存）；工具栏第二行最左边是撤销 / 重做（Ctrl + Z / Y，最多 10 步）。
+ *  - 页面级快捷键（shortcuts.ts 匹配、这里的 onShortcut 执行）：Ctrl + Z / Y / S / C / X / V / D / L / [ / ]、Tab、Esc、F11、F1；画布自己的按键仍在 Canvas.tsx。
  *
  * 目录说明：
  *  - types.ts            公共类型（数据源 / 组件 / 布局）
@@ -17,15 +20,17 @@
  *  - Canvas.tsx          等比缩放画布 + 拖动 / 八点缩放 / 多选；Palette.tsx 组件库；PropertyPanel.tsx 属性面板
  *  - ArrangeBar.tsx      排列工具栏（对齐 / 分布 / 等宽高 / 旋转 / 翻转 / 组合 / 锁定 / 层次 / 网格），运算在 arrange.ts（纯函数）
  *  - LayerPanel.tsx      图层栏（上下层关系：拖动排序 / 置顶置底 / 显示隐藏 / 锁定）
+ *  - history.ts          撤销 / 重做历史栈（纯逻辑，store.ts 用 $onAction 挂钩）；shortcuts.ts 快捷键匹配（纯函数）
+ *  - variables.ts        内部变量定义的纯函数；VariableDialog.tsx 内部变量管理弹窗
  *  - resource.ts         资源文件（图片）经宿主 SaveResourceFile 保存、https://pic.nt.local/ 读取；保存 / 导入后清理未引用的文件
  *  - package.ts / zip.ts 组态包（布局 + 资源打成 zip）导入导出：有宿主时由宿主 Export/Preview/ImportScadaPackage 完成（另存为 / 打开对话框），
  *                        没有宿主（浏览器调试）时前端打包下载 / file input 读取；ImportDialog.tsx 导入弹窗（两种来源共用）
  */
 import { NButton, NButtonGroup, NDropdown, NModal, NPopconfirm, NTag, type DropdownOption } from 'naive-ui'
-import { computed, defineComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useMain } from '@/store'
 import ArrangeBar from './ArrangeBar'
-import Canvas, { canvasView, resetCanvasView, zoomCanvas } from './Canvas'
+import Canvas, { canvasFocused, canvasHasFocus, canvasView, resetCanvasView, zoomCanvas } from './Canvas'
 import { refreshAllDataSources, startAllDataSources, stopAllDataSources } from './dataSource'
 import ImportDialog from './ImportDialog'
 import LayerPanel from './LayerPanel'
@@ -33,8 +38,10 @@ import { buildPackage, exportPackageViaHost, previewPackageViaHost, type HostPac
 import Palette from './Palette'
 import PropertyPanel from './PropertyPanel'
 import { downloadBlob, hasHostBridge } from './resource'
+import { isTextEntry, matchShortcut, overlayOpen } from './shortcuts'
 import { useScadaStore } from './store'
 import { toolIcons } from './toolIcons'
+import VariableDialog from './VariableDialog'
 import { tt } from './widgets/common'
 import './widgets'
 
@@ -109,12 +116,135 @@ export default defineComponent({
         scada.setFullscreen(false)
       }
     }
-    const onEscape = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || !scada.fullscreen) return
-      // 弹窗 / 下拉菜单 / 颜色浮层打开时，Esc 先留给它们关闭自己（.n-modal-container 关闭后仍会留一个空壳，要看里面有没有内容；
-      // 正在播放关闭动画的下拉菜单带 leave-active 类，已经不算打开）
-      if (document.querySelector('.n-modal-container > *, .n-dropdown-menu:not(.popover-transition-leave-active), [data-color-popup]')) return
-      exitFullscreen()
+    /**
+     * 页面上选着一段文字、且用户没有刚点过画布：Ctrl + C / X 归浏览器（复制文字）。
+     * 点画布（user-select: none）不会清掉别处选着的文字，所以一旦焦点在画布里就仍然复制 / 剪切组件，免得一段忘了取消的选区让快捷键失灵
+     */
+    const textSelected = () => {
+      const sel = typeof window !== 'undefined' && window.getSelection ? window.getSelection() : null
+      return !!sel && !sel.isCollapsed && sel.toString().length > 0 && !canvasHasFocus()
+    }
+    const notify = (kind: 'success' | 'warning' | 'error', text: string) => {
+      const m = window.$message as unknown as Record<string, ((t: string) => void) | undefined> | undefined
+      if (m && typeof m[kind] === 'function') m[kind]!(text)
+    }
+    /** Ctrl + S / 「保存并继续」：保存但留在编辑模式（撤销历史保留） */
+    const onSaveStay = async () => {
+      if (!scada.editing || scada.saving) return
+      // 正在输入的框（数字框要失焦才提交）先失焦，免得漏掉刚输入的值
+      const active = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null
+      if (active && active !== document.body && isTextEntry(active) && typeof active.blur === 'function') {
+        active.blur()
+        await nextTick()
+      }
+      try {
+        await scada.save({ stay: true })
+        notify('success', tt('scada.savedContinue'))
+      } catch (err) {
+        console.error('[scada] save failed', err)
+        notify('error', tt('scada.saveFailed'))
+      }
+    }
+    /**
+     * 编辑模式的页面级快捷键（匹配规则与完整列表见 shortcuts.ts）。
+     * 弹窗 / 下拉菜单 / 颜色浮层打开时不响应（Esc 先留给它们关闭自己；.n-modal-container 关闭后仍会留一个空壳，所以看里面有没有内容）；
+     * 焦点在文本输入框里时撤销 / 复制 / 粘贴 / Tab 归浏览器（输入框自己的文字撤销、复制粘贴），只有 Ctrl + S / F1 / F11 / Esc（退全屏）照常生效。
+     */
+    const onShortcut = (e: KeyboardEvent) => {
+      if (!scada.editing) return
+      const id = matchShortcut(e)
+      if (!id) return
+      if (overlayOpen(true)) return
+      const typing = isTextEntry(e.target)
+      if (id === 'save') {
+        e.preventDefault()
+        void onSaveStay()
+        return
+      }
+      if (id === 'fullscreen') {
+        e.preventDefault()
+        void toggleFullscreen()
+        return
+      }
+      if (id === 'help') {
+        e.preventDefault()
+        helpShow.value = true
+        return
+      }
+      if (id === 'deselect') {
+        // Esc：先退出全屏（输入框里也算），否则取消选中
+        if (scada.fullscreen) {
+          void exitFullscreen()
+          return
+        }
+        // 焦点在画布 / 页面空白时才取消选中：焦点在下拉 / 按钮上的 Esc 是用来收起它们的，不该顺手把组件取消选中
+        if (!typing && scada.selectedIds.length && canvasFocused()) {
+          scada.select(null)
+          e.preventDefault()
+        }
+        return
+      }
+      if (typing) return
+      const ids = scada.selectedIds.slice()
+      switch (id) {
+        case 'undo':
+          e.preventDefault()
+          scada.undo()
+          break
+        case 'redo':
+          e.preventDefault()
+          scada.redo()
+          break
+        case 'copy': {
+          if (textSelected()) break // 页面上选着一段文字（比如属性面板的说明）：Ctrl + C 复制文字
+          e.preventDefault()
+          const n = scada.copySelection()
+          if (n) notify('success', tt('scada.shortcut.copied', { n }))
+          break
+        }
+        case 'cut': {
+          if (textSelected()) break
+          e.preventDefault()
+          const r = scada.cutSelection()
+          if (r.cut) notify('success', tt('scada.shortcut.cut', { n: r.cut }))
+          if (r.locked) notify('warning', tt('scada.tool.lockedHint'))
+          break
+        }
+        case 'paste':
+          e.preventDefault()
+          scada.pasteClipboard()
+          break
+        case 'duplicate':
+          e.preventDefault()
+          if (ids.length) scada.duplicateWidgets(ids)
+          break
+        case 'lock': {
+          e.preventDefault()
+          const sel = scada.selectedWidgets
+          if (sel.length) scada.setLocked(ids, sel.some(w => !w.locked))
+          break
+        }
+        case 'forward':
+        case 'backward':
+        case 'toFront':
+        case 'toBack':
+          e.preventDefault()
+          if (ids.length) {
+            if (id === 'forward') scada.moveForward(ids)
+            else if (id === 'backward') scada.moveBackward(ids)
+            else if (id === 'toFront') scada.bringToFront(ids)
+            else scada.sendToBack(ids)
+          }
+          break
+        case 'selectNext':
+        case 'selectPrev':
+          // Tab 只在焦点落在画布 / 页面空白时用来切换组件；焦点在按钮 / 下拉上时照常切换焦点
+          if (canvasFocused()) {
+            e.preventDefault()
+            scada.selectNext(id === 'selectNext' ? 1 : -1)
+          }
+          break
+      }
     }
     // 保存 / 取消编辑后回到展示模式：退出全屏；退出全屏后重新量整页尺寸
     watch(
@@ -140,7 +270,7 @@ export default defineComponent({
         ro.observe(rootRef.value)
       }
       document.addEventListener('fullscreenchange', onFullscreenChange)
-      window.addEventListener('keydown', onEscape)
+      window.addEventListener('keydown', onShortcut)
       // 组态页内点输入框不弹虚拟键盘（属性面板 / 处理函数弹窗里的输入框都算）
       store.setGlobalKeyBoardShow(false)
       store.setGlobalKeyBoardBlocked(true)
@@ -150,7 +280,7 @@ export default defineComponent({
     onBeforeUnmount(() => {
       if (ro) ro.disconnect()
       document.removeEventListener('fullscreenchange', onFullscreenChange)
-      window.removeEventListener('keydown', onEscape)
+      window.removeEventListener('keydown', onShortcut)
       exitFullscreen()
       store.setGlobalKeyBoardBlocked(false)
       stopAllDataSources()
@@ -290,7 +420,7 @@ export default defineComponent({
       else if (key === 'import') onImportClick()
     }
 
-    const HELP_SECTIONS = ['palette', 'canvas', 'widget', 'arrange', 'display', 'control']
+    const HELP_SECTIONS = ['palette', 'canvas', 'widget', 'arrange', 'shortcuts', 'variables', 'display', 'control']
     /** 操作说明弹窗：分组列出组件库 / 画布 / 组件 / 展示模式 / 控制组件的操作方式 */
     const renderHelp = () => (
       <NModal show={helpShow.value} preset="card" title={tt('scada.help.title')} style={{ width: 'min(560px, 94vw)' }} closable maskClosable onUpdateShow={(v: boolean) => (helpShow.value = v)}>
@@ -314,47 +444,53 @@ export default defineComponent({
       const l = scada.current
       return (
         <>
-          <div class={'h-11 shrink-0 flex items-center gap-2 px-2 overflow-x-auto scada-noscrollbar border-0 border-b border-solid border-gray-300 bg-gray-50'}>
-            <NTag type="warning" size="small" bordered={false}>{tt('scada.editingTag')}</NTag>
-            <span class={'text-xs text-gray-500 whitespace-nowrap'}>{l.canvas.width}×{l.canvas.height}</span>
-            <NButton size="small" secondary type={scada.paletteShow ? 'primary' : 'default'} onClick={() => (scada.paletteShow = !scada.paletteShow)}>{tt('scada.palette')}</NButton>
-            <NButton size="small" secondary type={scada.layersShow ? 'primary' : 'default'} data-scada-layers-toggle onClick={() => (scada.layersShow = !scada.layersShow)}>{tt('scada.layers')}</NButton>
-            <NButton size="small" secondary type={scada.propsShow ? 'primary' : 'default'} onClick={() => (scada.propsShow = !scada.propsShow)}>{tt('scada.properties')}</NButton>
-            <NButtonGroup size="small">
-              <NButton onClick={() => zoomCanvas(1 / 1.2)}>－</NButton>
-              <NButton class={'min-w-[56px]'} onClick={() => resetCanvasView()}>{Math.round(canvasView.zoom * 100)}%</NButton>
-              <NButton onClick={() => zoomCanvas(1.2)}>＋</NButton>
-            </NButtonGroup>
-            <NButton size="small" quaternary circle data-scada-help onClick={() => (helpShow.value = true)}>
-              <span class={'font-bold'}>?</span>
-            </NButton>
-            <NDropdown trigger="click" placement="bottom-start" options={moreOptions.value} onSelect={onMoreSelect}>
-              <NButton size="small" quaternary circle data-scada-more>
-                <span class={'font-bold tracking-widest'}>⋯</span>
+          <div class={'h-11 shrink-0 flex items-center gap-2 px-2 border-0 border-b border-solid border-gray-300 bg-gray-50'} data-scada-toolbar>
+            {/* 左半边按钮多，窄屏时横向滚动；右半边（全屏 / 取消 / 保存）固定在右侧，不会被挤到屏幕外 */}
+            <div class={'flex-1 min-w-0 h-full flex items-center gap-2 overflow-x-auto scada-noscrollbar'} data-scada-toolbar-left>
+              <NTag type="warning" size="small" bordered={false}>{tt('scada.editingTag')}</NTag>
+              <span class={'text-xs text-gray-500 whitespace-nowrap'}>{l.canvas.width}×{l.canvas.height}</span>
+              <NButton size="small" secondary type={scada.paletteShow ? 'primary' : 'default'} onClick={() => (scada.paletteShow = !scada.paletteShow)}>{tt('scada.palette')}</NButton>
+              <NButton size="small" secondary type={scada.layersShow ? 'primary' : 'default'} data-scada-layers-toggle onClick={() => (scada.layersShow = !scada.layersShow)}>{tt('scada.layers')}</NButton>
+              <NButton size="small" secondary type={scada.propsShow ? 'primary' : 'default'} onClick={() => (scada.propsShow = !scada.propsShow)}>{tt('scada.properties')}</NButton>
+              <NButton size="small" secondary type={scada.varsShow ? 'primary' : 'default'} data-scada-vars onClick={() => (scada.varsShow = true)}>{tt('scada.vars.button')}</NButton>
+              <NButtonGroup size="small">
+                <NButton onClick={() => zoomCanvas(1 / 1.2)}>－</NButton>
+                <NButton class={'min-w-[56px]'} onClick={() => resetCanvasView()}>{Math.round(canvasView.zoom * 100)}%</NButton>
+                <NButton onClick={() => zoomCanvas(1.2)}>＋</NButton>
+              </NButtonGroup>
+              <NButton size="small" quaternary circle data-scada-help onClick={() => (helpShow.value = true)}>
+                <span class={'font-bold'}>?</span>
               </NButton>
-            </NDropdown>
-            <div class={'flex-1 min-w-2'} />
-            <button
-              type="button"
-              data-scada-fullscreen
-              title={scada.fullscreen ? tt('scada.tool.exitFullscreen') : tt('scada.tool.fullscreen')}
-              class={['shrink-0 h-7 px-1.5 rounded border border-solid cursor-pointer outline-none flex items-center gap-1 text-xs', scada.fullscreen ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-white text-slate-700 border-gray-300 hover:bg-blue-50']}
-              onClick={toggleFullscreen}
-            >
-              <span class={'w-4 h-4 block'}>{scada.fullscreen ? toolIcons.exitFullscreen() : toolIcons.fullscreen()}</span>
-              <span class={'whitespace-nowrap'}>{scada.fullscreen ? tt('scada.tool.exitFullscreen') : tt('scada.tool.fullscreen')}</span>
-            </button>
-            {scada.dirty ? (
-              <NPopconfirm onPositiveClick={() => scada.cancelEdit()} positiveText={tt('scada.confirm')} negativeText={tt('scada.cancel')}>
-                {{
-                  trigger: () => <NButton size="small">{tt('scada.cancel')}</NButton>,
-                  default: () => tt('scada.discardConfirm')
-                }}
-              </NPopconfirm>
-            ) : (
-              <NButton size="small" onClick={() => scada.cancelEdit()}>{tt('scada.cancel')}</NButton>
-            )}
-            <NButton size="small" type="primary" loading={scada.saving} disabled={!canSave.value} onClick={onSave}>{tt('scada.save')}</NButton>
+              <NDropdown trigger="click" placement="bottom-start" options={moreOptions.value} onSelect={onMoreSelect}>
+                <NButton size="small" quaternary circle data-scada-more>
+                  <span class={'font-bold tracking-widest'}>⋯</span>
+                </NButton>
+              </NDropdown>
+            </div>
+            <div class={'shrink-0 flex items-center gap-2'} data-scada-toolbar-right>
+              <button
+                type="button"
+                data-scada-fullscreen
+                title={scada.fullscreen ? tt('scada.tool.exitFullscreen') : tt('scada.tool.fullscreen')}
+                class={['shrink-0 h-7 px-1.5 rounded border border-solid cursor-pointer outline-none flex items-center gap-1 text-xs', scada.fullscreen ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-white text-slate-700 border-gray-300 hover:bg-blue-50']}
+                onClick={toggleFullscreen}
+              >
+                <span class={'w-4 h-4 block'}>{scada.fullscreen ? toolIcons.exitFullscreen() : toolIcons.fullscreen()}</span>
+                <span class={'whitespace-nowrap'}>{scada.fullscreen ? tt('scada.tool.exitFullscreen') : tt('scada.tool.fullscreen')}</span>
+              </button>
+              {scada.dirty ? (
+                <NPopconfirm onPositiveClick={() => scada.cancelEdit()} positiveText={tt('scada.confirm')} negativeText={tt('scada.cancel')}>
+                  {{
+                    trigger: () => <NButton size="small">{tt('scada.cancel')}</NButton>,
+                    default: () => tt('scada.discardConfirm')
+                  }}
+                </NPopconfirm>
+              ) : (
+                <NButton size="small" onClick={() => scada.cancelEdit()}>{tt('scada.cancel')}</NButton>
+              )}
+              <NButton size="small" secondary type="primary" disabled={!canSave.value} data-scada-save-stay onClick={onSaveStay}>{tt('scada.saveContinue')}</NButton>
+              <NButton size="small" type="primary" loading={scada.saving} disabled={!canSave.value} data-scada-save onClick={onSave}>{tt('scada.save')}</NButton>
+            </div>
           </div>
           <ArrangeBar />
         </>
@@ -374,6 +510,7 @@ export default defineComponent({
         >
           {editing ? renderToolbar() : null}
           {editing ? renderHelp() : null}
+          {editing ? <VariableDialog /> : null}
           <input ref={fileInputRef} type="file" accept=".zip,.json,application/zip,application/json" class={'hidden'} data-scada-import onChange={onImportFileChange} />
           <ImportDialog show={importShow.value} file={importFile.value} preview={importPreview.value} onClose={closeImport} />
           {!editing && (

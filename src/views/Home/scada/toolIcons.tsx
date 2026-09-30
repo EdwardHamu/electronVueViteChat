@@ -19,6 +19,10 @@ const svg = (children: VNodeChild) => (
 )
 
 export const toolIcons: Record<string, () => VNodeChild> = {
+  // ---------------------------------------------------------------- 撤销 / 重做（任务 60）
+  undo: () => svg(<><path d="M9 14L4 9l5-5" {...S} /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H10" {...S} /></>),
+  redo: () => svg(<><path d="M15 14l5-5-5-5" {...S} /><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H14" {...S} /></>),
+
   // ---------------------------------------------------------------- 与参考对象对齐
   alignLeft: () => svg(<><path d="M4 3.5v17" {...S} /><rect x="7" y="6" width="13" height="4.2" rx="1" {...F} /><rect x="7" y="13.8" width="7.5" height="4.2" rx="1" {...F} /></>),
   alignRight: () => svg(<><path d="M20 3.5v17" {...S} /><rect x="4" y="6" width="13" height="4.2" rx="1" {...F} /><rect x="9.5" y="13.8" width="7.5" height="4.2" rx="1" {...F} /></>),

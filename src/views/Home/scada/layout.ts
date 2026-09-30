@@ -3,6 +3,7 @@
  */
 import { normRotate } from './geometry'
 import type { CanvasConfig, DataBinding, ScadaLayout, WidgetInstance } from './types'
+import { DEFAULT_VAR_COUNT, defaultVariables, nextVarSeq, sanitizeVariables } from './variables'
 
 export const LAYOUT_VERSION = 1
 
@@ -17,6 +18,8 @@ export const createEmptyLayout = (width = DEFAULT_CANVAS.width, height = DEFAULT
   version: LAYOUT_VERSION,
   canvas: { ...DEFAULT_CANVAS, width: Math.round(width), height: Math.round(height) },
   widgets: [],
+  variables: defaultVariables(),
+  variableSeq: DEFAULT_VAR_COUNT + 1,
   updatedAt: Date.now()
 })
 
@@ -89,12 +92,16 @@ export const normalizeLayout = (raw: any): ScadaLayout | null => {
   widgets.forEach((w: WidgetInstance) => {
     if (w.groupId && (groupSize.get(w.groupId) || 0) < 2) delete w.groupId
   })
+  // 内部变量定义（任务 60）：没有这个字段的老布局补默认的 var1 ~ var16；有就按它来（可以是空数组 = 用户删光了）
+  const variables = sanitizeVariables(raw.variables) || defaultVariables()
   // let version = num(raw.version, 1)
   // if (version < 2) { ...migrate...; version = 2 }
   return {
     version: LAYOUT_VERSION,
     canvas,
     widgets,
+    variables,
+    variableSeq: nextVarSeq(variables, raw.variableSeq),
     updatedAt: num(raw.updatedAt, Date.now())
   }
 }

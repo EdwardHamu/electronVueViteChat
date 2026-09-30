@@ -1,12 +1,12 @@
 /**
  * 组件库（工具箱）：按分类（基础图素 / 控制与显示 / 数据看板）分组，小图标 + 名称的网格排布，可折叠分类、切换网格 / 列表视图。
- *  - 点按 = 自动放到画布空位；按住拖到画布上松手 = 放在松手位置（Pointer Events，触摸屏可用）
+ *  - 点按 = 放到当前窗口视野的正中央（连续点按依次错开）；按住拖到画布上松手 = 放在松手位置（Pointer Events，触摸屏可用）
  *  - direction = vertical（横屏：左侧竖排，三列网格）/ horizontal（竖屏：画布上方横向一条，可横向滚动）
  *  - 滚动条用 NScrollbar 的悬浮样式，不占内容宽度；组件库的滑轨按要求做成完全透明（仍可滚轮 / 触摸拖动滚动，只是看不见）
  */
 import { NScrollbar } from 'naive-ui'
 import { computed, defineComponent, reactive, ref, Teleport, type PropType } from 'vue'
-import { clientToCanvas } from './Canvas'
+import { clientToCanvas, viewCenterInCanvas } from './Canvas'
 import { widgetDefinitions } from './registry'
 import { useScadaStore } from './store'
 import type { WidgetCategory, WidgetDefinition } from './types'
@@ -106,7 +106,10 @@ export default defineComponent({
         const pos = clientToCanvas(e.clientX, e.clientY)
         if (pos) scada.addWidget(d.type, pos)
       } else {
-        scada.addWidget(d.type)
+        // 点按：放在当前窗口视野的正中央（缩放 / 平移之后也是「眼前」的中央，不是画布左上角）；
+        // 连续点同一个组件会依次错开两格，不叠成一个。容器还没量出尺寸（测试环境）时退到画布中心
+        const cv = scada.current.canvas
+        scada.addWidget(d.type, viewCenterInCanvas() || { x: cv.width / 2, y: cv.height / 2 }, { cascade: true })
       }
     }
     const onCancel = (e: PointerEvent) => {
