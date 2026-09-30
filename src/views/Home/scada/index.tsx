@@ -271,7 +271,8 @@ export default defineComponent({
       }
       document.addEventListener('fullscreenchange', onFullscreenChange)
       window.addEventListener('keydown', onShortcut)
-      // 组态页内点输入框不弹虚拟键盘（属性面板 / 处理函数弹窗里的输入框都算）
+      // 组态 tab 激活：点输入框不弹虚拟键盘（属性面板 / 处理函数弹窗里的输入框都算）；
+      // 但系统配置 / 产品配方 / 产品历史页面盖在上面打开时照常弹（utils.isKeyboardSuppressed）
       store.setGlobalKeyBoardShow(false)
       store.setGlobalKeyBoardBlocked(true)
       startAllDataSources()

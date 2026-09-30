@@ -35,11 +35,12 @@ import { NInput, NInputNumber } from 'naive-ui'
 import GlobalKeyBoard from '@/views/Home/GlobalKeyBoard'
 import { useMain } from '@/store'
 import { useConfigStore } from '@/store/config'
-import { listenAllInputFocus } from '@/utils/utils'
+import { listenAllInputFocus, isKeyboardSuppressed } from '@/utils/utils'
+import { useFormulaStore } from '@/store/formula'
 import * as vk from '@/utils/virtualKeyboard'
 import { MyFormWrap } from '@/components/MyFormWrap/MyFormWrap'
 import { noKeyBoardInputClass } from '@/views/Home/config/sysConfig/enum'
-export { createApp, nextTick, h, reactive, defineComponent, createPinia, NInput, NInputNumber, GlobalKeyBoard, useMain, useConfigStore, listenAllInputFocus, vk, MyFormWrap, noKeyBoardInputClass }
+export { createApp, nextTick, h, reactive, defineComponent, createPinia, NInput, NInputNumber, GlobalKeyBoard, useMain, useConfigStore, listenAllInputFocus, isKeyboardSuppressed, useFormulaStore, vk, MyFormWrap, noKeyBoardInputClass }
 `)
 const bundle = path.join(outdir, 'bundle.mjs')
 await build({
@@ -100,7 +101,7 @@ const rawLog = console.log, rawWarn = console.warn
 console.log = (...a) => { if (!(typeof a[0] === 'string' && a[0].startsWith('🪵'))) rawLog(...a) }
 console.warn = (...a) => { if (!(typeof a[0] === 'string' && a[0].startsWith('[intlify]'))) rawWarn(...a) }
 const m = await import(pathToFileURL(bundle).href)
-const { createApp, nextTick, h, reactive, defineComponent, createPinia, NInput, NInputNumber, GlobalKeyBoard, useMain, useConfigStore, listenAllInputFocus, vk, MyFormWrap, noKeyBoardInputClass } = m
+const { createApp, nextTick, h, reactive, defineComponent, createPinia, NInput, NInputNumber, GlobalKeyBoard, useMain, useConfigStore, listenAllInputFocus, isKeyboardSuppressed, useFormulaStore, vk, MyFormWrap, noKeyBoardInputClass } = m
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 let step = 0
@@ -229,8 +230,38 @@ for (const id of ['f-ro', 'f-check', 'f-nokb']) {
   check(`不弹键盘：${{ 'f-ro': '只读输入框', 'f-check': 'checkbox', 'f-nokb': '.' + noKeyBoardInputClass + ' 区域里的输入框' }[id]}`, () => assert.equal(store.globalKeyBoardShow, false))
 }
 store.setGlobalKeyBoardBlocked(true); await open('f-text')
-check('globalKeyBoardBlocked（数据组态页）：不弹键盘', () => assert.equal(store.globalKeyBoardShow, false))
+check('数据组态 tab 激活（globalKeyBoardBlocked）且没有打开系统配置 / 产品配方 / 产品历史：不弹键盘', () => { assert.equal(store.globalKeyBoardShow, false); assert.equal(isKeyboardSuppressed(store, configStore), true) })
+{
+  const formulaStore = useFormulaStore(pinia)
+  const pages = [
+    ['系统配置', v => { configStore.isShowConfig = v }],
+    ['产品配方', v => { formulaStore.show = v }],
+    ['产品历史', v => { configStore.productHistoryShow = v }]
+  ]
+  for (const [name, set] of pages) {
+    set(true); await nextTick()
+    await open('f-text')
+    check(`数据组态 tab 激活但「${name}」页面打开：照常弹键盘`, () => { assert.equal(isKeyboardSuppressed(store, configStore), false); assert.ok(visible()); assert.equal(area().value, model.text) })
+    set(false); await nextTick(); await sleep(40)
+    check(`……关掉「${name}」页面（回到数据组态）：开着的键盘收起，再点输入框也不弹`, () => { assert.equal(store.globalKeyBoardShow, false) })
+    await open('f-text')
+    assert.equal(store.globalKeyBoardShow, false)
+  }
+  configStore.isShowConfig = true; formulaStore.show = true; await nextTick()
+  await open('f-text')
+  check('几个页面同时打开：照常弹；只关一个（另一个还开着）不收起', () => { assert.ok(visible()) })
+  configStore.isShowConfig = false; await nextTick(); await sleep(40)
+  check('……关掉系统配置、产品配方还开着：键盘仍在', () => assert.ok(visible()))
+  formulaStore.show = false; await nextTick(); await sleep(40)
+  check('……都关掉：键盘收起', () => assert.equal(store.globalKeyBoardShow, false))
+}
 store.setGlobalKeyBoardBlocked(false)
+configStore.isShowConfig = true; await nextTick()
+await open('f-text')
+check('不在数据组态 tab（未屏蔽）：系统配置页打开与否都照常弹', () => { assert.equal(isKeyboardSuppressed(store, configStore), false); assert.ok(visible()) })
+configStore.isShowConfig = false; await nextTick(); await sleep(40)
+check('……关掉系统配置页不影响（不在数据组态 tab 时键盘不收起）', () => assert.ok(visible()))
+store.setGlobalKeyBoardShow(false); await nextTick(); await sleep(40)
 await open('f-text')
 check('输入区本身获得焦点不会再触发弹键盘 / 换目标', () => { area().blur(); area().focus(); assert.equal(store.keyboardTarget, inputOf('f-text')) })
 configStore.sysConfig.InputType = 0; await nextTick(); await sleep(40)

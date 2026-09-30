@@ -1976,11 +1976,11 @@ resetAll(); scada.setSelection(ids3); await nextTick()
 const multiInfo = () => propsCol().querySelector('[data-multi-info]')
 const boundsVals = () => [...propsCol().querySelectorAll('[data-multi-bounds]')].map(el => el.querySelector('input').value)
 const typeInto = async (input, v) => { input.value = String(v); input.dispatchEvent(new InputEvent('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); input.dispatchEvent(new Event('blur')); await nextTick() }
-check('多选面板：「多选」标题、已选中 3 个组件、参考对象名称、选区位置 / 尺寸 = 外接框 (100, 100, 460, 260)、操作按钮 置顶 / 置底 / 复制 / 删除；不显示单个组件的数据绑定 / 属性', () => {
+check('多选面板：「多选」标题、已选中 3 个组件、参考对象名称、选区位置 / 尺寸 = 外接框 (100, 100, 460, 260)、操作按钮 复制 / 删除（置顶 / 置底按钮已去掉，任务 63）；不显示单个组件的数据绑定 / 属性', () => {
   assert.ok(multiInfo()); assert.ok(multiInfo().textContent.includes('已选中 3 个组件') && multiInfo().textContent.includes('参考对象：矩形'), multiInfo().textContent)
   assert.ok(propsCol().textContent.includes('多选') && propsCol().textContent.includes('选区位置 / 尺寸') && propsCol().textContent.includes('Ctrl 或 Shift'))
   assert.deepEqual(boundsVals(), ['100', '100', '460', '260'])
-  const names = [...propsCol().querySelectorAll('button')].map(b => b.textContent.trim()); for (const n of ['置顶', '置底', '复制', '删除']) assert.ok(names.includes(n), n)
+  const names = [...propsCol().querySelectorAll('button')].map(b => b.textContent.trim()); for (const n of ['复制', '删除']) assert.ok(names.includes(n), n); for (const n of ['置顶', '置底']) assert.ok(!names.includes(n), n)
   assert.ok(!propsCol().textContent.includes('数据绑定') && !propsCol().textContent.includes('数据处理函数'))
 })
 await typeInto(propsCol().querySelector('[data-multi-bounds="w"] input'), 690)

@@ -5,6 +5,9 @@
 import { defineStore } from 'pinia'
 export const useConfigStore = defineStore('config', {
   state: () => ({
-    sysConfig: { InputType: 0 } as Record<string, any>
+    sysConfig: { InputType: 0 } as Record<string, any>,
+    /** 系统配置页面 / 产品历史页面是否打开（数据组态 tab 激活时，这些页面打开才照常弹键盘） */
+    isShowConfig: false,
+    productHistoryShow: false
   })
 })

@@ -1,7 +1,7 @@
 /**
  * 属性面板：选中一个组件时编辑标题 / 锁定 / 数据绑定 / 位置尺寸 / 组件自定义属性（按 propSchema 通用渲染）；
  * 旋转 / 翻转只在顶部排列工具栏里（任务 61 起面板里不再有旋转下拉和翻转开关）；每个区块都可以点标题折叠 / 展开（panelSections.ts，记在 localStorage）；
- * 选中多个时显示多选面板（数量、参考对象、选区外接框的位置尺寸、复制 / 置顶 / 置底 / 删除）；未选中时编辑画布本身（尺寸、背景、网格）。
+ * 选中多个时显示多选面板（数量、参考对象、选区外接框的位置尺寸、复制 / 删除；置顶 / 置底在排列工具栏、图层栏和 Ctrl + Shift + ] / [，面板里不放）；未选中时编辑画布本身（尺寸、背景、网格）。
  * 位置尺寸显示的是画面上看到的外框（旋转 90° / 270° 时宽高互换），输入后换算回组件的 x / y / w / h。
  * columns = 2 时（竖屏放在画布下方）各区块分两栏排布。
  * 数据处理函数（JS）通过面板底部的按钮打开 TransformDialog 弹窗编辑。
@@ -322,8 +322,6 @@ export default defineComponent({
           )}
           <Section sid="actions" title={tt('scada.panel.actions')}>
             <div class={'flex flex-wrap gap-2'}>
-              <NButton size="small" onClick={() => scada.bringToFront(w.id)}>{tt('scada.panel.front')}</NButton>
-              <NButton size="small" onClick={() => scada.sendToBack(w.id)}>{tt('scada.panel.back')}</NButton>
               <NButton size="small" onClick={() => scada.duplicateWidget(w.id)}>{tt('scada.panel.duplicate')}</NButton>
               <NPopconfirm onPositiveClick={() => scada.removeWidget(w.id)} positiveText={tt('scada.confirm')} negativeText={tt('scada.cancel')}>
                 {{
@@ -383,8 +381,6 @@ export default defineComponent({
           ) : null}
           <Section sid="actions" title={tt('scada.panel.actions')}>
             <div class={'flex flex-wrap gap-2'}>
-              <NButton size="small" onClick={() => scada.bringToFront(ids)}>{tt('scada.panel.front')}</NButton>
-              <NButton size="small" onClick={() => scada.sendToBack(ids)}>{tt('scada.panel.back')}</NButton>
               <NButton size="small" data-multi-duplicate onClick={() => scada.duplicateWidgets(ids)}>{tt('scada.panel.duplicate')}</NButton>
               <NPopconfirm
                 onPositiveClick={() => {

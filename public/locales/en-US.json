@@ -860,8 +860,6 @@
       "geometry": "Position / Size",
       "props": "Widget Properties",
       "actions": "Actions",
-      "front": "Bring to Front",
-      "back": "Send to Back",
       "duplicate": "Duplicate",
       "delete": "Delete",
       "deleteConfirm": "Delete this widget?",

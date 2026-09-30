@@ -10,6 +10,7 @@ import { propNameMap } from "@/views/Home/config/devConfig/enum";
 import { callBrige } from "./callm";
 import { menuIdSplit, menuPropEnum } from "@/views/Home/curcev/enum";
 import { isKeyboardTarget, isTouchKeyboardEnabled } from "./virtualKeyboard";
+import { useFormulaStore } from "@/store/formula";
 import * as echarts from 'echarts';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -126,11 +127,22 @@ export const loopGet = (fn: () => Promise<any>, ms: number, isGettingRef: Ref<bo
   })
 }
 
+/**
+ * 当前是否屏蔽虚拟键盘：数据组态 tab 激活（store.globalKeyBoardBlocked）且
+ * 系统配置（configStore.isShowConfig）、产品配方（formulaStore.show）、产品历史（configStore.productHistoryShow）这几个页面都没打开。
+ * 这些页面是盖在 tab 上面的全屏层，打开时里面的输入框照常弹键盘。
+ */
+export const isKeyboardSuppressed = (store: ReturnType<typeof useMain>, configStore: ReturnType<typeof useConfigStore>) => {
+  if (!store.globalKeyBoardBlocked) return false
+  const overlayOpen = !!configStore.isShowConfig || !!configStore.productHistoryShow || !!useFormulaStore().show
+  return !overlayOpen
+}
+
 export const listenAllInputFocus = (store: ReturnType<typeof useMain>, configStore: ReturnType<typeof useConfigStore>) => {
   /** 是否为这个输入框弹出虚拟键盘：由系统配置 InputType（「触摸键盘输入」开关）决定 */
   const tryOpen = (target: EventTarget | null) => {
-    // 数据组态页等场景屏蔽虚拟键盘：聚焦输入框不弹出
-    if (store.globalKeyBoardBlocked) return
+    // 数据组态 tab 激活且系统配置 / 产品配方 / 产品历史页面都没打开：聚焦输入框不弹出
+    if (isKeyboardSuppressed(store, configStore)) return
     // 键盘把内容写回输入框时会聚焦它，不能因此再弹一次
     if (store.keyboardCommitting) return
     if (!isKeyboardTarget(target)) return

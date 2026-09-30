@@ -860,8 +860,6 @@
       "geometry": "位置 / 尺寸",
       "props": "组件属性",
       "actions": "操作",
-      "front": "置顶",
-      "back": "置底",
       "duplicate": "复制",
       "delete": "删除",
       "deleteConfirm": "确定删除该组件？",

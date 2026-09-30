@@ -860,8 +860,6 @@
       "geometry": "Vị trí / Kích thước",
       "props": "Thuộc tính thành phần",
       "actions": "Thao tác",
-      "front": "Đưa lên trên",
-      "back": "Đưa xuống dưới",
       "duplicate": "Nhân bản",
       "delete": "Xóa",
       "deleteConfirm": "Xóa thành phần này?",

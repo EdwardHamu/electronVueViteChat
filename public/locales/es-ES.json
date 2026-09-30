@@ -860,8 +860,6 @@
       "geometry": "Posición / Tamaño",
       "props": "Propiedades del componente",
       "actions": "Acciones",
-      "front": "Traer al frente",
-      "back": "Enviar al fondo",
       "duplicate": "Duplicar",
       "delete": "Eliminar",
       "deleteConfirm": "¿Eliminar este componente?",

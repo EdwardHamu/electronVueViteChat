@@ -17,6 +17,7 @@ import "simple-keyboard/build/css/index.css";
 import classnames from "classnames";
 import { CloseTwotone } from "@vicons/material";
 import { isNumberInput, isTouchKeyboardEnabled, KEYBOARD_ROOT_CLASS, writeValueToInput } from "@/utils/virtualKeyboard";
+import { isKeyboardSuppressed } from "@/utils/utils";
 
 type AreaEl = HTMLInputElement | HTMLTextAreaElement
 
@@ -224,6 +225,10 @@ export default defineComponent({
     // 打开键盘、以及每次为某个输入框打开（同一个输入框再次打开、键盘开着时点了另一个输入框）都重新带入内容
     watch(() => [store.keyboardSeq, keyborardShow.value] as const, ([, show]) => {
       if (show) loadFromTarget()
+    })
+    // 回到被屏蔽的状态（数据组态 tab 激活时关掉了系统配置 / 产品配方 / 产品历史页面）：已经开着的键盘收起
+    watch(() => isKeyboardSuppressed(store, configStore), (v) => {
+      if (v && keyborardShow.value) closeKeyboard()
     })
     // 系统配置里关掉「触摸键盘输入」：已经开着的键盘也收起
     watch(() => configStore.sysConfig?.InputType, (v) => {

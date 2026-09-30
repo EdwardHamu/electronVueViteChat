@@ -105,7 +105,7 @@ export const useMain = defineStore('useStore', {
             keyboardTarget: <HTMLInputElement | HTMLTextAreaElement | null>null, //虚拟键盘当前服务的输入框（点击时带入内容、回车时写回）
             keyboardSeq: 0, //每次为某个输入框打开键盘 +1，键盘据此重新从输入框带入内容（同一个输入框再次打开也会刷新）
             keyboardCommitting: false, //键盘正在把内容写回输入框（写回时会聚焦目标输入框，此时不能再触发弹出）
-            globalKeyBoardBlocked: false, //为 true 时输入框聚焦不弹出虚拟键盘（数据组态页）
+            globalKeyBoardBlocked: false, //数据组态 tab 激活中（组态页挂载时为 true）。此时不弹虚拟键盘——但系统配置 / 产品配方 / 产品历史页面打开时照常弹，判定见 utils.isKeyboardSuppressed
 
             isLandscape: false, //是否横屏
             homeTab: 'curcev', //首页主 tab 当前的 name（curcev / multiCurcev / summary / scada …），由 Home/index.tsx 的 handleTabChange 维护
