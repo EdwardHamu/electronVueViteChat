@@ -542,6 +542,7 @@
       "unknown": "未知组件"
     },
     "prop": {
+      "htmlCss": "HTML / CSS",
       "html": "HTML",
       "css": "CSS",
       "js": "JavaScript",
@@ -683,7 +684,7 @@
       "radius": "圆角"
     },
     "custom": {
-      "htmlHint": "写在独立 iframe 的 <body> 里，可以直接包含 <script>（运行时 scada 对象已在 <head> 注入）。根元素高度设为 100% 即填满组件；图片可用属性面板里“图片”组件上传后的地址。",
+      "htmlHint": "写在独立 iframe 的 body 里，可以直接包含 script 标签（运行时 scada 对象已在 head 注入）。根元素高度设为 100% 即填满组件；图片可用属性面板里“图片”组件上传后的地址。",
       "cssHint": "只作用于该组件的 iframe，不影响页面其它部分。html / body 已设为 100% 宽高、无边距、透明背景；组件背景 / 边框 / 圆角在下面的属性里设置。",
       "jsHint": "在 iframe 里以普通脚本执行，全局对象 scada：\nscada.onData(fn)：数据变化时回调 fn(point, state)；point 含 value / text / name / unit / precision / standard / upper / lower / status / time，未绑定时为 undefined\nscada.point / scada.value / scada.history / scada.widget / scada.editing：当前数据点 / 数值 / 最近 60 个值 / 组件信息（尺寸、标题、绑定）/ 是否编辑模式\nscada.write(value)：写回绑定的数据源（需可写，如内部变量）\nscada.format(v, digits) / scada.statusColor(status)：格式化数字 / 状态配色\n脚本出错时编辑模式下组件左下角会显示错误；iframe 内右键 / 长按仍会弹出页面菜单"
     },

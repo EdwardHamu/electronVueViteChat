@@ -105,9 +105,20 @@ export interface WidgetInstance extends WidgetRect {
 
 /**
  * textarea：多行文本（选项列表等）；image：图片地址 + 选择本地文件（存为 data URL）；multiselect：多选（值为数组）；
- * code：代码（HTML / CSS / JS），面板里只显示一个按钮，点开 CodeDialog 弹窗编辑
+ * code：代码（HTML / CSS / JS），面板里只显示一个按钮，点开 CodeDialog 弹窗（带语法高亮）编辑；一个 code 字段可以同时编辑多段代码（parts）
  */
 export type PropFieldType = 'text' | 'textarea' | 'number' | 'color' | 'boolean' | 'select' | 'multiselect' | 'image' | 'code'
+
+export type CodeLanguage = 'html' | 'css' | 'js'
+
+/** code 字段里的一段代码：对应组件的一个属性键，各有自己的语言 / 示例 / 说明 */
+export interface CodePart {
+  key: string
+  label: () => string
+  language: CodeLanguage
+  example?: () => string
+  hint?: () => string
+}
 
 /** 属性面板的声明式字段描述，通用编辑器据此渲染 */
 export interface PropField {
@@ -121,10 +132,11 @@ export interface PropField {
   placeholder?: string | (() => string)
   /** select / multiselect 的选项；会传入当前组件，选项可依赖其它属性（如饼图按所选数据源列出数据项） */
   options?: (widget?: WidgetInstance) => { label: string; value: any }[]
-  /** code 字段：语言（只影响弹窗里的占位 / 提示）、示例代码、弹窗底部的说明 */
-  language?: 'html' | 'css' | 'js'
+  /** code 字段（单段写法）：语言、示例代码、编辑框下方的说明；多段（如 HTML + CSS 同一个弹窗）用 parts */
+  language?: CodeLanguage
   example?: () => string
   hint?: () => string
+  parts?: CodePart[]
 }
 
 /** 组件渲染时收到的 props */

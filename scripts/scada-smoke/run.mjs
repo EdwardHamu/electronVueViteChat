@@ -49,6 +49,8 @@ import { buildPackage, parsePackage, planImport, applyPackage, PACKAGE_REF_PREFI
 import { collectResourceRefs, RESOURCE_BASE_URL, RESOURCE_MAX_BYTES, INLINE_MAX_BYTES } from '@/views/Home/scada/resource'
 import { CUSTOM_TEMPLATE, CUSTOM_RUNTIME, buildCustomDoc } from '@/views/Home/scada/widgets/Custom'
 export { CUSTOM_TEMPLATE, CUSTOM_RUNTIME, buildCustomDoc }
+import { highlight } from '@/views/Home/scada/highlight'
+export { highlight }
 export { createZip, readZip, zipEntryText, crc32, buildPackage, parsePackage, planImport, applyPackage, PACKAGE_REF_PREFIX, collectResourceRefs, RESOURCE_BASE_URL, RESOURCE_MAX_BYTES, INLINE_MAX_BYTES }
 import { replaceResourceRefs, cleanupUnusedResources, listResourceFiles, deleteResourceFile, HOST_GENERATED_NAME } from '@/views/Home/scada/resource'
 import { exportPackageViaHost, previewPackageViaHost, importPackageViaHost, layoutFromHostImport } from '@/views/Home/scada/package'
@@ -132,7 +134,7 @@ const { createApp, nextTick, createPinia, i18n, Scada, useScadaStore, useConfigS
 const { canvasView, zoomCanvas, resetCanvasView, compileTransform, runTransform, mergeTransformResult, transformErrors, transformDebug } = m
 const { normalizeHex, hexToHsv, hsvToHex, isLightColor, useColorPresets, DEFAULT_COLOR_PRESETS, COLOR_PRESETS_KEY } = m
 const { createZip, readZip, zipEntryText, crc32, buildPackage, parsePackage, planImport, applyPackage, PACKAGE_REF_PREFIX, collectResourceRefs, RESOURCE_BASE_URL, RESOURCE_MAX_BYTES, INLINE_MAX_BYTES } = m
-const { CUSTOM_TEMPLATE, CUSTOM_RUNTIME, buildCustomDoc } = m
+const { CUSTOM_TEMPLATE, CUSTOM_RUNTIME, buildCustomDoc, highlight } = m
 i18n.global.setLocaleMessage('zh-CN', JSON.parse(fs.readFileSync(path.join(repo, 'public/locales/zh-CN.json'), 'utf8')))
 i18n.global.locale.value = 'zh-CN'
 
@@ -626,9 +628,10 @@ scada.select(byType('custom').id); await nextTick()
 const codeBtns = () => [...propsCol().querySelectorAll('[data-scada-code-field]')]
 const customFrame = () => hostOf('custom').querySelector('[data-scada-custom] iframe')
 const srcdocOf = f => f.getAttribute('srcdoc') || f.srcdoc || ''
-check('自定义组件：默认带示例模板；属性面板 HTML / CSS / JS 三个按钮显示字符数；iframe 带 sandbox、编辑模式不响应指针，srcdoc = 运行时(head) + 用户 CSS + HTML + JS', () => {
-  assert.deepEqual(codeBtns().map(b => b.dataset.scadaCodeField), ['html', 'css', 'js'])
+check('自定义组件：默认带示例模板；属性面板「HTML / CSS」「JavaScript」两个按钮显示合计字符数；iframe 带 sandbox、编辑模式不响应指针，srcdoc = 运行时(head) + 用户 CSS + HTML + JS', () => {
+  assert.deepEqual(codeBtns().map(b => b.dataset.scadaCodeField), ['html', 'js'])
   assert.ok(codeBtns().every(b => /编辑 · \d+ 字符/.test(b.textContent.trim())), codeBtns().map(b => b.textContent).join())
+  assert.ok(codeBtns()[0].textContent.includes(`${CUSTOM_TEMPLATE.html.length + CUSTOM_TEMPLATE.css.length} 字符`), codeBtns()[0].textContent)
   const f = customFrame(); assert.ok(f); const d = srcdocOf(f)
   assert.ok(d.includes('window.scada = {') && d.includes('scada.onData(function (point)') && d.includes('.card { height: 100%') && d.includes('id="value"'))
   assert.ok(d.indexOf('window.scada = {') < d.indexOf('</head>') && d.indexOf('</head>') < d.indexOf('id="value"') && d.indexOf('id="value"') < d.indexOf('scada.onData(function (point)'))
@@ -639,25 +642,89 @@ window.dispatchEvent(new window.MessageEvent('message', { data: { type: 'scada:e
 check('iframe 报 scada:error → 编辑模式下组件左下角显示红色角标', () => {
   const e = hostOf('custom').querySelector('[data-custom-error]'); assert.ok(e); assert.ok(e.textContent.includes('脚本错误') && e.textContent.includes('x is not defined'), e.textContent)
 })
-codeBtns()[2].click(); await nextTick(); await sleep(60)
-const codeTa = () => document.body.querySelector('.n-modal-container [data-scada-code-dialog="js"] textarea')
-check('点 JS 按钮弹出代码编辑弹窗：多行文本框载入当前代码，有“插入示例 / 清空 / 确定 / 取消”与 scada API 说明', () => {
+// 语法高亮（highlight.ts）：纯函数，输出已转义、与原文等长
+check('语法高亮：JS / CSS / HTML 分词（HTML 内嵌 <style> / <script> 分别按 CSS / JS），特殊字符转义，残缺代码不抛错', () => {
+  const plain = h => h.replace(/<span class="tok-[a-z]+">|<\/span>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+  const js = 'var a = 1.5e3; // c\nscada.onData(function (p) { return p ? p.value : "--" })\nconst r = /ab+c/gi.test(x) && a / b'
+  const hj = highlight(js, 'js'); assert.equal(plain(hj), js)
+  for (const t of ['<span class="tok-keyword">var</span>', '<span class="tok-number">1.5e3</span>', '<span class="tok-comment">// c</span>', '<span class="tok-builtin">scada</span>', '<span class="tok-function">onData</span>', '<span class="tok-prop">value</span>', '<span class="tok-string">"--"</span>', '<span class="tok-regex">/ab+c/gi</span>', '<span class="tok-operator">&amp;&amp;</span>']) assert.ok(hj.includes(t), t)
+  const css = '.card { height: 100%; color: #1f2937 !important; }\n@media (max-width: 600px) { .a:hover { margin: 0 auto } }'
+  const hc = highlight(css, 'css'); assert.equal(plain(hc), css)
+  for (const t of ['<span class="tok-selector">.card</span>', '<span class="tok-cssprop">height</span>', '<span class="tok-number">100%</span>', '<span class="tok-number">#1f2937</span>', '<span class="tok-keyword">!important</span>', '<span class="tok-atrule">@media</span>', '<span class="tok-selector">.a:hover</span>', '<span class="tok-value">auto</span>']) assert.ok(hc.includes(t), t)
+  const html = '<!DOCTYPE html>\n<div class="card" id=x>&amp; a < b</div><!-- c --><style>.a{color:red}</style><script>var a = 1 // c</script><br/>'
+  const hh = highlight(html, 'html'); assert.equal(plain(hh), html)
+  for (const t of ['<span class="tok-doctype">&lt;!DOCTYPE html&gt;</span>', '<span class="tok-tag">div</span>', '<span class="tok-attr">class</span>', '<span class="tok-string">"card"</span>', '<span class="tok-string">x</span>', '<span class="tok-entity">&amp;amp;</span>', ' a &lt; b', '<span class="tok-comment">&lt;!-- c --&gt;</span>', '<span class="tok-selector">.a</span>', '<span class="tok-cssprop">color</span>', '<span class="tok-keyword">var</span>', '<span class="tok-comment">// c</span>', '<span class="tok-punct">/&gt;</span>']) assert.ok(hh.includes(t), t)
+  assert.equal(highlight('<b>&"', 'js').includes('<b>'), false)
+  for (const [c, l] of [['unterminated "string\n/* open', 'js'], ['<div class="a', 'html'], ['.a { color: ', 'css'], ['`tpl\n${x}', 'js'], ['', 'html']]) { const h = highlight(c, l); assert.equal(plain(h), c, l) }
+  assert.ok(highlight('"s\nvar x', 'js').includes('<span class="tok-string">"s</span>\n<span class="tok-keyword">var</span>'), '字符串到行尾结束')
+})
+codeBtns()[1].click(); await nextTick(); await sleep(60)
+const codeDialog = key => document.body.querySelector(`.n-modal-container [data-scada-code-dialog="${key}"]`)
+const codeTa = () => document.body.querySelector('.n-modal-container [data-scada-code-dialog="js"] [data-code-editor="js"] textarea')
+check('点「JavaScript」弹出代码编辑弹窗：高亮编辑器（透明 textarea 叠在高亮 pre 上）载入当前代码，pre 里有关键字 / 内置对象 / 注释 token；有“插入示例 / 清空 / 确定 / 取消”与 scada API 说明；样式只注入一次', () => {
   const ta = codeTa(); assert.ok(ta); assert.ok(ta.value.includes('scada.onData'))
+  const ed = ta.closest('[data-code-editor]'); const pre = ed.querySelector('pre.scada-code-pre'); assert.ok(pre && ed.classList.contains('scada-code-editor'))
+  assert.equal(pre.textContent, ta.value); assert.ok(pre.querySelector('.tok-keyword') && pre.querySelector('.tok-builtin') && pre.querySelector('.tok-comment') && pre.querySelector('.tok-function'))
+  assert.equal(ta.getAttribute('spellcheck'), 'false'); assert.equal(codeDialog('js').dataset.codeLayout, 'column')
   const txt = ta.closest('.n-modal-container').textContent
   assert.ok(txt.includes('自定义组件 · JavaScript') && txt.includes('插入示例') && txt.includes('清空') && txt.includes('确定') && txt.includes('取消') && txt.includes('scada.write(value)'), txt)
+  assert.equal(document.head.querySelectorAll('style[data-scada-code-style]').length, 1); assert.ok(document.head.querySelector('style[data-scada-code-style]').textContent.includes('.tok-keyword{color:#0000ff}'))
 })
 const NEW_JS = 'scada.onData(function (p) { document.body.textContent = p ? p.value : "--" })'
 codeTa().value = NEW_JS; codeTa().dispatchEvent(new Event('input', { bubbles: true })); await nextTick()
-check('弹窗里改代码只改草稿，组件属性未变', () => assert.ok(byType('custom').props.js.includes('scada.onData(function (point)')))
+check('弹窗里改代码只改草稿（高亮层同步重绘），组件属性未变', () => {
+  assert.ok(byType('custom').props.js.includes('scada.onData(function (point)'))
+  const pre = codeTa().closest('[data-code-editor]').querySelector('pre'); assert.equal(pre.textContent, NEW_JS); assert.ok(pre.innerHTML.includes('<span class="tok-string">"--"</span>'))
+})
+// Tab / Shift+Tab / Enter 缩进（jsdom 没有 execCommand → 走 setRangeText 兜底）
+codeTa().setSelectionRange(0, 0); codeTa().dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })); await nextTick()
+check('编辑器 Tab 插入两个空格（不切换焦点）', () => { assert.equal(codeTa().value, '  ' + NEW_JS); assert.equal(codeTa().selectionStart, 2) })
+codeTa().dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true })); await nextTick()
+check('Shift + Tab 退一级', () => { assert.equal(codeTa().value, NEW_JS); assert.equal(codeTa().selectionStart, 0) })
+codeTa().value = '  if (a) {'; codeTa().dispatchEvent(new Event('input', { bubbles: true })); codeTa().setSelectionRange(10, 10)
+const enterEv = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }); codeTa().dispatchEvent(enterEv); await nextTick()
+check('Enter 保持缩进，{ 之后再多缩一级', () => { assert.ok(enterEv.defaultPrevented); assert.equal(codeTa().value, '  if (a) {\n    ') })
+const tabEv2 = new KeyboardEvent('keydown', { key: 'Tab', ctrlKey: true, bubbles: true, cancelable: true }); codeTa().dispatchEvent(tabEv2)
+check('Ctrl + Tab 不拦截', () => assert.ok(!tabEv2.defaultPrevented))
+codeTa().scrollTop = 30; codeTa().scrollLeft = 12; codeTa().dispatchEvent(new Event('scroll'))
+check('textarea 滚动时高亮层 pre 同步 scrollTop / scrollLeft', () => { const pre = codeTa().closest('[data-code-editor]').querySelector('pre'); assert.equal(pre.scrollTop, 30); assert.equal(pre.scrollLeft, 12) })
+codeTa().value = NEW_JS; codeTa().dispatchEvent(new Event('input', { bubbles: true })); await nextTick()
 okBtn().click(); await nextTick(); await sleep(60)
 check('确定后写回 props.js、iframe srcdoc 更新（错误角标清掉）、弹窗关闭、按钮字符数刷新', () => {
   assert.equal(byType('custom').props.js, NEW_JS); assert.ok(srcdocOf(customFrame()).includes(NEW_JS)); assert.ok(!codeTa())
   assert.ok(!hostOf('custom').querySelector('[data-custom-error]'), '代码改动后 iframe 重载，错误角标清掉')
-  assert.ok(codeBtns()[2].textContent.includes(`${NEW_JS.length} 字符`), codeBtns()[2].textContent)
+  assert.ok(codeBtns()[1].textContent.includes(`${NEW_JS.length} 字符`), codeBtns()[1].textContent)
 })
+// HTML 与 CSS 在同一个弹窗：横屏左右两栏
+codeBtns()[0].click(); await nextTick(); await sleep(60)
+const partTa = key => document.body.querySelector(`.n-modal-container [data-scada-code-dialog="html"] [data-code-part="${key}"] [data-code-editor="${key}"] textarea`)
+check('点「HTML / CSS」弹出同一个弹窗：横屏左右两栏，HTML / CSS 各自的高亮编辑器、字符数、插入示例 / 清空与说明', () => {
+  const dlg = codeDialog('html'); assert.ok(dlg); assert.equal(dlg.dataset.codeLayout, 'row'); assert.ok(dlg.classList.contains('flex-row'))
+  assert.deepEqual([...dlg.querySelectorAll('[data-code-part]')].map(e => e.dataset.codePart), ['html', 'css'])
+  assert.equal(partTa('html').value, CUSTOM_TEMPLATE.html); assert.equal(partTa('css').value, CUSTOM_TEMPLATE.css)
+  const preH = partTa('html').closest('[data-code-editor]').querySelector('pre'); assert.ok(preH.querySelector('.tok-tag') && preH.querySelector('.tok-attr') && preH.querySelector('.tok-string'))
+  const preC = partTa('css').closest('[data-code-editor]').querySelector('pre'); assert.ok(preC.querySelector('.tok-selector') && preC.querySelector('.tok-cssprop') && preC.querySelector('.tok-number'))
+  const txt = dlg.textContent; assert.ok(txt.includes('HTML') && txt.includes('CSS') && txt.includes(`${CUSTOM_TEMPLATE.css.length} 字符`) && txt.includes('script 标签') && txt.includes('不影响页面'), txt)
+  assert.equal([...dlg.querySelectorAll('button')].filter(b => b.textContent.trim() === '插入示例').length, 2)
+  assert.equal(document.head.querySelectorAll('style[data-scada-code-style]').length, 1)
+})
+const NEW_CSS = '.card { color: #123456; }'
+partTa('css').value = NEW_CSS; partTa('css').dispatchEvent(new Event('input', { bubbles: true })); await nextTick()
+const htmlBefore = byType('custom').props.html
+okBtn().click(); await nextTick(); await sleep(60)
+check('只改 CSS 后确定：css 写回、html 原样不动、弹窗关闭、按钮合计字符数刷新', () => {
+  assert.equal(byType('custom').props.css, NEW_CSS); assert.equal(byType('custom').props.html, htmlBefore); assert.ok(!codeDialog('html'))
+  assert.ok(srcdocOf(customFrame()).includes(NEW_CSS)); assert.ok(codeBtns()[0].textContent.includes(`${htmlBefore.length + NEW_CSS.length} 字符`), codeBtns()[0].textContent)
+})
+main.isLandscape = false; await nextTick()
+codeBtns()[0].click(); await nextTick(); await sleep(60)
+check('竖屏时 HTML / CSS 弹窗改为上下两栏', () => { const dlg = codeDialog('html'); assert.ok(dlg); assert.equal(dlg.dataset.codeLayout, 'column'); assert.ok(dlg.classList.contains('flex-col')) })
+;[...document.body.querySelectorAll('.n-modal-container button')].find(b => b.textContent.trim() === '取消').click(); await nextTick(); await sleep(60)
+main.isLandscape = true; await nextTick()
+check('取消：不写回', () => { assert.ok(!codeDialog('html')); assert.equal(byType('custom').props.css, NEW_CSS) })
 scada.setWidgetProp(byType('custom').id, 'html', ''); scada.setWidgetProp(byType('custom').id, 'js', ''); await nextTick()
-check('HTML / JS 都为空：编辑模式显示占位提示，按钮不再显示字符数', () => {
-  assert.ok(hostOf('custom').textContent.includes('在属性面板编辑 HTML / CSS / JS')); assert.equal(codeBtns()[0].textContent.trim(), '编辑')
+check('HTML / JS 都为空：编辑模式显示占位提示，JS 按钮不再显示字符数', () => {
+  assert.ok(hostOf('custom').textContent.includes('在属性面板编辑 HTML / CSS / JS')); assert.equal(codeBtns()[1].textContent.trim(), '编辑'); assert.ok(codeBtns()[0].textContent.includes(`${NEW_CSS.length} 字符`))
 })
 scada.setWidgetProp(byType('custom').id, 'js', 'var s = "</script>"; var t = "</SCRIPT>"'); scada.setWidgetProp(byType('custom').id, 'css', 'p { color: red } /* </style> */'); await nextTick()
 check('用户代码里的 </script> / </style> 被转义，不会提前结束标签', () => {

@@ -1,6 +1,6 @@
 /**
  * 自定义组件：用户自己写 HTML / CSS / JS，放进一个 srcdoc iframe 里运行——样式、脚本与页面隔离，
- * 写坏了也只影响这个组件。三段代码都在属性面板里点按钮打开 CodeDialog 编辑，改完 iframe 自动重载。
+ * 写坏了也只影响这个组件。代码在属性面板里点按钮打开 CodeDialog（带语法高亮）编辑：HTML + CSS 同一个弹窗、JS 单独一个，改完 iframe 自动重载。
  *
  * 宿主 ⇄ iframe 用 postMessage 通信：
  *  - 宿主推送 { type: 'scada:data', point, widget, history, editing }（数据 / 尺寸 / 编辑状态变化时）
@@ -12,7 +12,7 @@
  * iframe 加了 sandbox（允许脚本 / 同源 / 表单 / 弹窗式对话框，不允许顶层跳转），代码来自现场配置，不做更严格的隔离。
  */
 import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import type { PropField, WidgetDefinition, WriteValue } from '../types'
+import type { CodePart, WidgetDefinition, WriteValue } from '../types'
 import { icons } from './icons'
 import { STATUS_COLORS, tt, widgetProps } from './common'
 import { useControl } from './controlCommon'
@@ -199,10 +199,9 @@ const CustomWidget = defineComponent({
   }
 })
 
-const codeField = (key: 'html' | 'css' | 'js'): PropField => ({
+const codePart = (key: 'html' | 'css' | 'js'): CodePart => ({
   key,
   label: () => tt('scada.prop.' + key),
-  type: 'code',
   language: key,
   example: () => CUSTOM_TEMPLATE[key],
   hint: () => tt('scada.custom.' + key + 'Hint')
@@ -220,9 +219,9 @@ export const customDefinition: WidgetDefinition = {
   keepHistory: 60,
   defaultProps: () => ({ html: CUSTOM_TEMPLATE.html, css: CUSTOM_TEMPLATE.css, js: CUSTOM_TEMPLATE.js, bg: '', border: false, radius: 0 }),
   propSchema: [
-    codeField('html'),
-    codeField('css'),
-    codeField('js'),
+    // HTML 与 CSS 放在同一个弹窗里编辑，JS 单独一个；都带语法高亮（CodeDialog / CodeEditor）
+    { key: 'html', label: () => tt('scada.prop.htmlCss'), type: 'code', parts: [codePart('html'), codePart('css')] },
+    { key: 'js', label: () => tt('scada.prop.js'), type: 'code', parts: [codePart('js')] },
     { key: 'bg', label: () => tt('scada.prop.bg'), type: 'color' },
     { key: 'border', label: () => tt('scada.prop.border'), type: 'boolean' },
     { key: 'radius', label: () => tt('scada.prop.radius'), type: 'number', min: 0, max: 100, step: 1 }

@@ -13,7 +13,7 @@ import { hasHostBridge, INLINE_MAX_BYTES, isDataUrl, isResourceUrl, readBlobAsDa
 import { useScadaStore } from './store'
 import { transformErrors } from './transform'
 import TransformDialog from './TransformDialog'
-import CodeDialog from './CodeDialog'
+import CodeDialog, { codeParts } from './CodeDialog'
 import type { PropField, WidgetInstance } from './types'
 import { tt } from './widgets/common'
 
@@ -175,7 +175,8 @@ export default defineComponent({
         case 'multiselect':
           return <NSelect size="small" multiple clearable maxTagCount="responsive" value={Array.isArray(value) ? value : []} options={f.options ? f.options(w) : []} placeholder={ph} onUpdateValue={(v: any[]) => set(v)} />
         case 'code': {
-          const len = String(value || '').length
+          // 一个 code 字段可能含多段代码（HTML + CSS），按钮上显示合计字符数
+          const len = codeParts(f).reduce((sum, p) => sum + String(w.props[p.key] || '').length, 0)
           return (
             <NButton class={'w-full'} size="small" secondary type={len ? 'primary' : 'default'} data-scada-code-field={f.key} onClick={() => (codeField.value = { widgetId: w.id, field: f })}>
               {tt('scada.panel.codeEdit')}{len ? ` · ${tt('scada.panel.codeChars', { n: len })}` : ''}
@@ -344,9 +345,15 @@ export default defineComponent({
           show={!!codeField.value && !!selected.value && codeField.value.widgetId === selected.value.id}
           title={`${definition.value ? definition.value.label() : ''} · ${codeField.value ? codeField.value.field.label() : ''}`}
           field={codeField.value?.field}
-          value={codeField.value && selected.value ? String(selected.value.props[codeField.value.field.key] ?? '') : ''}
-          onApply={(v: string) => {
-            if (codeField.value) scada.setWidgetProp(codeField.value.widgetId, codeField.value.field.key, v)
+          values={codeField.value && selected.value ? Object.fromEntries(codeParts(codeField.value.field).map(p => [p.key, String(selected.value!.props[p.key] ?? '')])) : {}}
+          onApply={(values: Record<string, string>) => {
+            const cf = codeField.value
+            if (!cf) return
+            const w = scada.draft?.widgets.find(e => e.id === cf.widgetId)
+            codeParts(cf.field).forEach(p => {
+              // 只写回真正改动的段，避免无谓地触发 iframe 重载
+              if (!w || String(w.props[p.key] ?? '') !== String(values[p.key] ?? '')) scada.setWidgetProp(cf.widgetId, p.key, values[p.key] ?? '')
+            })
           }}
           onClose={() => (codeField.value = null)}
         />

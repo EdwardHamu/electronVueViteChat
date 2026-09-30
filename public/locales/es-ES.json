@@ -542,6 +542,7 @@
       "unknown": "Componente desconocido"
     },
     "prop": {
+      "htmlCss": "HTML / CSS",
       "html": "HTML",
       "css": "CSS",
       "js": "JavaScript",
@@ -683,7 +684,7 @@
       "radius": "Radio de esquina"
     },
     "custom": {
-      "htmlHint": "Se coloca dentro del <body> de un iframe aislado; se permite <script> en línea (el objeto scada se inyecta en <head>). Da al elemento raíz height: 100% para llenar el componente.",
+      "htmlHint": "Se coloca dentro del body de un iframe aislado; se permiten etiquetas script en línea (el objeto scada se inyecta en head). Da al elemento raíz height: 100% para llenar el componente.",
       "cssHint": "Solo se aplica al iframe de este componente. html / body ya tienen 100% de ancho/alto, sin márgenes y fondo transparente; el fondo / borde / radio del componente se configuran en los campos de abajo.",
       "jsHint": "Se ejecuta como un script normal dentro del iframe. Objeto global scada:\nscada.onData(fn): llama a fn(point, state) cuando cambian los datos; point tiene value / text / name / unit / precision / standard / upper / lower / status / time, undefined si no hay vínculo\nscada.point / scada.value / scada.history / scada.widget / scada.editing: punto actual / valor / últimos 60 valores / info del componente (tamaño, título, vínculo) / modo edición\nscada.write(value): escribe en la fuente de datos vinculada (debe ser escribible, p. ej. variables internas)\nscada.format(v, digits) / scada.statusColor(status): formato numérico / colores de estado\nLos errores de script se muestran abajo a la izquierda del componente en modo edición; clic derecho / pulsación larga dentro del iframe sigue abriendo el menú de la página"
     },
