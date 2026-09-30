@@ -487,9 +487,9 @@ export default defineComponent({
       startLoop = false
     })
 
-    // 横屏时 pane 已无上内边距（right-value-pane），在内容最顶部放一条 4px 高、#f8f8f8 的分隔条；
-    // 容器有 px-2，用 -mx-2 抵消掉让它占满整个 pane 宽度。竖屏两列布局不加。
-    const renderTopBar = () => store.isLandscape ? <div class={'h-[4px] shrink-0 -mx-2 bg-[#f8f8f8]'}></div> : null
+    // 横屏且首页主 tab 切在「数据组态」时，pane（已无上内边距，right-value-pane）内容最顶部放一条 4px 高、#f8f8f8 的分隔条；
+    // 容器有 px-2，用 -mx-2 抵消掉让它占满整个 pane 宽度。其它主 tab 和竖屏都不加。
+    const renderTopBar = () => store.isLandscape && store.homeTab == 'scada' ? <div class={'h-[4px] shrink-0 -mx-2 bg-[#f8f8f8]'}></div> : null
 
     return () => {
       return (

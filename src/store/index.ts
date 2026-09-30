@@ -104,6 +104,7 @@ export const useMain = defineStore('useStore', {
             globalKeyBoardBlocked: false, //为 true 时输入框聚焦不弹出虚拟键盘（数据组态页）
 
             isLandscape: false, //是否横屏
+            homeTab: 'curcev', //首页主 tab 当前的 name（curcev / multiCurcev / summary / scada …），由 Home/index.tsx 的 handleTabChange 维护
         }
     },
     /**
@@ -220,6 +221,9 @@ export const useMain = defineStore('useStore', {
         },
         setIsLandscape(value: boolean) {
             this.isLandscape = value
+        },
+        setHomeTab(value: string) {
+            this.homeTab = value
         }
 
     }

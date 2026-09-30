@@ -80,6 +80,7 @@ export default defineComponent({
 
     const handleTabChange = (value: string) => {
       curTabValue.value = value
+      store.setHomeTab(value)
     }
     const handleBlur = () => {
       // window.ipc.invoke('test1').then((val) => {
