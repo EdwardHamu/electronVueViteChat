@@ -148,6 +148,8 @@ await nextTick(); await sleep(50)
 
 let step = 0
 const check = (name, fn) => { step++; fn(); console.log(`  ✓ ${step}. ${name}`) }
+/** NScrollbar 滑块是否完全透明（naive 把主题变量写在 .n-scrollbar 的行内 style：--n-scrollbar-color / --n-scrollbar-color-hover） */
+const scrollbarTransparent = el => { const st = el.getAttribute('style') || ''; return /--n-scrollbar-color:\s*transparent/.test(st) && /--n-scrollbar-color-hover:\s*transparent/.test(st) }
 
 const SHAPES = ['line', 'polyline', 'arc', 'rect', 'circle', 'ellipse', 'sector', 'segment', 'polygon', 'textLabel', 'image', 'pipe']
 const CONTROLS = ['numericIO', 'stringIO', 'datetime', 'button', 'bitButton', 'wordButton', 'bitStatus', 'wordStatus', 'textList', 'textSwitch', 'radio', 'checkbox', 'table']
@@ -475,6 +477,7 @@ check('竖屏：组件库在上（横向条带）、属性面板在下（两栏�
   const pitem = root.querySelector('[data-palette-item="valueCard"]')
   assert.equal(pitem && pitem.style.touchAction, 'pan-x', 'palette strip item should allow pan-x in portrait')
   assert.ok(first.querySelector('.n-scrollbar'), 'portrait strip should use NScrollbar (overlay rail)')
+  assert.ok(scrollbarTransparent(first.querySelector('.n-scrollbar')), 'portrait strip scrollbar should be transparent: ' + first.querySelector('.n-scrollbar').getAttribute('style'))
 })
 main.isLandscape = true; await nextTick()
 check('横屏：恢复左右三栏', () => {
@@ -517,7 +520,9 @@ check('组件库：按“基础图素 / 控制与显示 / 数据看板”分组�
   assert.ok(inPalette('[data-palette-item="slider"]')[0].textContent.includes('滑块'))
   const hdr = paletteCol().querySelector('[data-palette-category="shape"]'); assert.ok(hdr.textContent.includes('基础图素') && hdr.textContent.includes('12'))
   assert.ok(paletteCol().querySelector('.n-scrollbar')); assert.ok(!paletteCol().querySelector('.overflow-y-auto'))
+  assert.ok(scrollbarTransparent(paletteCol().querySelector('.n-scrollbar')), 'palette scrollbar should be fully transparent: ' + paletteCol().querySelector('.n-scrollbar').getAttribute('style'))
   assert.ok(propsCol().querySelector('.n-scrollbar'), 'property panel should use NScrollbar too')
+  assert.ok(!scrollbarTransparent(propsCol().querySelector('.n-scrollbar')), 'property panel scrollbar stays visible')
   assert.ok(paletteCol().querySelector('[data-palette-view="grid"]').className.includes('bg-blue-100'))
   assert.ok(paletteCol().querySelector('[data-palette-item="line"]').className.includes('flex-col'))
   assert.ok(!root.textContent.includes('滚轮缩放') && !root.textContent.includes('放到画布')); assert.ok(root.querySelector('[data-scada-help]'))

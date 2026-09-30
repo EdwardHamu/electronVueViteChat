@@ -2,7 +2,7 @@
  * 组件库（工具箱）：按分类（基础图素 / 控制与显示 / 数据看板）分组，小图标 + 名称的网格排布，可折叠分类、切换网格 / 列表视图。
  *  - 点按 = 自动放到画布空位；按住拖到画布上松手 = 放在松手位置（Pointer Events，触摸屏可用）
  *  - direction = vertical（横屏：左侧竖排，三列网格）/ horizontal（竖屏：画布上方横向一条，可横向滚动）
- *  - 滚动条用 NScrollbar 的悬浮样式，不占内容宽度
+ *  - 滚动条用 NScrollbar 的悬浮样式，不占内容宽度；组件库的滑轨按要求做成完全透明（仍可滚轮 / 触摸拖动滚动，只是看不见）
  */
 import { NScrollbar } from 'naive-ui'
 import { computed, defineComponent, reactive, ref, Teleport, type PropType } from 'vue'
@@ -21,6 +21,8 @@ interface PaletteDrag {
 }
 
 export const PALETTE_CATEGORIES: WidgetCategory[] = ['shape', 'control', 'data']
+/** 组件库滚动条完全透明：只把滑块颜色（常态 / 悬停）设为 transparent，滚动行为不变 */
+export const TRANSPARENT_SCROLLBAR = { color: 'transparent', colorHover: 'transparent' }
 const VIEW_KEY = 'scadaPaletteView'
 
 /** 折叠状态 / 视图模式放在模块级：切换横竖屏或重新进入编辑时保持 */
@@ -192,7 +194,7 @@ export default defineComponent({
               <div class={'text-[10px] text-gray-500 leading-3 mt-1'} title={tt('scada.paletteHintPortrait')}>{tt('scada.paletteHintShort')}</div>
             </div>
             <div class={'flex-1 min-w-0'} onWheel={onStripWheel}>
-              <NScrollbar xScrollable trigger="none">
+              <NScrollbar xScrollable trigger="none" themeOverrides={TRANSPARENT_SCROLLBAR}>
                 <div class={'h-full flex flex-row items-stretch gap-1 px-1.5 py-1'} style={{ width: 'max-content' }}>
                   {groups.value.map(g => (
                     <div key={g.category} class={'flex flex-row items-stretch gap-1'} data-palette-group={g.category}>
@@ -220,7 +222,7 @@ export default defineComponent({
               <GridIcon />
             </button>
           </div>
-          <NScrollbar class={'flex-1 min-h-0'} trigger="none">
+          <NScrollbar class={'flex-1 min-h-0'} trigger="none" themeOverrides={TRANSPARENT_SCROLLBAR}>
             {groups.value.map(g => {
               const isCollapsed = !!collapsed[g.category]
               return (

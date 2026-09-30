@@ -111,7 +111,7 @@ DataSourceProvider.read(key) ──► DataPoint ──► 数据处理函数（
 
 - 横屏：组件库（200px）| 画布 | 属性面板（300px）。
 - 竖屏（`useMain().isLandscape === false`）：组件库改为画布上方 92px 的横向条带（`NScrollbar xScrollable`，鼠标滚轮也横向滚动，条带内 `touch-action: pan-x`，向下拖到画布放置），属性面板放在画布下方（高 36%，区块两栏排布）。
-- 两个侧栏的滚动条都是 `NScrollbar` 的悬浮轨道（`overflow: overlay` 在新 Chromium / WebView2 里已被移除，不能靠它）。
+- 两个侧栏的滚动条都是 `NScrollbar` 的悬浮轨道（`overflow: overlay` 在新 Chromium / WebView2 里已被移除，不能靠它）；组件库（横屏列表与竖屏条带）的滑块通过 `themeOverrides` 设为完全透明（`Palette.tsx` `TRANSPARENT_SCROLLBAR`），看不见滚动条但滚轮 / 触摸拖动照常，属性面板的滑轨仍可见。
 
 ## 测试
 
