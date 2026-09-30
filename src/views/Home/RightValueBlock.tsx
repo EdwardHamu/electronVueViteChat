@@ -487,16 +487,11 @@ export default defineComponent({
       startLoop = false
     })
 
-    // 横屏且首页主 tab 切在「数据组态」时，pane（已无上内边距，right-value-pane）内容最顶部放一条 4px 高、#f8f8f8 的分隔条；
-    // 容器有 px-2，用 -mx-2 抵消掉让它占满整个 pane 宽度。其它主 tab 和竖屏都不加。
-    const renderTopBar = () => store.isLandscape && store.homeTab == 'scada' ? <div class={'h-[4px] shrink-0 -mx-2 bg-[#f8f8f8]'}></div> : null
-
     return () => {
       return (
         <NTabs type="card" animated size="large" barWidth={1148} value={curTabValue.value} pane-class={'shrink-0 h-full right-value-pane'} class={'home-tab h-full w-full'} onUpdateValue={handleTabChange} defaultValue={'value1'} >
           <NTabPane displayDirective="if" name="value1" tab={t('menu.measureValue') + '1'} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'value1' ? activeStyle : {} } }}>
             <div class={classNames(' h-full px-2 flex  overflow-y-auto', { 'flex-col': store.isLandscape, 'flex-wrap': !store.isLandscape })}>
-              {renderTopBar()}
               {/* <NScrollbar> */}
               {infoList.value.slice(0, 6).map((e, i) => {
                 return <ValueRow key={i} x={0} y={i} data={e} i={i} fixNum={fixNumRef.value} />
@@ -510,7 +505,6 @@ export default defineComponent({
               <RightOtherValue />
             </div> */}
             <div class={classNames(' h-full px-2 flex  overflow-y-auto', { 'flex-col': store.isLandscape, 'flex-wrap items-start justify-center': !store.isLandscape })}>
-              {renderTopBar()}
               {/* <NScrollbar> */}
               {infoList.value.slice(6, 12).map((e, i) => {
                 return <ValueRow key={i} x={0} y={i} data={e} i={6 + i} fixNum={fixNumRef.value} />
@@ -534,7 +528,6 @@ export default defineComponent({
               })}
             </div> */}
             <div class={classNames(' h-full px-2 flex  overflow-y-auto', { 'flex-col': store.isLandscape, 'flex-wrap': !store.isLandscape })}>
-              {renderTopBar()}
               {/* <NScrollbar> */}
               {infoList.value.slice(12, 18).map((e, i) => {
                 return <ValueRow key={i} x={0} y={i} data={e} i={12 + i} fixNum={fixNumRef.value} />
