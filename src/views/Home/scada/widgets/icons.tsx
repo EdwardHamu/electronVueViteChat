@@ -204,6 +204,23 @@ export const icons: Record<string, () => VNodeChild> = {
       <rect x="3" y="4.5" width="18" height="15" rx="1.5" {...S} />
       <path d="M9.5 10 L7.5 12 L9.5 14 M14.5 10 L16.5 12 L14.5 14 M12.8 9 L11.2 15" {...S} />
     </>
+  ),
+  qrCode: () => svg(
+    <>
+      <rect x="3.5" y="3.5" width="7" height="7" {...S} />
+      <rect x="6" y="6" width="2" height="2" fill="currentColor" stroke="none" />
+      <rect x="13.5" y="3.5" width="7" height="7" {...S} />
+      <rect x="16" y="6" width="2" height="2" fill="currentColor" stroke="none" />
+      <rect x="3.5" y="13.5" width="7" height="7" {...S} />
+      <rect x="6" y="16" width="2" height="2" fill="currentColor" stroke="none" />
+      <path d="M13.5 13.5h2v2h-2zM18.5 13.5h2v2h-2zM16 16h2v2h-2zM13.5 18.5h2v2h-2zM18.5 18.5h2v2h-2z" fill="currentColor" stroke="none" />
+    </>
+  ),
+  barcode: () => svg(
+    <>
+      <path d="M4 5v14M6.5 5v14M9 5v14M10.5 5v14M13 5v14M15.5 5v14M17 5v14M20 5v14" {...S} />
+      <path d="M11.5 5v14M18.5 5v14" stroke="currentColor" stroke-width="2" />
+    </>
   )
 }
 

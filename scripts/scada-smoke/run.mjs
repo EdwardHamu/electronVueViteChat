@@ -51,6 +51,10 @@ import { CUSTOM_TEMPLATE, CUSTOM_RUNTIME, buildCustomDoc } from '@/views/Home/sc
 export { CUSTOM_TEMPLATE, CUSTOM_RUNTIME, buildCustomDoc }
 import { highlight } from '@/views/Home/scada/highlight'
 export { highlight }
+import { encodeQr, qrToPath } from '@/views/Home/scada/codes/qrcode'
+import { encodeBarcode, eanCheckDigit } from '@/views/Home/scada/codes/barcode'
+import { resolveTemplate } from '@/views/Home/scada/widgets/codes'
+export { encodeQr, qrToPath, encodeBarcode, eanCheckDigit, resolveTemplate }
 export { createZip, readZip, zipEntryText, crc32, buildPackage, parsePackage, planImport, applyPackage, PACKAGE_REF_PREFIX, collectResourceRefs, RESOURCE_BASE_URL, RESOURCE_MAX_BYTES, INLINE_MAX_BYTES }
 import { replaceResourceRefs, cleanupUnusedResources, listResourceFiles, deleteResourceFile, HOST_GENERATED_NAME } from '@/views/Home/scada/resource'
 import { exportPackageViaHost, previewPackageViaHost, importPackageViaHost, layoutFromHostImport } from '@/views/Home/scada/package'
@@ -134,7 +138,7 @@ const { createApp, nextTick, createPinia, i18n, Scada, useScadaStore, useConfigS
 const { canvasView, zoomCanvas, resetCanvasView, compileTransform, runTransform, mergeTransformResult, transformErrors, transformDebug } = m
 const { normalizeHex, hexToHsv, hsvToHex, isLightColor, useColorPresets, DEFAULT_COLOR_PRESETS, COLOR_PRESETS_KEY } = m
 const { createZip, readZip, zipEntryText, crc32, buildPackage, parsePackage, planImport, applyPackage, PACKAGE_REF_PREFIX, collectResourceRefs, RESOURCE_BASE_URL, RESOURCE_MAX_BYTES, INLINE_MAX_BYTES } = m
-const { CUSTOM_TEMPLATE, CUSTOM_RUNTIME, buildCustomDoc, highlight } = m
+const { CUSTOM_TEMPLATE, CUSTOM_RUNTIME, buildCustomDoc, highlight, encodeQr, qrToPath, encodeBarcode, eanCheckDigit, resolveTemplate } = m
 i18n.global.setLocaleMessage('zh-CN', JSON.parse(fs.readFileSync(path.join(repo, 'public/locales/zh-CN.json'), 'utf8')))
 i18n.global.locale.value = 'zh-CN'
 
@@ -161,10 +165,14 @@ const CONTROLS = ['numericIO', 'stringIO', 'datetime', 'button', 'bitButton', 'w
 const DATA = ['valueCard', 'gauge', 'sparkline', 'statusLamp']
 const VISUAL = ['barGauge', 'slider', 'progressBar', 'ringProgress', 'pie', 'meter']
 const CUSTOM = ['custom']
-check('注册表：三类共 36 个组件，全部带图标与分类（可视化组件 + 自定义组件归入数据看板）', () => {
-  assert.deepEqual(widgetDefinitions().map(d => d.type), [...SHAPES, ...CONTROLS, ...DATA, ...VISUAL, ...CUSTOM])
-  widgetDefinitions().forEach(d => { assert.equal(typeof d.icon, 'function', d.type); assert.ok(['shape', 'control', 'data'].includes(d.category), d.type) })
+const OTHER = ['qrCode', 'barcode']
+check('注册表：四类共 38 个组件，全部带图标与分类（可视化组件 + 自定义组件归入数据看板，二维码 / 条形码归入「其他」）', () => {
+  assert.deepEqual(widgetDefinitions().map(d => d.type), [...SHAPES, ...CONTROLS, ...DATA, ...VISUAL, ...CUSTOM, ...OTHER])
+  widgetDefinitions().forEach(d => { assert.equal(typeof d.icon, 'function', d.type); assert.ok(['shape', 'control', 'data', 'other'].includes(d.category), d.type) })
   assert.ok([...DATA, ...VISUAL, ...CUSTOM].every(t => widgetDefinitions().find(d => d.type === t).category === 'data'))
+  assert.ok(OTHER.every(t => widgetDefinitions().find(d => d.type === t).category === 'other'))
+  const qd = widgetDefinitions().find(d => d.type === 'qrCode'); assert.ok(qd.description().includes('{value} {name}'), qd.description())  // 文案里的模板占位符不能被 vue-i18n 吃掉
+  assert.equal(qd.propSchema[0].placeholder(), '{value}，可用 {name} {unit} {text} {time} {status} {raw}')
   assert.deepEqual(dataSourceList().map(p => p.id), ['product', 'sim', 'local'])
 })
 const buttons = () => [...root.querySelectorAll('button')]
@@ -515,9 +523,12 @@ const bodyRow = () => canvasView.el.parentElement.parentElement.parentElement
 const paletteCol = () => bodyRow().children[0]
 const propsCol = () => bodyRow().children[bodyRow().children.length - 1]
 const inPalette = sel => [...paletteCol().querySelectorAll(sel)]
-check('组件库：按“基础图素 / 控制与显示 / 数据看板”分组的小图标网格，共 36 项（数据看板 11 项）；容器为 NScrollbar 悬浮轨道；顶栏无说明文字', () => {
-  assert.deepEqual(inPalette('[data-palette-group]').map(g => g.dataset.paletteGroup), ['shape', 'control', 'data'])
-  assert.equal(inPalette('[data-palette-item]').length, 36); assert.equal(inPalette('[data-palette-item] svg').length, 36)
+check('组件库：按“基础图素 / 控制与显示 / 数据看板 / 其他”分组的小图标网格，共 38 项（数据看板 11 项、其他 2 项）；容器为 NScrollbar 悬浮轨道；顶栏无说明文字', () => {
+  assert.deepEqual(inPalette('[data-palette-group]').map(g => g.dataset.paletteGroup), ['shape', 'control', 'data', 'other'])
+  assert.equal(inPalette('[data-palette-item]').length, 38); assert.equal(inPalette('[data-palette-item] svg').length, 38)
+  assert.deepEqual(inPalette('[data-palette-group="other"] [data-palette-item]').map(e => e.dataset.paletteItem), OTHER)
+  const oh = paletteCol().querySelector('[data-palette-category="other"]'); assert.ok(oh.textContent.includes('其他') && oh.textContent.includes('2'), oh.textContent)
+  assert.ok(inPalette('[data-palette-item="qrCode"]')[0].textContent.includes('二维码') && inPalette('[data-palette-item="barcode"]')[0].textContent.includes('条形码'))
   assert.equal(inPalette('[data-palette-group="shape"] [data-palette-item]').length, 12)
   assert.equal(inPalette('[data-palette-group="control"] [data-palette-item]').length, 13)
   assert.deepEqual(inPalette('[data-palette-group="data"] [data-palette-item]').map(e => e.dataset.paletteItem), [...DATA, ...VISUAL, ...CUSTOM])
@@ -534,9 +545,9 @@ check('组件库：按“基础图素 / 控制与显示 / 数据看板”分组�
   assert.ok(!root.textContent.includes('滚轮缩放') && !root.textContent.includes('放到画布')); assert.ok(root.querySelector('[data-scada-help]'))
 })
 paletteCol().querySelector('[data-palette-category="shape"]').click(); await nextTick()
-check('点击分类标题折叠该组', () => { assert.equal(inPalette('[data-palette-group="shape"] [data-palette-item]').length, 0); assert.equal(inPalette('[data-palette-item]').length, 24) })
+check('点击分类标题折叠该组', () => { assert.equal(inPalette('[data-palette-group="shape"] [data-palette-item]').length, 0); assert.equal(inPalette('[data-palette-item]').length, 26) })
 paletteCol().querySelector('[data-palette-category="shape"]').click(); await nextTick()
-check('再次点击展开', () => assert.equal(inPalette('[data-palette-item]').length, 36))
+check('再次点击展开', () => assert.equal(inPalette('[data-palette-item]').length, 38))
 paletteCol().querySelector('[data-palette-view="list"]').click(); await nextTick()
 check('切换为列表视图（图标 + 名称 + 说明）并记住选择', () => {
   assert.equal(localStorage.getItem('scadaPaletteView'), 'list')
@@ -558,12 +569,12 @@ document.body.querySelector('.n-modal-container .n-card-header__close').click();
 check('关闭操作说明弹窗', () => assert.ok(!document.body.querySelector('[data-scada-help-content]')))
 
 const keepIds = new Set(scada.draft.widgets.map(e => e.id))
-const NEW_TYPES = [...SHAPES, ...CONTROLS, ...VISUAL, ...CUSTOM].filter(t => t !== 'textLabel')
+const NEW_TYPES = [...SHAPES, ...CONTROLS, ...VISUAL, ...CUSTOM, ...OTHER].filter(t => t !== 'textLabel')
 for (const type of NEW_TYPES) scada.addWidget(type)
 await nextTick()
 const byType = t => scada.draft.widgets.find(e => e.type === t && !keepIds.has(e.id))
 const hostOf = t => canvasView.el.querySelector(`[data-widget-id="${byType(t).id}"]`)
-check('新增 31 个组件全部渲染：图形为 SVG，控制 / 可视化组件各有标记，自定义组件为 iframe，图片显示占位提示，日期时间域走时', () => {
+check('新增 33 个组件全部渲染：图形为 SVG，控制 / 可视化组件各有标记，自定义组件为 iframe，二维码 / 条形码未绑定时显示填写提示，图片显示占位提示，日期时间域走时', () => {
   assert.equal(scada.draft.widgets.length, 4 + NEW_TYPES.length); assert.ok(!root.textContent.includes('未知组件')); assert.ok(!root.textContent.includes('false'), 'literal false in: ' + [...canvasView.el.querySelectorAll('[data-widget-type]')].filter(h => h.textContent.includes('false')).map(h => h.dataset.widgetType + '=' + h.innerHTML.slice(0, 300)).join(' | '))
   for (const t of ['line', 'polyline', 'arc', 'rect', 'circle', 'ellipse', 'sector', 'segment', 'polygon', 'pipe']) assert.ok(hostOf(t).querySelector('svg'), t)
   assert.ok(hostOf('polygon').querySelector('svg polygon')); assert.ok(hostOf('circle').querySelector('svg circle, svg ellipse')); assert.ok(hostOf('rect').querySelector('svg rect'))
@@ -579,6 +590,8 @@ check('新增 31 个组件全部渲染：图形为 SVG，控制 / 可视化组�
   // 饼图默认取产品分类数据源的全部数据项（冒烟里有模拟值）：有扇区 + 图例
   assert.ok(hostOf('pie').querySelector('[data-pie-legend]') && hostOf('pie').querySelectorAll('[data-pie-slice]').length >= 2)
   assert.ok(hostOf('custom').querySelector('[data-scada-custom] iframe'))
+  for (const t of ['qrCode', 'barcode']) assert.ok(hostOf(t).textContent.includes('在属性面板填写内容或绑定数据'), t)
+  assert.ok(hostOf('qrCode').querySelector('[data-scada-qr]') && hostOf('barcode').querySelector('[data-scada-barcode]'))
 })
 // 内部变量数据源：可写、响应式、持久化
 const local = getDataSource('local')
@@ -622,6 +635,60 @@ check('图片：属性面板有地址输入 + “选择图片”按钮', () => {
 const urlInput = [...propsCol().querySelectorAll('input')].find(i => (i.placeholder || '').includes('http') || (i.placeholder || '').includes('data:'))
 urlInput.value = 'https://example.com/a.png'; urlInput.dispatchEvent(new Event('input', { bubbles: true })); await nextTick()
 check('输入图片地址后渲染 <img>', () => { assert.equal(byType('image').props.src, 'https://example.com/a.png'); const img = hostOf('image').querySelector('img'); assert.ok(img); assert.equal(img.getAttribute('src'), 'https://example.com/a.png') })
+// ---------------- 其他：二维码 / 条形码（编码器 + 组件） ----------------
+const HELLO_QR = ["111111100010101111111", "100000101110001000001", "101110100010101011101", "101110100010101011101", "101110101011101011101", "100000100111001000001", "111111101010101111111", "000000000000000000000", "101010100100100010010", "011110001001000010001", "000111111101001011000", "111101011001110101110", "010011110101001110101", "000000001010001000101", "111111100000100101100", "100000100110001101000", "101110101100101111111", "101110100011010100010", "101110101111011101001", "100000100001110001011", "111111101101011100001"]
+check('QR 编码器：HELLO WORLD（M）= 版本 1 掩码 0，模块矩阵与 python qrcode 逐位一致；数字 / 字母数字 / 字节(UTF-8) 模式与版本自动选择；太长返回 null', () => {
+  const q = encodeQr('HELLO WORLD', { ecc: 'M' }); assert.equal(q.version, 1); assert.equal(q.mask, 0); assert.equal(q.size, 21)
+  assert.deepEqual(q.modules.map(r => r.map(b => (b ? '1' : '0')).join('')), HELLO_QR)
+  assert.equal(encodeQr('1'.repeat(41), { ecc: 'L' }).version, 1); assert.equal(encodeQr('1'.repeat(42), { ecc: 'L' }).version, 2)   // 数字模式 1-L 容量 41
+  assert.equal(encodeQr('A'.repeat(25), { ecc: 'L' }).version, 1); assert.equal(encodeQr('A'.repeat(26), { ecc: 'L' }).version, 2)   // 字母数字 1-L 容量 25
+  assert.equal(encodeQr('x'.repeat(17), { ecc: 'L' }).version, 1); assert.equal(encodeQr('x'.repeat(18), { ecc: 'L' }).version, 2)   // 字节 1-L 容量 17
+  assert.equal(encodeQr('外径', { ecc: 'H' }).version, 1); assert.equal(encodeQr('1'.repeat(7089), { ecc: 'L' }).version, 40); assert.equal(encodeQr('1'.repeat(7090), { ecc: 'L' }), null)
+  const h = encodeQr('HELLO WORLD', { ecc: 'H' }); assert.equal(h.version, 2); assert.equal(h.size, 25)  // 1-H 只放得下 9 个码字
+  for (let m = 0; m < 8; m++) assert.equal(encodeQr('HELLO WORLD', { ecc: 'M', mask: m }).mask, m)
+  const big = encodeQr('https://example.com/' + 'a'.repeat(300), { ecc: 'Q' }); assert.ok(big.version >= 7 && big.size === big.version * 4 + 17)  // 含版本信息区
+  assert.match(qrToPath(q), /^M0 0h7v1h-7zM10 0h1v1h-1zM12 0h1v1h-1zM14 0h7v1h-7zM0 1h1v1h-1z/)  // 连续深色模块合并成一个矩形
+})
+check('条码编码器：Code 128（自动 B / C 切换，含校验与终止）与 python-barcode 一致；EAN-13 补校验位 / 校验位错判无效；EAN-8；非法内容返回 null', () => {
+  assert.equal(encodeBarcode('5177', 'code128').modules.map(b => (b ? '1' : '0')).join(''), '110100111001101110100011110111010110011011001100011101011')
+  const e13 = encodeBarcode('590123412345', 'ean13'); assert.equal(e13.text, '5901234123457'); assert.equal(e13.modules.length, 95)
+  assert.equal(e13.modules.map(b => (b ? '1' : '0')).join(''), '10100010110100111011001100100110111101001110101010110011011011001000010101110010011101000100101')
+  assert.equal(encodeBarcode('5901234123457', 'ean13').text, '5901234123457'); assert.equal(encodeBarcode('5901234123450', 'ean13'), null); assert.equal(encodeBarcode('abc', 'ean13'), null)
+  assert.equal(encodeBarcode('9638507', 'ean8').text, '96385074'); assert.equal(encodeBarcode('96385074', 'ean8').modules.length, 67); assert.equal(encodeBarcode('96385070', 'ean8'), null)
+  assert.equal(eanCheckDigit('036000291452'.slice(0, 11)), '2')
+  assert.equal(encodeBarcode('', 'code128'), null); assert.equal(encodeBarcode('中', 'code128'), null)
+  const mixed = encodeBarcode('AB-007900712345', 'code128'); assert.ok(mixed && mixed.modules.length % 11 === 2 && mixed.modules[0] && mixed.modules[mixed.modules.length - 1])  // n×11 + 终止条 2
+  assert.ok(encodeBarcode('A\u0007B', 'code128'))  // 控制字符走 A 表
+})
+check('内容模板：{value} {text} {name} {unit} {time} {status} {raw} 按数据点替换，未绑定为空', () => {
+  const pt = { value: 1.23456, name: '外径', unit: 'mm', precision: 3, status: 'ok', time: new Date(2026, 8, 30, 12, 5, 9).getTime() }
+  assert.equal(resolveTemplate('{name}={value}{unit} [{status}] {raw} {time} {text}', pt), '外径=1.235mm [ok] 1.23456 2026-09-30 12:05:09 1.235')
+  assert.equal(resolveTemplate('{value}', pt, 1), '1.2'); assert.equal(resolveTemplate('ID-{value}-{name}', undefined), 'ID--')
+  assert.equal(resolveTemplate('{value}|{text}', { value: null, text: 'N/A', status: 'offline' }), '|N/A'); assert.equal(resolveTemplate('固定文字', pt), '固定文字')
+})
+scada.setWidgetProp(byType('qrCode').id, 'content', 'https://example.com'); scada.setWidgetProp(byType('barcode').id, 'content', '5177'); await nextTick()
+check('二维码 / 条形码组件：固定内容 → SVG 渲染（二维码正方形 viewBox 含静区、条形码横向铺满 + 下方文字）', () => {
+  const qh = hostOf('qrCode'); const qe = qh.querySelector('[data-scada-qr]'); assert.equal(qe.dataset.qrContent, 'https://example.com'); assert.equal(qe.dataset.qrVersion, '2')
+  const svg = qe.querySelector('svg'); assert.equal(svg.getAttribute('viewBox'), '-2 -2 29 29'); assert.ok(svg.querySelector('[data-qr-path]').getAttribute('d').startsWith('M')); assert.ok(!qh.querySelector('[data-qr-caption]'))
+  const bh = hostOf('barcode'); const be = bh.querySelector('[data-scada-barcode]'); assert.equal(be.dataset.barcodeFormat, 'code128'); assert.equal(be.dataset.barcodeText, '5177')
+  const bs = be.querySelector('svg'); assert.equal(bs.getAttribute('viewBox'), '0 0 77 100'); assert.equal(bs.getAttribute('preserveAspectRatio'), 'none')   // 57 模块 + 10 + 10 静区
+  assert.equal(be.querySelector('[data-barcode-path]').getAttribute('transform'), 'translate(10 0)'); assert.equal(bh.querySelector('[data-barcode-caption]').textContent, '5177')
+})
+scada.setWidgetProp(byType('qrCode').id, 'caption', true); scada.setWidgetProp(byType('qrCode').id, 'quiet', 0)
+scada.setWidgetProp(byType('barcode').id, 'format', 'ean13'); scada.setWidgetProp(byType('barcode').id, 'content', '590123412345'); scada.setWidgetProp(byType('barcode').id, 'quiet', false); await nextTick()
+check('二维码显示内容文字、静区 0；条形码切 EAN-13：12 位自动补校验位显示 13 位、无静区', () => {
+  assert.equal(hostOf('qrCode').querySelector('[data-qr-caption]').textContent, 'https://example.com'); assert.equal(hostOf('qrCode').querySelector('svg').getAttribute('viewBox'), '0 0 25 25')
+  const be = hostOf('barcode').querySelector('[data-scada-barcode]'); assert.equal(be.dataset.barcodeText, '5901234123457'); assert.equal(be.querySelector('svg').getAttribute('viewBox'), '0 0 95 100')
+  assert.equal(hostOf('barcode').querySelector('[data-barcode-caption]').textContent, '5901234123457')
+})
+scada.setWidgetProp(byType('barcode').id, 'content', 'abc'); scada.setWidgetProp(byType('barcode').id, 'showText', false); await nextTick()
+check('EAN-13 内容不合法 → 显示格式提示', () => { assert.ok(hostOf('barcode').textContent.includes('内容不符合 EAN-13 / UPC-A 格式')); assert.ok(!hostOf('barcode').querySelector('svg')) })
+// 绑定数据：内容模板取数据点（编辑模式下 var6 还没值 → 模板里的 {value} 为空）
+scada.setBinding(byType('qrCode').id, { source: 'local', key: 'var6' }); scada.setWidgetProp(byType('qrCode').id, 'content', 'V={value}')
+scada.setBinding(byType('barcode').id, { source: 'local', key: 'var6' }); scada.setWidgetProp(byType('barcode').id, 'format', 'code128'); scada.setWidgetProp(byType('barcode').id, 'content', '{value}'); scada.setWidgetProp(byType('barcode').id, 'showText', true); scada.setWidgetProp(byType('barcode').id, 'decimals', 0); await nextTick()
+check('绑定内部变量 var6（无值）：二维码内容 "V="，条形码内容为空显示提示', () => {
+  assert.equal(hostOf('qrCode').querySelector('[data-scada-qr]').dataset.qrContent, 'V='); assert.ok(hostOf('barcode').textContent.includes('在属性面板填写内容或绑定数据'))
+})
 // 自定义组件（HTML / CSS / JS）：属性面板三个代码按钮 → CodeDialog 弹窗；iframe srcdoc = 运行时 + 用户代码
 scada.setBinding(byType('custom').id, { source: 'local', key: 'var5' })
 scada.select(byType('custom').id); await nextTick()
@@ -820,6 +887,13 @@ const sliderHost3 = hostL('slider'); const sliderArea3 = sliderHost3.querySelect
 sliderArea3.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 27, clientY: 4, pointerId: 34, button: 0 }))
 sliderArea3.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 27, clientY: 4, pointerId: 34, button: 0 })); await nextTick(); await sleep(20)
 check('滑块步长 0.5、量程 0~10：点在 13.5% 处 → 按步长取整写入 1.5', () => assert.equal(local.read('var4').value, 1.5))
+// 二维码 / 条形码：展示模式下写 var6 = 12345 → 内容模板刷新
+local.write('var6', 12345); await nextTick()
+check('展示模式写入 var6 = 12345：二维码内容 V=12345.00（默认精度）、条形码按 decimals=0 编 "12345" 并显示文字', () => {
+  assert.equal(hostL('qrCode').querySelector('[data-scada-qr]').dataset.qrContent, 'V=12345.00'); assert.equal(hostL('qrCode').querySelector('[data-scada-qr]').dataset.qrVersion, '1')
+  assert.equal(hostL('barcode').querySelector('[data-scada-barcode]').dataset.barcodeText, '12345'); assert.equal(hostL('barcode').querySelector('[data-barcode-caption]').textContent, '12345')
+  assert.ok(hostL('barcode').querySelector('[data-barcode-path]').getAttribute('d').startsWith('M0 0h2v100h-2z'))  // Start C 211232 → 前两个模块是条
+})
 // 自定义组件：展示模式下宿主 ⇄ iframe 的消息（jsdom 不加载 srcdoc，直接模拟 iframe 发来的消息；contentWindow.postMessage 打桩收宿主推送）
 const customHostL = hostL('custom'); const customIframe = customHostL.querySelector('iframe'); const toChild = []
 customIframe.contentWindow.postMessage = m => toChild.push(m)

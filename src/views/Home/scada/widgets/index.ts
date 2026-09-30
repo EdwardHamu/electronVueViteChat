@@ -14,6 +14,7 @@ import { sparklineDefinition } from './Sparkline'
 import { statusLampDefinition } from './StatusLamp'
 import { visualDefinitions } from './visuals'
 import { customDefinition } from './Custom'
+import { codeDefinitions } from './codes'
 
 // 基础图素：直线 折线 弧线 矩形 圆形 椭圆 扇形 弓形 多边形 文本 图片 管道
 const [line, polyline, arc, rect, circle, ellipse, sector, segment, polygon, pipe] = shapeDefinitions
@@ -29,5 +30,7 @@ registerWidget(statusLampDefinition)
 // 数据看板（续）：棒图 滑块 进度条 环形进度条 饼图 量表 自定义组件（HTML / CSS / JS）
 visualDefinitions.forEach(registerWidget)
 registerWidget(customDefinition)
+// 其他：二维码 条形码
+codeDefinitions.forEach(registerWidget)
 
 export * from '../registry'

@@ -15,16 +15,17 @@
 | `dataSource/localSource.ts` | **内部变量数据源**（`local`，`var1` ~ `var16`）：目前唯一实现了 `write()` 的数据源，按钮 / 开关 / IO 域写进来的值立即被绑定同一变量的组件读到，并持久化到 localStorage `scadaLocalVars` |
 | `transform.ts` | 组件级**数据处理函数**：编译 / 执行用户写的 JS（三种写法、返回值合并规则、错误反馈），示例片段 `TRANSFORM_EXAMPLES` |
 | `registry.ts` | 组件注册表 |
-| `widgets/` | 内置组件，分三类（`WidgetDefinition.category`）：`shape` 基础图素（`shapes.tsx` 直线 / 折线 / 弧线 / 矩形 / 圆形 / 椭圆 / 扇形 / 弓形 / 多边形 / 管道，`TextLabel.tsx` 文本，`Image.tsx` 图片）、`control` 控制与显示（`controls.tsx` 数值 IO 域 / 字符 IO 域 / 日期时间域 / 按钮 / 位按钮 / 字按钮 / 位状态显示 / 字状态显示 / 文本列表 / 文本开关 / 单选框 / 复选框，`Table.tsx` 表格）、`data` 数据看板（数值卡片 / 仪表盘 / 迷你趋势 / 状态灯，以及 `visuals.tsx` 里的棒图 / 滑块 / 进度条 / 环形进度条 / 饼图 / 量表，`Custom.tsx` 自定义组件——用户自写 HTML / CSS / JS，跑在 srcdoc iframe 里）。`icons.tsx` 是组件库用的 24×24 线条图标；`common.ts`（状态配色、`resolveRange` 量程推算）/ `controlCommon.ts`（`useControl` 写入封装、选项列表解析、共享秒表）为共用工具 |
+| `widgets/` | 内置组件，分四类（`WidgetDefinition.category`）：`shape` 基础图素（`shapes.tsx` 直线 / 折线 / 弧线 / 矩形 / 圆形 / 椭圆 / 扇形 / 弓形 / 多边形 / 管道，`TextLabel.tsx` 文本，`Image.tsx` 图片）、`control` 控制与显示（`controls.tsx` 数值 IO 域 / 字符 IO 域 / 日期时间域 / 按钮 / 位按钮 / 字按钮 / 位状态显示 / 字状态显示 / 文本列表 / 文本开关 / 单选框 / 复选框，`Table.tsx` 表格）、`data` 数据看板（数值卡片 / 仪表盘 / 迷你趋势 / 状态灯，以及 `visuals.tsx` 里的棒图 / 滑块 / 进度条 / 环形进度条 / 饼图 / 量表，`Custom.tsx` 自定义组件——用户自写 HTML / CSS / JS，跑在 srcdoc iframe 里）、`other` 其他（`codes.tsx` 二维码 / 条形码，编码器在 `../codes/`）。`icons.tsx` 是组件库用的 24×24 线条图标；`common.ts`（状态配色、`resolveRange` 量程推算）/ `controlCommon.ts`（`useControl` 写入封装、选项列表解析、共享秒表）为共用工具 |
 | `store.ts` | Pinia store：已保存布局 `layout`、编辑草稿 `draft`、选中项、增删改 / 层级 / 画布设置 |
 | `storage.ts` | 持久化抽象 `LayoutStorage`，默认 localStorage（key `scadaLayout`） |
 | `resource.ts` | **资源文件**（图片等）：有宿主时经 `JsBridge.SaveResourceFile(fileName, base64)` 存到运行目录 `Resources/pic/<GUID>.<ext>`，布局里只记返回的 `https://pic.nt.local/<GUID>.<ext>`（WebView2 虚拟主机映射到该目录，跨域 fetch 已放开）；没有宿主桥（纯浏览器调试）退回 data URL 内嵌（单张 ≤ `INLINE_MAX_BYTES` 300 KB）。还包括递归的引用收集 / 替换（`walkStrings`，嵌套属性也算）、`fetchResource` / `resourceExists`、`downloadBlob`（`a[download]` 触发浏览器下载）、宿主调用封装 `callHost`、`listResourceFiles` / `deleteResourceFile` 与 **`cleanupUnusedResources(layout)`**（删掉 `Resources/pic` 里布局不再引用的 `<32 位 hex>.<ext>` 文件，`store.save()` 与展示模式 `applyLayout()` 后自动调用） |
+| `codes/qrcode.ts` / `codes/barcode.ts` | 零依赖编码器：QR 码（版本 1~40、L/M/Q/H、数字 / 字母数字 / 字节模式、掩码按规范罚分自选）与一维条码（Code 128 自动 A/B/C、EAN-13 / UPC-A、EAN-8），只输出模块矩阵 / 序列，渲染在 `widgets/codes.tsx` |
 | `zip.ts` | 零依赖 zip：写 STORE（含 CRC32、UTF-8 文件名标志），读 STORE / DEFLATE（`DecompressionStream('deflate-raw')`），够用于组态包 |
 | `package.ts` | **组态包**导入导出（纯逻辑）。有宿主：`exportPackageViaHost(layout)` / `previewPackageViaHost('')` / `importPackageViaHost(path)` 分别调 `JsBridge.ExportScadaPackage`（另存为对话框 + 宿主打包）/ `PreviewScadaPackage`（打开对话框 + 清点）/ `ImportScadaPackage`（解压资源到 `Resources/pic`、返回布局），`layoutFromHostImport()` 规范化返回的布局；返回 `undefined` 表示老宿主没有该接口。浏览器 / 老宿主：`buildPackage()` 把布局 + 引用的全部资源打成一个 zip（`manifest.json` + `layout.json` + `resources/…`）；`parsePackage()` 解析 zip 或直接的 JSON；`planImport()` 清点资源（本机已有同名 GUID 文件 → 复用，否则上传，包里缺的 → 缺失）；`applyPackage()` 上传 / 复用 / 内嵌并返回引用已替换的布局 |
 | `ImportDialog.tsx` | 导入弹窗，两种来源：`preview`（宿主 `PreviewScadaPackage` 的清点结果 → 确认后 `ImportScadaPackage`）或 `file`（前端解析 → 上传）；清单（组件数 / 画布 / 资源统计）→ 确认后调用 `store.applyLayout()`（展示模式直接持久化，编辑模式只替换草稿） |
 | `layout.ts` | 默认值与反序列化校验 / 版本迁移；`geometry.ts` 吸附、越界、缩放等纯函数 |
 | `Canvas.tsx` | 等比缩放画布、`WidgetHost`（绑定 → 处理函数 → 历史值 → 组件）、Pointer Events 拖动 / 缩放组件、Delete 删除、方向键微调（1px，Shift 按网格）；编辑模式的视图缩放（滚轮 / 双指 / 键盘 + - 0）与平移（空格 + 拖动 / 中键拖动 / 双指） |
-| `Palette.tsx` | 组件库，HMI 工具箱样式：按三个分类分组（点分类标题折叠 / 展开），每项是小图标 + 名称，横屏可在**网格**（3 列）/ **列表**（图标 + 名称 + 说明）间切换（记在 localStorage `scadaPaletteView`）；点按放到空位、按住拖到画布上松手放置；`direction` = vertical（横屏侧栏 200px）/ horizontal（竖屏顶部横向条带，分类做成竖排标签）。滚动容器是 naive-ui `NScrollbar`（悬浮式滚动条，不占内容宽度） |
+| `Palette.tsx` | 组件库，HMI 工具箱样式：按四个分类分组（点分类标题折叠 / 展开），每项是小图标 + 名称，横屏可在**网格**（3 列）/ **列表**（图标 + 名称 + 说明）间切换（记在 localStorage `scadaPaletteView`）；点按放到空位、按住拖到画布上松手放置；`direction` = vertical（横屏侧栏 200px）/ horizontal（竖屏顶部横向条带，分类做成竖排标签）。滚动容器是 naive-ui `NScrollbar`（悬浮式滚动条，不占内容宽度） |
 | `PropertyPanel.tsx` | 属性面板（标题、数据绑定、位置尺寸、按 `propSchema` 生成的组件属性、层级 / 复制 / 删除；未选中时编辑画布）；`columns=2` 时分两栏；底部按钮打开数据处理函数弹窗；同样用 `NScrollbar` 悬浮滚动。字段类型 text / textarea / number / color / boolean / select / image（图片 = 地址输入 + 「选择图片文件」按钮：有宿主时上传到 `Resources/pic` 只存 `https://pic.nt.local/…` 地址（≤ 20 MB），无宿主时读成 data URL 内嵌（≤ 300 KB），见 `resource.ts`） |
 | `ColorField.tsx` | 颜色字段（组件颜色属性、画布背景）：一行色块按钮，点开在下方行内展开面板——第一界面是**预设颜色表**，按钮切换到 HSV **调色盘**（SV 面板 + 色相条 + hex 输入）；两处都能「加入预设」，「管理」模式点色块移除、可恢复默认；`clearable` 时提供「清除」（空值 = 组件默认色）。不用 naive-ui 的 NColorPicker 弹层（嵌在滚动面板 / 弹层里会被 click-outside 关掉）。**自动收起**：模块级 `activeColorField` 保证同时只展开一个（打开另一个字段时旧的收起）；展开期间在 `document` 上监听 `focusin` / `pointerdown`（capture），焦点或点按落到面板外的其它输入框 / 控件（`CLOSE_ON_POINTERDOWN_SELECTOR`）上就收起；点面板外空白处、拖滚动条 / 触摸滚动不收起 |
 | `color.ts` / `colorPresets.ts` | hex ↔ HSV 等纯函数；预设颜色表（所有颜色字段共用，最多 64 个，localStorage key `scadaColorPresets`，损坏 / 清空时回落到默认 24 色） |
@@ -71,6 +72,13 @@ DataSourceProvider.read(key) ──► DataPoint ──► 数据处理函数（
 - 滑块是这组里唯一可写的组件：拖动时只改本地显示值，松手后经 `useControl().write()` 写回（按 `step` 取整、限制在 `min ~ max`），未绑定 / 数据源只读时点按给出与按钮相同的提示，`readOnly` 属性可让它只作显示；松手到数据源刷新之前先显示写入值（`pending`），避免闪回旧值。
 - 饼图不绑定单个数据项：像表格一样选一个数据源，`items`（multiselect，留空 = 全部）挑若干数据项，用它们的当前值算占比，负值 / 无值按 0；支持环形、图例位置、扇区百分比标注与自定义配色（一行一个颜色）。
 
+## 其他：二维码 / 条形码（`widgets/codes.tsx`）
+
+- 两个组件都不强制绑定：内容来自「内容模板」属性 `content`，其中 `{value}`（按 `decimals` / 数据源精度格式化）`{raw}` `{text}` `{name}` `{unit}` `{time}` `{status}` 用绑定的数据点替换，未绑定或无值时对应占位符为空，其它文字原样保留（`resolveTemplate()`）。默认模板 `{value}`：未绑定时内容为空，编辑模式显示「在属性面板填写内容或绑定数据」。
+- 二维码：`encodeQr(text, { ecc })` 自动选最小版本与最优掩码，`qrToPath()` 把每行连续深色模块合成矩形；SVG viewBox 含 `quiet` 个模块的静区、`preserveAspectRatio="xMidYMid meet"` 保持正方形居中，可选在下方显示内容文字。内容超过 40 版容量时显示「内容太长」。
+- 条形码：`format` 为 Code 128（任意 ASCII，数字段自动切 C 表）/ EAN-13（12 位自动补校验位，13 位校验；UPC-A 前面补 0 即可）/ EAN-8；不合法时显示「内容不符合 … 格式」。SVG 用 `preserveAspectRatio="none"` 横向铺满（所有条等比拉伸，宽度比例不变），静区按格式取 10 / 11+7 / 7 模块，人眼可读文字在 SVG 外单独渲染避免拉伸变形。
+- 编码器经 python `qrcode`（逐模块比对 300+ 组合、40 版 × 4 等级的表）/ `python-barcode`（Code 128 / EAN 序列一致）与 `zxing-cpp`（全部解码成功）验证过；冒烟测试里保留了 HELLO WORLD 与 5177 / 5901234123457 的固定向量。
+
 ## 自定义组件（`widgets/Custom.tsx`）
 
 - 用户在属性面板里编辑 HTML / CSS / JS（`PropFieldType = 'code'`：面板只放一个「编辑 · N 字符」按钮，点开 `CodeDialog.tsx` 弹窗，确定 / Ctrl + Enter 才写回属性）。一个 code 字段可以带多段代码（`PropField.parts: CodePart[]`，每段有自己的 key / language / example / hint）：自定义组件把 **HTML 与 CSS 放在同一个弹窗**（横屏左右两栏、竖屏上下两栏，`data-code-layout`），JS 单独一个弹窗；每段各有字符数、插入示例、清空和说明。编辑框是 `CodeEditor.tsx`——透明文字的 textarea 叠在高亮好的 `<pre>` 上（字体 / 内边距 / 换行 / `scrollbar-gutter` 完全一致，滚动同步），输入体验仍是原生 textarea；Tab 两个空格、Shift + Tab 退一级、Enter 保持缩进（`{ ( [` 后多缩一级），优先 `execCommand('insertText')` 保住撤销栈。高亮是自写的 `highlight.ts`（HTML / CSS / JS 近似分词，HTML 内嵌 `<style>` / `<script>` 分别按 CSS / JS；输出已转义且与原文等长，否则退回纯文本），配色与编辑器样式 `CODE_EDITOR_CSS` 由 `ensureCodeEditorStyle()` 一次性注入 `<head>`。三段代码由 `buildCustomDoc()` 拼成 `srcdoc` 放进 `<iframe sandbox="allow-scripts allow-same-origin allow-forms allow-modals">`：样式脚本与页面隔离，代码改了 iframe 自动重载。文档顺序是：基础样式（html/body 100%、无边距、透明背景）→ 运行时脚本（`CUSTOM_RUNTIME`，放 `<head>`，所以 HTML 里内联的 `<script>` 也能用 `scada`）→ 用户 CSS → 用户 HTML → 用户 JS；用户代码里的 `</script>` / `</style>` 会被转义成 `<\/…` 以免提前结束标签。
@@ -81,7 +89,7 @@ DataSourceProvider.read(key) ──► DataPoint ──► 数据处理函数（
 ## 新增一个组件
 
 1. 在 `widgets/` 写一个接收 `widgetProps`（`widget`、`point`、`editing`、`history`）的 `defineComponent`——收到的 `point` 已经过数据处理函数，组件不用关心；
-2. 导出一个 `WidgetDefinition`：`type`、`label()`、`description()`、`icon()`（`icons.tsx` 风格的 24×24 SVG，`currentColor`）、`category`（shape / control / data，决定在组件库里的分组）、`defaultSize`、`needsBinding`、`defaultProps()`、`propSchema`（属性面板自动渲染 text / textarea / number / color / boolean / select / multiselect / image；`placeholder` 可传函数以便渲染时再取 i18n；select / multiselect 的 `options(widget)` 会收到当前组件，可按别的属性动态给选项）、`component`，需要历史值时设 `keepHistory`；
+2. 导出一个 `WidgetDefinition`：`type`、`label()`、`description()`、`icon()`（`icons.tsx` 风格的 24×24 SVG，`currentColor`）、`category`（shape / control / data / other，决定在组件库里的分组）、`defaultSize`、`needsBinding`、`defaultProps()`、`propSchema`（属性面板自动渲染 text / textarea / number / color / boolean / select / multiselect / image；`placeholder` 可传函数以便渲染时再取 i18n；select / multiselect 的 `options(widget)` 会收到当前组件，可按别的属性动态给选项）、`component`，需要历史值时设 `keepHistory`；
 3. 在 `widgets/index.ts` 里 `registerWidget()`；
 4. 在 `public/locales/*.json` 的 `scada.widget` / `scada.prop` 下补文案。
 
@@ -123,4 +131,6 @@ DataSourceProvider.read(key) ──► DataPoint ──► 数据处理函数（
 
 ## 测试
 
-无需 WebView2 宿主：`npm i --no-save esbuild@0.21 jsdom@22 && node scripts/scada-smoke/run.mjs`（见脚本头部说明，目前 171 步；zip / 组态包 / 资源上传部分用 Node 20 自带的 `DecompressionStream` 与 jsdom 的 `File` / `FileReader`，宿主 `SaveResourceFile` / `ListResourceFiles` / `DeleteResourceFile` / `ExportScadaPackage` / `PreviewScadaPackage` / `ImportScadaPackage` 与 `https://pic.nt.local/` 静态目录都在脚本里模拟——前半段在没有打包接口的桥上跑（覆盖浏览器 / 老宿主流程），任务 42 一节再把新接口补进桩里）。宿主侧对应的自检是 `SPC.M.Test.exe --scada-package`。
+无需 WebView2 宿主：`npm i --no-save esbuild@0.21 jsdom@22 && node scripts/scada-smoke/run.mjs`（见脚本头部说明，目前 179 步；zip / 组态包 / 资源上传部分用 Node 20 自带的 `DecompressionStream` 与 jsdom 的 `File` / `FileReader`，宿主 `SaveResourceFile` / `ListResourceFiles` / `DeleteResourceFile` / `ExportScadaPackage` / `PreviewScadaPackage` / `ImportScadaPackage` 与 `https://pic.nt.local/` 静态目录都在脚本里模拟——前半段在没有打包接口的桥上跑（覆盖浏览器 / 老宿主流程），任务 42 一节再把新接口补进桩里）。宿主侧对应的自检是 `SPC.M.Test.exe --scada-package`。
+
+编码器交叉验证（可选）：`pip install qrcode python-barcode zxing-cpp pillow && python3 scripts/scada-smoke/verify-codes.py`——通过 `codes-dump.mjs` 用 esbuild 打包 `codes/*.ts` 批量输出矩阵，与 python `qrcode` 逐模块比对（固定掩码）、`zxing-cpp` 解码（自动掩码 / 全部条码）、`python-barcode` 比 EAN 序列与 Code 128 符号数；退出码非 0 即有差异。

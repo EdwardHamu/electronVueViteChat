@@ -20,7 +20,7 @@ interface PaletteDrag {
   moved: boolean
 }
 
-export const PALETTE_CATEGORIES: WidgetCategory[] = ['shape', 'control', 'data']
+export const PALETTE_CATEGORIES: WidgetCategory[] = ['shape', 'control', 'data', 'other']
 /** 组件库滚动条完全透明：只把滑块颜色（常态 / 悬停）设为 transparent，滚动行为不变 */
 export const TRANSPARENT_SCROLLBAR = { color: 'transparent', colorHover: 'transparent' }
 const VIEW_KEY = 'scadaPaletteView'

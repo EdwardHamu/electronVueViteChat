@@ -373,7 +373,8 @@
     "category": {
       "shape": "Figuras básicas",
       "control": "Control y visualización",
-      "data": "Panel de datos"
+      "data": "Panel de datos",
+      "other": "Otros"
     },
     "help": {
       "title": "Instrucciones",
@@ -534,6 +535,14 @@
       "customDesc": "Escribe tu propio HTML / CSS / JS; se ejecuta en un iframe aislado, recibe datos con scada.onData y escribe con scada.write",
       "customPlaceholder": "Edita HTML / CSS / JS en el panel de propiedades",
       "customError": "Error de script",
+      "qrCode": "Código QR",
+      "qrCodeDesc": "Codifica texto fijo o datos vinculados (plantilla {value} {name} …) como código QR; corrección de errores / colores / zona silenciosa ajustables",
+      "barcode": "Código de barras",
+      "barcodeDesc": "Código de barras Code 128 / EAN-13 / EAN-8; el contenido admite la misma plantilla de datos, texto legible opcional",
+      "codeEmpty": "Sin contenido",
+      "codeEmptyEdit": "Escribe el contenido o vincula datos en el panel de propiedades",
+      "qrTooLong": "Contenido demasiado largo para un código QR",
+      "barcodeInvalid": "El contenido no es válido para {format}",
       "textLabel": "Texto",
       "textLabelDesc": "Texto estático; al vincular datos muestra el valor o la salida de la función",
       "unbound": "Sin vincular",
@@ -542,6 +551,11 @@
       "unknown": "Componente desconocido"
     },
     "prop": {
+      "content": "Plantilla de contenido",
+      "contentPlaceholder": "{value}; también {name} {unit} {text} {time} {status} {raw}",
+      "ecc": "Corrección de errores",
+      "quietZone": "Zona silenciosa",
+      "caption": "Mostrar texto del contenido",
       "htmlCss": "HTML / CSS",
       "html": "HTML",
       "css": "CSS",

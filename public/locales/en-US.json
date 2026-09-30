@@ -373,7 +373,8 @@
     "category": {
       "shape": "Basic shapes",
       "control": "Controls & display",
-      "data": "Data dashboard"
+      "data": "Data dashboard",
+      "other": "Other"
     },
     "help": {
       "title": "How to use",
@@ -534,6 +535,14 @@
       "customDesc": "Write your own HTML / CSS / JS; runs in an isolated iframe, receives data via scada.onData and writes via scada.write",
       "customPlaceholder": "Edit HTML / CSS / JS in the property panel",
       "customError": "Script error",
+      "qrCode": "QR code",
+      "qrCodeDesc": "Encodes fixed text or bound data (template {value} {name} …) as a QR code; error correction / colors / quiet zone adjustable",
+      "barcode": "Barcode",
+      "barcodeDesc": "Code 128 / EAN-13 / EAN-8 barcode; content supports the same data template, optional human-readable text",
+      "codeEmpty": "No content",
+      "codeEmptyEdit": "Enter content or bind data in the property panel",
+      "qrTooLong": "Content too long for a QR code",
+      "barcodeInvalid": "Content is not valid for {format}",
       "textLabel": "Text",
       "textLabelDesc": "Static text; shows the value or transform output when bound",
       "unbound": "Unbound",
@@ -542,6 +551,11 @@
       "unknown": "Unknown widget"
     },
     "prop": {
+      "content": "Content template",
+      "contentPlaceholder": "{value}; also {name} {unit} {text} {time} {status} {raw}",
+      "ecc": "Error correction",
+      "quietZone": "Quiet zone",
+      "caption": "Show content text",
       "htmlCss": "HTML / CSS",
       "html": "HTML",
       "css": "CSS",

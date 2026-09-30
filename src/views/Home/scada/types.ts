@@ -149,7 +149,7 @@ export interface WidgetRenderProps {
 }
 
 /** 组件库分类：shape 基础图素 / control 控制与显示 / data 数据看板 */
-export type WidgetCategory = 'shape' | 'control' | 'data'
+export type WidgetCategory = 'shape' | 'control' | 'data' | 'other'
 
 export interface WidgetDefinition {
   type: string

@@ -373,7 +373,8 @@
     "category": {
       "shape": "基础图素",
       "control": "控制与显示",
-      "data": "数据看板"
+      "data": "数据看板",
+      "other": "其他"
     },
     "help": {
       "title": "操作说明",
@@ -534,6 +535,14 @@
       "customDesc": "自己写 HTML / CSS / JS，在独立的 iframe 里运行，通过 scada.onData 接收数据、scada.write 写值",
       "customPlaceholder": "在属性面板编辑 HTML / CSS / JS",
       "customError": "脚本错误",
+      "qrCode": "二维码",
+      "qrCodeDesc": "把固定文字或绑定数据（内容模板 {value} {name} 等）编成二维码，纠错等级 / 颜色 / 静区可调",
+      "barcode": "条形码",
+      "barcodeDesc": "Code 128 / EAN-13 / EAN-8 条形码，内容同样支持数据模板，可显示下方文字",
+      "codeEmpty": "内容为空",
+      "codeEmptyEdit": "在属性面板填写内容或绑定数据",
+      "qrTooLong": "内容太长，二维码放不下",
+      "barcodeInvalid": "内容不符合 {format} 格式",
       "textLabel": "文本",
       "textLabelDesc": "静态文字；绑定数据后显示数值或处理函数输出",
       "unbound": "未绑定数据",
@@ -542,6 +551,11 @@
       "unknown": "未知组件"
     },
     "prop": {
+      "content": "内容模板",
+      "contentPlaceholder": "{value}，可用 {name} {unit} {text} {time} {status} {raw}",
+      "ecc": "纠错等级",
+      "quietZone": "静区",
+      "caption": "显示内容文字",
       "htmlCss": "HTML / CSS",
       "html": "HTML",
       "css": "CSS",

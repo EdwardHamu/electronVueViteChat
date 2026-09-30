@@ -373,7 +373,8 @@
     "category": {
       "shape": "Hình cơ bản",
       "control": "Điều khiển & hiển thị",
-      "data": "Bảng dữ liệu"
+      "data": "Bảng dữ liệu",
+      "other": "Khác"
     },
     "help": {
       "title": "Hướng dẫn thao tác",
@@ -534,6 +535,14 @@
       "customDesc": "Tự viết HTML / CSS / JS; chạy trong iframe riêng, nhận dữ liệu qua scada.onData và ghi qua scada.write",
       "customPlaceholder": "Sửa HTML / CSS / JS trong bảng thuộc tính",
       "customError": "Lỗi script",
+      "qrCode": "Mã QR",
+      "qrCodeDesc": "Mã hóa văn bản cố định hoặc dữ liệu đã gắn (mẫu {value} {name} …) thành mã QR; chỉnh được mức sửa lỗi / màu / vùng trống",
+      "barcode": "Mã vạch",
+      "barcodeDesc": "Mã vạch Code 128 / EAN-13 / EAN-8; nội dung dùng cùng mẫu dữ liệu, có thể hiện chữ bên dưới",
+      "codeEmpty": "Chưa có nội dung",
+      "codeEmptyEdit": "Nhập nội dung hoặc gắn dữ liệu trong bảng thuộc tính",
+      "qrTooLong": "Nội dung quá dài cho mã QR",
+      "barcodeInvalid": "Nội dung không hợp lệ với {format}",
       "textLabel": "Văn bản",
       "textLabelDesc": "Chữ tĩnh; khi gắn dữ liệu sẽ hiển thị giá trị hoặc kết quả hàm xử lý",
       "unbound": "Chưa gắn dữ liệu",
@@ -542,6 +551,11 @@
       "unknown": "Thành phần không xác định"
     },
     "prop": {
+      "content": "Mẫu nội dung",
+      "contentPlaceholder": "{value}; còn có {name} {unit} {text} {time} {status} {raw}",
+      "ecc": "Mức sửa lỗi",
+      "quietZone": "Vùng trống",
+      "caption": "Hiện chữ nội dung",
       "htmlCss": "HTML / CSS",
       "html": "HTML",
       "css": "CSS",
