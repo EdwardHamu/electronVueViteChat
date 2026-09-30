@@ -82,10 +82,12 @@ body {
       border-bottom: 2px solid #ccc;
     }
   }
-  // 数据组态页要紧贴 tab 栏铺满，去掉该 pane 的上内边距（size=large 时 naive 给 16px）。
-  // NTabPane 上的 class 会透传到 .n-tab-pane 根节点；naive 的规则是 .n-tabs.n-tabs--top .n-tab-pane（3 个类，运行时注入、晚于本文件），
-  // 这里用 4 个类压过它。
-  &.n-tabs .n-tab-pane.scada-pane {
+  // 数据组态页（NTabPane class=scada-pane）和右侧测量值区 RightValueBlock 的 tab（NTabs pane-class=right-value-pane）
+  // 要紧贴 tab 栏，去掉 pane 的上内边距（size=large 时 naive 给 16px）。
+  // NTabPane 的 class / NTabs 的 pane-class 都会落到 .n-tab-pane 根节点；naive 的规则是 .n-tabs.n-tabs--top .n-tab-pane
+  // （3 个类，运行时注入、晚于本文件），这里用 4 个类压过它。
+  &.n-tabs .n-tab-pane.scada-pane,
+  &.n-tabs .n-tab-pane.right-value-pane {
     padding-top: 0;
   }
 }

@@ -489,7 +489,7 @@ export default defineComponent({
 
     return () => {
       return (
-        <NTabs type="card" animated size="large" barWidth={1148} value={curTabValue.value} pane-class={'shrink-0 h-full'} class={'home-tab h-full w-full'} onUpdateValue={handleTabChange} defaultValue={'value1'} >
+        <NTabs type="card" animated size="large" barWidth={1148} value={curTabValue.value} pane-class={'shrink-0 h-full right-value-pane'} class={'home-tab h-full w-full'} onUpdateValue={handleTabChange} defaultValue={'value1'} >
           <NTabPane displayDirective="if" name="value1" tab={t('menu.measureValue') + '1'} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'value1' ? activeStyle : {} } }}>
             <div class={classNames(' h-full px-2 flex  overflow-y-auto', { 'flex-col': store.isLandscape, 'flex-wrap': !store.isLandscape })}>
               {/* <NScrollbar> */}
