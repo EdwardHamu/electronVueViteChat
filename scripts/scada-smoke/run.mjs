@@ -153,10 +153,10 @@ const SHAPES = ['line', 'polyline', 'arc', 'rect', 'circle', 'ellipse', 'sector'
 const CONTROLS = ['numericIO', 'stringIO', 'datetime', 'button', 'bitButton', 'wordButton', 'bitStatus', 'wordStatus', 'textList', 'textSwitch', 'radio', 'checkbox', 'table']
 const DATA = ['valueCard', 'gauge', 'sparkline', 'statusLamp']
 const VISUAL = ['barGauge', 'slider', 'progressBar', 'ringProgress', 'pie', 'meter']
-check('注册表：四类共 35 个组件，全部带图标与分类', () => {
+check('注册表：三类共 35 个组件，全部带图标与分类（可视化组件归入数据看板）', () => {
   assert.deepEqual(widgetDefinitions().map(d => d.type), [...SHAPES, ...CONTROLS, ...DATA, ...VISUAL])
-  widgetDefinitions().forEach(d => { assert.equal(typeof d.icon, 'function', d.type); assert.ok(['shape', 'control', 'data', 'visual'].includes(d.category), d.type) })
-  assert.ok(VISUAL.every(t => widgetDefinitions().find(d => d.type === t).category === 'visual'))
+  widgetDefinitions().forEach(d => { assert.equal(typeof d.icon, 'function', d.type); assert.ok(['shape', 'control', 'data'].includes(d.category), d.type) })
+  assert.ok([...DATA, ...VISUAL].every(t => widgetDefinitions().find(d => d.type === t).category === 'data'))
   assert.deepEqual(dataSourceList().map(p => p.id), ['product', 'sim', 'local'])
 })
 const buttons = () => [...root.querySelectorAll('button')]
@@ -506,13 +506,14 @@ const bodyRow = () => canvasView.el.parentElement.parentElement.parentElement
 const paletteCol = () => bodyRow().children[0]
 const propsCol = () => bodyRow().children[bodyRow().children.length - 1]
 const inPalette = sel => [...paletteCol().querySelectorAll(sel)]
-check('组件库：按“基础图素 / 控制与显示 / 数据看板 / 数据可视化”分组的小图标网格，共 35 项；容器为 NScrollbar 悬浮轨道；顶栏无说明文字', () => {
-  assert.deepEqual(inPalette('[data-palette-group]').map(g => g.dataset.paletteGroup), ['shape', 'control', 'data', 'visual'])
+check('组件库：按“基础图素 / 控制与显示 / 数据看板”分组的小图标网格，共 35 项（数据看板 10 项）；容器为 NScrollbar 悬浮轨道；顶栏无说明文字', () => {
+  assert.deepEqual(inPalette('[data-palette-group]').map(g => g.dataset.paletteGroup), ['shape', 'control', 'data'])
   assert.equal(inPalette('[data-palette-item]').length, 35); assert.equal(inPalette('[data-palette-item] svg').length, 35)
   assert.equal(inPalette('[data-palette-group="shape"] [data-palette-item]').length, 12)
   assert.equal(inPalette('[data-palette-group="control"] [data-palette-item]').length, 13)
-  assert.deepEqual(inPalette('[data-palette-group="visual"] [data-palette-item]').map(e => e.dataset.paletteItem), VISUAL)
-  const vh = paletteCol().querySelector('[data-palette-category="visual"]'); assert.ok(vh.textContent.includes('数据可视化') && vh.textContent.includes('6'), vh.textContent)
+  assert.deepEqual(inPalette('[data-palette-group="data"] [data-palette-item]').map(e => e.dataset.paletteItem), [...DATA, ...VISUAL])
+  const dh = paletteCol().querySelector('[data-palette-category="data"]'); assert.ok(dh.textContent.includes('数据看板') && dh.textContent.includes('10'), dh.textContent)
+  assert.ok(!paletteCol().querySelector('[data-palette-category="visual"]'))
   assert.ok(inPalette('[data-palette-item="slider"]')[0].textContent.includes('滑块'))
   const hdr = paletteCol().querySelector('[data-palette-category="shape"]'); assert.ok(hdr.textContent.includes('基础图素') && hdr.textContent.includes('12'))
   assert.ok(paletteCol().querySelector('.n-scrollbar')); assert.ok(!paletteCol().querySelector('.overflow-y-auto'))

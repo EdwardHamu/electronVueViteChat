@@ -129,8 +129,8 @@ export interface WidgetRenderProps {
   history?: number[]
 }
 
-/** 组件库分类：shape 基础图素 / control 控制与显示 / data 数据看板 / visual 数据可视化 */
-export type WidgetCategory = 'shape' | 'control' | 'data' | 'visual'
+/** 组件库分类：shape 基础图素 / control 控制与显示 / data 数据看板 */
+export type WidgetCategory = 'shape' | 'control' | 'data'
 
 export interface WidgetDefinition {
   type: string

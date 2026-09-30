@@ -373,8 +373,7 @@
     "category": {
       "shape": "Hình cơ bản",
       "control": "Điều khiển & hiển thị",
-      "data": "Bảng dữ liệu",
-      "visual": "Trực quan hóa dữ liệu"
+      "data": "Bảng dữ liệu"
     },
     "help": {
       "title": "Hướng dẫn thao tác",

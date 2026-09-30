@@ -1,5 +1,5 @@
 /**
- * 数据可视化：棒图 / 滑块 / 进度条 / 环形进度条 / 饼图 / 量表。
+ * 数据看板扩展组件：棒图 / 滑块 / 进度条 / 环形进度条 / 饼图 / 量表（与数值卡片 / 仪表盘等同在「数据看板」分类）。
  *  - 棒图 / 进度条 / 环形进度条 / 量表按「量程」作图（common.resolveRange：组件 min / max → 公差带外扩 → 0~2×标准值 → 0~100）；
  *  - 滑块是这组里唯一可写的组件：拖动时只改本地显示值，松手后经 useControl().write() 写回绑定的数据源
  *    （目前只有「内部变量」可写；绑定只读数据源或未绑定时点按会给出提示）；
@@ -61,7 +61,7 @@ const def = (type: string, extra: Partial<WidgetDefinition> & { defaultProps: ()
   label: () => tt('scada.widget.' + type),
   description: () => tt('scada.widget.' + type + 'Desc'),
   icon: icons[type],
-  category: 'visual',
+  category: 'data',
   defaultSize: { w: 200, h: 120 },
   minSize: { w: 30, h: 20 },
   needsBinding: true,

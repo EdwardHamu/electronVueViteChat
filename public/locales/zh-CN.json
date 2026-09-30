@@ -373,8 +373,7 @@
     "category": {
       "shape": "基础图素",
       "control": "控制与显示",
-      "data": "数据看板",
-      "visual": "数据可视化"
+      "data": "数据看板"
     },
     "help": {
       "title": "操作说明",

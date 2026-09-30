@@ -373,8 +373,7 @@
     "category": {
       "shape": "Basic shapes",
       "control": "Controls & display",
-      "data": "Data dashboard",
-      "visual": "Data visualization"
+      "data": "Data dashboard"
     },
     "help": {
       "title": "How to use",

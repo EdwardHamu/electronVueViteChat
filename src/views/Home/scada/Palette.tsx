@@ -20,7 +20,7 @@ interface PaletteDrag {
   moved: boolean
 }
 
-export const PALETTE_CATEGORIES: WidgetCategory[] = ['shape', 'control', 'data', 'visual']
+export const PALETTE_CATEGORIES: WidgetCategory[] = ['shape', 'control', 'data']
 const VIEW_KEY = 'scadaPaletteView'
 
 /** 折叠状态 / 视图模式放在模块级：切换横竖屏或重新进入编辑时保持 */

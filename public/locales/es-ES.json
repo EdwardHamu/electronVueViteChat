@@ -373,8 +373,7 @@
     "category": {
       "shape": "Figuras básicas",
       "control": "Control y visualización",
-      "data": "Panel de datos",
-      "visual": "Visualización de datos"
+      "data": "Panel de datos"
     },
     "help": {
       "title": "Instrucciones",
