@@ -204,7 +204,7 @@ export const MyFormWrap = defineComponent({
     const renderInput = (form: typeof props.form, item: formListItem) => {
       typeof form[item.prop] === 'number' && (form[item.prop] = form[item.prop] + "")
       return (
-        <NFormItem class={item.class} label={item.label} path={item.prop} contentStyle={{ maxWidth: '2000px', }} labelStyle={commonStyle.value} >
+        <NFormItem class={item.class} label={item.label} path={item.prop} contentStyle={{ maxWidth: '298px', }} labelStyle={commonStyle.value} >
           <NInput size={'large'} v-model:value={form[item.prop]} style={{ ...commonStyle.value, ...inputStyle.value }} placeholder="" clearable type={item.inputType || 'text'} rows={item.row || 3} disabled={item.disabled} v-slots={{
             suffix: typeof item.suffix === 'function' ? item.suffix : () => item.suffix
           }} />
@@ -223,7 +223,7 @@ export const MyFormWrap = defineComponent({
       }
       // 样式与 renderInput 对齐（标签字号、宽度、类名）；内部 <input> 自带 data-num-input 标记，虚拟键盘据此切到数字模式
       return (
-        <NFormItem class={item.class} label={item.label} path={item.prop} contentStyle={{ maxWidth: '2000px', }} labelStyle={commonStyle.value}>
+        <NFormItem class={item.class} label={item.label} path={item.prop} contentStyle={{ maxWidth: '298px', }} labelStyle={commonStyle.value}>
           <NInputNumber size={'large'} min={item.min} max={item.max} value={value} onUpdateValue={update} style={{ ...commonStyle.value, ...inputStyle.value }} placeholder="" clearable disabled={item.disabled} v-slots={{
             suffix: typeof item.suffix === 'function' ? item.suffix : () => item.suffix
           }} />
