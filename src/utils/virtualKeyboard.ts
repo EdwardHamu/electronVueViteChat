@@ -80,6 +80,27 @@ export const writeValueToInput = (el: TextEntry, value: string) => {
   if (typeof el.blur === 'function') el.blur()
 }
 
+/**
+ * 让弹窗的焦点陷阱放过虚拟键盘（任务 64：设备分组「新增」弹窗卡死）。
+ *
+ * naive-ui 的 NModal / useDialog / NDrawer 用 vueuc 的 FocusTrap：在 document 上以捕获阶段监听 focus，
+ * 焦点一跑到弹窗外面就 resetFocusTo('first') 拉回弹窗里第一个可聚焦元素。虚拟键盘不在弹窗里，它打开时会把焦点移到
+ * 自己的输入区 → 焦点陷阱把焦点拉回弹窗里的输入框 → focusin 又「打开」一次键盘 → 键盘再聚焦输入区 ……
+ * 全在微任务里来回，页面卡死（弹窗打开时自动聚焦输入框，所以一点「新增」就触发）。
+ *
+ * 这里在 window 上以捕获阶段监听 focus（比 document 上的监听先执行），焦点落在键盘里时停止传播，
+ * 焦点陷阱就看不到这次焦点变化；焦点回到页面其它地方时照常。返回卸载函数。
+ */
+export const installFocusTrapBypass = () => {
+  if (typeof window === 'undefined') return () => {}
+  const onFocus = (e: FocusEvent) => {
+    const target = e.target as HTMLElement | null
+    if (target && typeof target.closest === 'function' && target.closest('.' + KEYBOARD_ROOT_CLASS)) e.stopPropagation()
+  }
+  window.addEventListener('focus', onFocus, true)
+  return () => window.removeEventListener('focus', onFocus, true)
+}
+
 let numberMarkInstalled = false
 /**
  * 给所有 NInputNumber 的内部 <input> 打上数字输入框标记：改 naive 组件 inputProps 的默认值，

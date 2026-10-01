@@ -8,6 +8,15 @@ export const useConfigStore = defineStore('config', {
     sysConfig: { InputType: 0 } as Record<string, any>,
     /** 系统配置页面 / 产品历史页面是否打开（数据组态 tab 激活时，这些页面打开才照常弹键盘） */
     isShowConfig: false,
-    productHistoryShow: false
-  })
+    productHistoryShow: false,
+    /** 设备分组「新增」弹窗（DeviceGroupAddForm，任务 64 的回归用例） */
+    DeviceGroupAddFromShow: false,
+    curGroupConfigRow: null as any
+  }),
+  actions: {
+    setDeviceGroupAddFormShow(value: boolean) {
+      this.DeviceGroupAddFromShow = value
+    },
+    updateDevGroupRowFn() {}
+  }
 })

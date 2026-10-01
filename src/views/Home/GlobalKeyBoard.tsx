@@ -16,7 +16,7 @@ import Keyboard from "simple-keyboard";
 import "simple-keyboard/build/css/index.css";
 import classnames from "classnames";
 import { CloseTwotone } from "@vicons/material";
-import { isNumberInput, isTouchKeyboardEnabled, KEYBOARD_ROOT_CLASS, writeValueToInput } from "@/utils/virtualKeyboard";
+import { installFocusTrapBypass, isNumberInput, isTouchKeyboardEnabled, KEYBOARD_ROOT_CLASS, writeValueToInput } from "@/utils/virtualKeyboard";
 import { isKeyboardSuppressed } from "@/utils/utils";
 
 type AreaEl = HTMLInputElement | HTMLTextAreaElement
@@ -235,7 +235,10 @@ export default defineComponent({
       if (keyborardShow.value && !isTouchKeyboardEnabled(v)) closeKeyboard()
     })
 
+    let removeFocusTrapBypass: (() => void) | undefined
     onMounted(() => {
+      // 弹窗（NModal / useDialog）的焦点陷阱不能把焦点从键盘输入区抢回去，否则会和键盘来回抢焦点卡死页面
+      removeFocusTrapBypass = installFocusTrapBypass()
       isMounted.value = true
       nextTick(() => {
         keyboardIns = new Keyboard({
@@ -288,6 +291,7 @@ export default defineComponent({
       })
     })
     onBeforeUnmount(() => {
+      removeFocusTrapBypass?.()
       keyboardIns?.destroy()
       keyboardIns = undefined
     })

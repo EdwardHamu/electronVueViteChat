@@ -31,7 +31,8 @@ const harness = path.join(outdir, 'harness.ts')
 fs.writeFileSync(harness, `
 import { createApp, nextTick, h, reactive, defineComponent } from 'vue'
 import { createPinia } from 'pinia'
-import { NInput, NInputNumber } from 'naive-ui'
+import { NInput, NInputNumber, NDialogProvider } from 'naive-ui'
+import DeviceGroupAddForm from '@/views/Home/config/devConfigNew/dataGroup/DeviceGroup/DeviceGroupAddForm'
 import GlobalKeyBoard from '@/views/Home/GlobalKeyBoard'
 import { useMain } from '@/store'
 import { useConfigStore } from '@/store/config'
@@ -40,6 +41,8 @@ import { useFormulaStore } from '@/store/formula'
 import * as vk from '@/utils/virtualKeyboard'
 import { MyFormWrap } from '@/components/MyFormWrap/MyFormWrap'
 import { noKeyBoardInputClass } from '@/views/Home/config/sysConfig/enum'
+import i18n from '@/i18n'
+export { NDialogProvider, DeviceGroupAddForm, i18n }
 export { createApp, nextTick, h, reactive, defineComponent, createPinia, NInput, NInputNumber, GlobalKeyBoard, useMain, useConfigStore, listenAllInputFocus, isKeyboardSuppressed, useFormulaStore, vk, MyFormWrap, noKeyBoardInputClass }
 `)
 const bundle = path.join(outdir, 'bundle.mjs')
@@ -101,6 +104,7 @@ const rawLog = console.log, rawWarn = console.warn
 console.log = (...a) => { if (!(typeof a[0] === 'string' && a[0].startsWith('🪵'))) rawLog(...a) }
 console.warn = (...a) => { if (!(typeof a[0] === 'string' && a[0].startsWith('[intlify]'))) rawWarn(...a) }
 const m = await import(pathToFileURL(bundle).href)
+const { NDialogProvider, DeviceGroupAddForm, i18n } = m
 const { createApp, nextTick, h, reactive, defineComponent, createPinia, NInput, NInputNumber, GlobalKeyBoard, useMain, useConfigStore, listenAllInputFocus, isKeyboardSuppressed, useFormulaStore, vk, MyFormWrap, noKeyBoardInputClass } = m
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
@@ -114,6 +118,7 @@ const App = defineComponent({
   setup() {
     return () => h('div', [
       h(GlobalKeyBoard),
+      h(NDialogProvider, null, { default: () => h(DeviceGroupAddForm) }),
       h('div', { id: 'f-text' }, [h(NInput, { value: model.text, 'onUpdate:value': v => (model.text = v) })]),
       h('div', { id: 'f-num' }, [h(NInputNumber, { value: model.num, 'onUpdate:value': v => (model.num = v) })]),
       h('div', { id: 'f-pwd' }, [h(NInput, { type: 'password', value: model.pwd, 'onUpdate:value': v => (model.pwd = v) })]),
@@ -129,7 +134,7 @@ const App = defineComponent({
     ])
   }
 })
-const app = createApp(App).use(pinia)
+const app = createApp(App).use(pinia).use(i18n)
 app.directive('drag', {})
 app.config.warnHandler = msg => { if (!/Extraneous non-props|Non-function value encountered/.test(msg)) console.warn('[vue warn]', msg) }
 const root = document.getElementById('app')
@@ -284,6 +289,34 @@ configStore.sysConfig.InputType = 1
   blurAll(); mIn.focus(); await nextTick(); await nextTick(); await sleep(10)
   await press('{bksp2}'); await press('9'); await press('{enter}'); await sleep(40)
   check('不带 numAsString 的 numInput：表单值存数字 9', () => assert.equal(model.form.m, 9))
+}
+
+// ---- 任务 64：带焦点陷阱的弹窗（naive useDialog / NModal）里的输入框 ----
+{
+  // 卡死的复现：弹窗打开时自动聚焦输入框 → 弹键盘 → 键盘把焦点移到自己的输入区 → 弹窗的焦点陷阱（vueuc FocusTrap，
+  // document 捕获阶段的 focus 监听）把焦点拉回弹窗里的输入框 → 又「打开」一次键盘 → 又聚焦输入区 …… 微任务里无限循环。
+  // 这里给 openGlobalKeyBoard 计数并设上限，循环时测试失败而不是挂死。
+  let opens = 0
+  const rawOpen = store.openGlobalKeyBoard.bind(store)
+  store.openGlobalKeyBoard = el => { opens++; if (opens <= 40) rawOpen(el) }
+  blurAll(); store.setGlobalKeyBoardShow(false); configStore.sysConfig.InputType = 1; await nextTick()
+  configStore.setDeviceGroupAddFormShow(true); await nextTick(); await sleep(150)
+  const dlgInput = document.querySelector('.n-dialog input')
+  check('设备分组「新增」弹窗（焦点陷阱 + 自动聚焦）：打开时键盘只弹一次，不会和焦点陷阱来回抢焦点（原来在这里卡死）', () => {
+    assert.ok(dlgInput, '弹窗里有设备名称输入框'); assert.ok(opens >= 1 && opens <= 2, 'openGlobalKeyBoard 调用次数 ' + opens)
+    assert.ok(visible()); assert.equal(store.keyboardTarget, dlgInput)
+  })
+  check('……焦点留在键盘输入区（焦点陷阱不再把它拉回弹窗）', () => assert.equal(document.activeElement, area()))
+  await press('a'); await press('b'); await press('{enter}'); await sleep(60)
+  check('……键盘输入 + 回车：写进弹窗里的输入框（表单 v-model 更新）', () => { assert.equal(dlgInput.value, 'ab'); assert.equal(store.globalKeyBoardShow, false) })
+  const n0 = opens
+  dlgInput.focus(); await nextTick(); await sleep(60)
+  check('……再点弹窗里的输入框：重新弹出并带入 "ab"，仍然只打开一次', () => { assert.equal(opens - n0, 1); assert.ok(visible()); assert.equal(area().value, 'ab') })
+  const n1 = opens
+  dlgInput.focus(); dlgInput.dispatchEvent(new window.FocusEvent('focusin', { bubbles: true })); await nextTick(); await sleep(30)
+  check('键盘开着时同一个输入框再次获得焦点：不重新带入（不丢掉输入区里正在编辑的内容）', () => { assert.equal(opens, n1) })
+  store.setGlobalKeyBoardShow(false); configStore.setDeviceGroupAddFormShow(false); await nextTick(); await sleep(150)
+  store.openGlobalKeyBoard = rawOpen
 }
 
 app.unmount()

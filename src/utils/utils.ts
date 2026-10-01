@@ -147,6 +147,8 @@ export const listenAllInputFocus = (store: ReturnType<typeof useMain>, configSto
     if (store.keyboardCommitting) return
     if (!isKeyboardTarget(target)) return
     if (!isTouchKeyboardEnabled(configStore.sysConfig?.InputType)) return
+    // 键盘已经为这个输入框开着：不重新打开 / 带入（焦点被别的组件拉回来时不会循环，也不丢输入区里正在编辑的内容）
+    if (store.globalKeyBoardShow && store.keyboardTarget === target) return
     store.openGlobalKeyBoard(target)
   }
   document.addEventListener('focusin', (event) => tryOpen(event.target));
