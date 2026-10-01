@@ -69,6 +69,11 @@ export const MyFormWrap = defineComponent({
       type: String as PropType<'left' | 'right'>,
       default: 'right'
     },
+    /** 标签位置：left（默认，与原来一致）/ top（标签在输入框上方，窄容器用，如配方参数卡片） */
+    labelPlacement: {
+      type: String as PropType<'left' | 'top'>,
+      default: 'left'
+    },
     fontSize: {
       type: Number,
     },
@@ -308,7 +313,7 @@ export const MyFormWrap = defineComponent({
 
       return (
         <div class={'w-full h-full  '}>
-          <NForm model={props.form} ref={formRef} requireMarkPlacement="right" rules={finalRule.value} size="large" labelPlacement="left" labelAlign={props.labelAlign} labelWidth={props.labelWidth} >
+          <NForm model={props.form} ref={formRef} requireMarkPlacement="right" rules={finalRule.value} size="large" labelPlacement={props.labelPlacement} labelAlign={props.labelAlign} labelWidth={props.labelWidth} >
             <NGrid xGap={12} yGap={2}>
               {renderComp(props.itemList, pform.value || {}, props.optionMap || {})}
             </NGrid>

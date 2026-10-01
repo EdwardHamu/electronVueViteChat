@@ -1,41 +1,22 @@
 import { formListItem, MyFormWrap } from "@/components/MyFormWrap/MyFormWrap";
-import { useMain } from "@/store";
 import { useConfigStore } from "@/store/config";
 import { useFormulaStore } from "@/store/formula";
 import { callBrige } from "@/utils/callm";
 import { callFnName } from "@/utils/enum";
-import { ajaxPromiseAll, safeJsonParse, sleep, getAllDataUnderGroup } from "@/utils/utils";
-import { NTabPane, NTabs } from "naive-ui";
+import { ajaxPromiseAll, safeJsonParse, getAllDataUnderGroup } from "@/utils/utils";
 import { computed, defineComponent, Transition, ref, watch, reactive } from "vue";
 import { useMyI18n } from "@/hooks/useMyI18n";
 import { DataGroupEntity, DeviceGroupEntity, FormulaConfigEntity, FormulaParamEntity, GroupConfigEntity, ModbusAdressRow } from "~/me";
 import { DeviceClassEnum } from "../devConfigNew/enum";
-import classNames from "classnames";
 
 export default defineComponent({
   name: 'FormulaParam',
   setup(props, ctx) {
     const formulaStore = useFormulaStore()
     const configstore = useConfigStore()
-    const store = useMain()
     const { t, i18nStore } = useMyI18n()
     const curFormulaConfigRow = computed(() => formulaStore.curFormulaConfigRow)
     const alldata = reactive({
-      curTabValue: 'formula',
-      defaultTab: 'formula',
-      calcHeight: 0,
-      commonStyle: {
-        // 竖屏宽度有限，12vw 太窄（≈130px）会截断参数名，放宽到 25vw
-        maxWidth: store.isLandscape ? '12vw' : '25vw', fontSize: '20px', minWidth: '120px', borderTop: '1px solid #58595a', borderRight: '1px solid #58595a', borderLeft: '1px solid #58595a', borderBottom: '1px solid #58595a',
-        flexGrow: 1, background: '#fff', borderRadius: '12px 12px 0 0'
-      },
-      activeStyle: {
-        background: `#f5f6f6`,
-        backgroundSize: 'cover',
-        borderBottom: "0",
-        color: '#000',
-        zIndex: 6
-      },
       adressList: [] as DataGroupEntity[],
       paramList: [] as FormulaParamEntity[],
       formCfg: {
@@ -79,12 +60,6 @@ export default defineComponent({
       // console.log("🪵 [FormulaParam.tsx:31] ~ token ~ \x1b[0;32mlist\x1b[0m = ", list);
       // return list
     })
-    const calcParamContentHeight = () => {
-      let el = document.querySelector('.formula-param-tab .n-tabs-nav') as HTMLElement
-      if (!el) return
-      alldata.calcHeight = el.clientHeight + 98
-      // console.log("🪵 [FormulaParam.tsx:59] ~ token ~ \x1b[0;32mel\x1b[0m = ", el.clientHeight);
-    }
     const getData = (row: FormulaConfigEntity | null) => {
       if (!row) return
       callBrige(callFnName.GetFormulaParams, row.GId).then((res: FormulaParamEntity[]) => {
@@ -154,9 +129,6 @@ export default defineComponent({
     })
     watch(() => curFormulaConfigRow.value, (v: FormulaConfigEntity | null) => {
       getData(v)
-      sleep(50).then(() => {
-        calcParamContentHeight()
-      })
     }, {
       immediate: true
     })
@@ -185,24 +157,13 @@ export default defineComponent({
         return item.AdressItem?.DeviceGroupId == curDeviceGroupRow.value?.GId || DeviceGroupId == curDeviceGroupRow.value?.GId
       })
     })
-    watch(() => curParamList.value, (v) => {
-      if (!v.length) return
-      alldata.curTabValue = v[0].DataGroupId || ''
-    })
-    //  watch(() => curDeviceGroupRow.value, (v) => {
-    //   alldata.curTabValue = v[0].DataGroupId
-    // })
-
-    const handleTabChange = (value: string) => {
-      alldata.curTabValue = value
-    }
     const getFormMap = () => {
       return alldata.formMap
     }
     formulaStore.setGetParamFormMapFn(getFormMap)
 
-    // 获取tab标签的展示名称, 对计算参数(如壁厚)使用i18n翻译, 并依赖 langChangeCount 确保语言切换时刷新
-    const getTabDisplayName = (item: FormulaParamEntity & { AdressItem?: DataGroupEntity }) => {
+    // 参数卡片标题, 对计算参数(如壁厚)使用i18n翻译, 并依赖 langChangeCount 确保语言切换时刷新
+    const getParamDisplayName = (item: FormulaParamEntity & { AdressItem?: DataGroupEntity }) => {
       const _ = i18nStore.langChangeCount
       const prop = item.DataGroupId?.split('*')[1]
       if (prop && alldata.otherCalcParamNameMap[prop]) {
@@ -211,63 +172,45 @@ export default defineComponent({
       return item.AdressItem?.DataName || prop || ''
     }
 
-    return () => {
-      return (
-        <NTabs value={alldata.curTabValue} type="card" animated size="large" barWidth={1148} pane-class={'shrink-0 h-full'} class={classNames('config-tab h-full w-full  formula-param-tab my-formula-tab ', { 'portrait-fill-tab': !store.isLandscape })} onUpdateValue={handleTabChange} defaultValue={alldata.defaultTab} >
-          {
-            curDeviceGroupRow.value &&
-            // pararmListWidthAdress.value.map(item => {
-            curParamList.value.map(item => {
-              let totalId = item.FormulaId + '-' + item.DataGroupId
-              if (!alldata.formMap[totalId]) {
-                alldata.formMap[totalId] = item
-              }
-              if (!item.AdressItem) {
-                let prop = item.DataGroupId?.split('*')[1]
-                if (prop) {
-                  let name = alldata.otherCalcParamNameMap[prop]
-                  item.AdressItem = {
-                    DataName: name
-                  }
-                }
-
-              }
-              return (
-                <NTabPane displayDirective="show:lazy" name={item.DataGroupId || totalId} tab={getTabDisplayName(item)} tabProps={{ style: { ...alldata.commonStyle, ...alldata.curTabValue == item.DataGroupId ? alldata.activeStyle : {} } }}>
-                  {/* 横屏沿用 100vh - 导航高度 的计算值；竖屏上下分栏时由 portrait-fill-tab 撑满剩余高度 */}
-                  <div style={store.isLandscape ? { height: `calc(100vh - ${alldata.calcHeight}px)` } : undefined} class={'w-full h-full p-2 border border-gray-600 border-solid '}>
-                    <div class={'w-full h-full py-6 pl-4 '}>
-                      <MyFormWrap labelWidth={360} fontSize={32} labelAlign="left" inputStyle={{ marginLeft: 'auto', width: '450px', marginRight: '10px', textAlign: 'center' }} {...alldata.formCfg} form={alldata.formMap[totalId]} />
-                    </div>
-
-                  </div>
-                  {/* 
-                    <div class={' h-full  bg-[#f5f6f6] border border-gray-600 border-solid  rounded-xl overflow-hidden'}>
-                    </div> */}
-
-                </NTabPane>
-              )
-            })
+    /** 一个参数一张卡片：标题 = 参数名，内容 = 标准值 / 上公差 / 下公差（标签在上方，卡片窄也放得下各语言的标签） */
+    const renderCard = (item: FormulaParamEntity & { AdressItem?: DataGroupEntity }) => {
+      let totalId = item.FormulaId + '-' + item.DataGroupId
+      if (!alldata.formMap[totalId]) {
+        alldata.formMap[totalId] = item
+      }
+      if (!item.AdressItem) {
+        let prop = item.DataGroupId?.split('*')[1]
+        if (prop) {
+          let name = alldata.otherCalcParamNameMap[prop]
+          item.AdressItem = {
+            DataName: name
           }
+        }
+      }
+      const name = getParamDisplayName(item)
+      return (
+        <div key={totalId} data-formula-param-card={item.DataGroupId || totalId} class={'min-w-0 flex flex-col bg-white border border-gray-600 border-solid rounded-xl overflow-hidden'}>
+          <div class={'px-4 py-2 text-[22px] font-bold truncate border-0 border-b border-gray-600 border-solid bg-[#f5f6f6]'} title={name}>{name}</div>
+          <div class={'px-4 pt-3'}>
+            <MyFormWrap labelPlacement="top" labelAlign="left" fontSize={20} inputStyle={{ width: '100%', textAlign: 'center' }} {...alldata.formCfg} form={alldata.formMap[totalId]} />
+          </div>
+        </div>
+      )
+    }
 
-          {/* {
-            //壁厚属于计算值而非采集值,单独添加
-            curDeviceGroupRow.value 
-            && curDeviceGroupRow.value.DeviceClass == DeviceClassEnum.Ecc.toString() 
-            && !curParamList.value.find(item => item.DataGroupId == curDeviceGroupRow.value?.GId + '*' + 'bh') 
-            &&
-            <NTabPane displayDirective="show:lazy" name={curDeviceGroupRow.value.GId + '*' + 'bh'} tab={"壁厚"} tabProps={{ style: { ...alldata.commonStyle, ...alldata.curTabValue == 'bh' ? alldata.activeStyle : {} } }}>
-              <div style={{ height: `calc(100vh - ${alldata.calcHeight}px)` }} class={'w-full h-full p-2 border border-gray-600 border-solid '}>
-                <div class={'w-full h-full py-6 pl-4 '}>
-                  <MyFormWrap labelWidth={360} fontSize={32} labelAlign="left" inputStyle={{ marginLeft: 'auto', maxWidth: '450px', marginRight: '10px', textAlign: 'center' }} {...alldata.formCfg} form={alldata.formMap[curDeviceGroupRow.value.GId + '*' + 'bh']} />
-                </div>
-
-              </div>
-            </NTabPane>
-          } */}
-
-        </NTabs>
-
+    return () => {
+      const list = curDeviceGroupRow.value ? curParamList.value : []
+      return (
+        // 原来是每个参数一个 tab，改成卡片网格：一行三张，多了换行，整体纵向滚动
+        <div class={'formula-param-cards w-full h-full p-2 border border-gray-600 border-solid overflow-y-auto overflow-x-hidden'}>
+          {list.length ? (
+            <div class={'grid grid-cols-3 gap-3'}>
+              {list.map(item => renderCard(item))}
+            </div>
+          ) : (
+            <div class={'w-full h-full flex items-center justify-center text-2xl text-gray-400'}>{t('config.noData')}</div>
+          )}
+        </div>
       )
     }
   }

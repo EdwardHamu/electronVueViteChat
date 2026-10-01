@@ -863,3 +863,26 @@ body {
     }
   }
 }
+
+// 配方参数卡片（FormulaParam）：卡片窄（如 1366 宽横屏约 200px）时输入框跟着缩。
+// MyFormWrap 的 NGrid 是 24 列 + xGap 12（行内 column-gap），23 个间隙就把最小宽度撑到 276px；
+// 卡片里每项都占满 24 列，列间距没用，置 0。另外不让 min-width:auto 和原生 <input> 的固有宽度（size=20）把内容撑出卡片
+.formula-param-cards {
+  .n-grid {
+    column-gap: 0 !important;
+  }
+
+  .n-grid > div,
+  .n-form-item,
+  .n-form-item-blank,
+  .n-input-number,
+  .n-input-wrapper,
+  .n-input__input {
+    min-width: 0;
+  }
+
+  .n-input__input-el {
+    width: 100%;
+    min-width: 0;
+  }
+}

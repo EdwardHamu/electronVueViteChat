@@ -17,9 +17,12 @@ import drag from "v-drag"
 import { listenAltF5, listenAllInputFocus } from './utils/utils';
 import { initApp } from './i18n/index'
 import { installNumberInputMark } from './utils/virtualKeyboard'
+import { installDialogNoAutoFocus } from './utils/dialogDefaults'
 
 // 所有 NInputNumber 的内部 <input> 带上 data-num-input="true"（虚拟键盘据此切到数字模式），必须在首次渲染前调用
 installNumberInputMark()
+// useDialog().create() 打开的弹窗默认不自动聚焦第一个输入框（显式传 autoFocus: true 的除外），见 utils/dialogDefaults.ts
+installDialogNoAutoFocus()
 
 // import "./keyboard.min.css";
 // import KeyBoard from "vue-keyboard-virtual-next";

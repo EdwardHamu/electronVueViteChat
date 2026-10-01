@@ -42,7 +42,10 @@ import * as vk from '@/utils/virtualKeyboard'
 import { MyFormWrap } from '@/components/MyFormWrap/MyFormWrap'
 import { noKeyBoardInputClass } from '@/views/Home/config/sysConfig/enum'
 import i18n from '@/i18n'
-export { NDialogProvider, DeviceGroupAddForm, i18n }
+import { useDialog } from 'naive-ui'
+import { installDialogNoAutoFocus } from '@/utils/dialogDefaults'
+import FormulaParam from '@/views/Home/config/formulaConfigNew/FormulaParam'
+export { NDialogProvider, DeviceGroupAddForm, i18n, useDialog, installDialogNoAutoFocus, FormulaParam }
 export { createApp, nextTick, h, reactive, defineComponent, createPinia, NInput, NInputNumber, GlobalKeyBoard, useMain, useConfigStore, listenAllInputFocus, isKeyboardSuppressed, useFormulaStore, vk, MyFormWrap, noKeyBoardInputClass }
 `)
 const bundle = path.join(outdir, 'bundle.mjs')
@@ -62,6 +65,8 @@ await build({
     name: 'keyboard-smoke',
     setup(b) {
       b.onResolve({ filter: /^@\/store\/config$/ }, () => ({ path: path.join(here, 'stubs', 'config.ts') }))
+      // 宿主调用（callBrige）交给测试脚本模拟（utils.ts 里是相对路径 ./callm）
+      b.onResolve({ filter: /^(@\/utils\/callm|\.\/callm)$/ }, args => (args.path.startsWith('@') || /[\\/]src[\\/]utils$/.test(args.resolveDir)) ? { path: path.join(here, 'stubs', 'callm.ts') } : undefined)
       b.onLoad({ filter: /\.(css|scss|less)$/ }, () => ({ contents: '', loader: 'js' }))
       b.onLoad({ filter: /[\\/]src[\\/].*\.tsx$/ }, async args => {
         const src = await fs.promises.readFile(args.path, 'utf8')
@@ -104,7 +109,7 @@ const rawLog = console.log, rawWarn = console.warn
 console.log = (...a) => { if (!(typeof a[0] === 'string' && a[0].startsWith('🪵'))) rawLog(...a) }
 console.warn = (...a) => { if (!(typeof a[0] === 'string' && a[0].startsWith('[intlify]'))) rawWarn(...a) }
 const m = await import(pathToFileURL(bundle).href)
-const { NDialogProvider, DeviceGroupAddForm, i18n } = m
+const { NDialogProvider, DeviceGroupAddForm, i18n, useDialog, installDialogNoAutoFocus, FormulaParam } = m
 const { createApp, nextTick, h, reactive, defineComponent, createPinia, NInput, NInputNumber, GlobalKeyBoard, useMain, useConfigStore, listenAllInputFocus, isKeyboardSuppressed, useFormulaStore, vk, MyFormWrap, noKeyBoardInputClass } = m
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
@@ -112,13 +117,25 @@ let step = 0
 const check = (name, fn) => { step++; fn(); console.log(`  ✓ ${step}. ${name}`) }
 
 vk.installNumberInputMark()
+installDialogNoAutoFocus()
 const model = reactive({ text: 'hello', num: 3, pwd: 'secret', note: 'line1', short: 'ab', ro: 'fixed', form: { n: '502', m: 7 } })
 const pinia = createPinia()
+/** 拿到 useDialog() 的 api，测试里直接 create 弹窗 */
+let dialogApi = null
+const DialogGrab = defineComponent({ setup() { dialogApi = useDialog(); return () => null } })
+// 配方参数（FormulaParam）用到的宿主调用
+const formulaHost = { fields: [], params: [] }
+globalThis.__callBrige = (name, data) => {
+  if (name === 'GetFormulaFields') return formulaHost.fields
+  if (name === 'GetFormulaParams') return formulaHost.params
+  return []
+}
 const App = defineComponent({
   setup() {
     return () => h('div', [
       h(GlobalKeyBoard),
-      h(NDialogProvider, null, { default: () => h(DeviceGroupAddForm) }),
+      h(NDialogProvider, null, { default: () => [h(DeviceGroupAddForm), h(DialogGrab)] }),
+      h('div', { id: 'f-formula', style: 'height:600px' }, [h(FormulaParam)]),
       h('div', { id: 'f-text' }, [h(NInput, { value: model.text, 'onUpdate:value': v => (model.text = v) })]),
       h('div', { id: 'f-num' }, [h(NInputNumber, { value: model.num, 'onUpdate:value': v => (model.num = v) })]),
       h('div', { id: 'f-pwd' }, [h(NInput, { type: 'password', value: model.pwd, 'onUpdate:value': v => (model.pwd = v) })]),
@@ -302,8 +319,13 @@ configStore.sysConfig.InputType = 1
   blurAll(); store.setGlobalKeyBoardShow(false); configStore.sysConfig.InputType = 1; await nextTick()
   configStore.setDeviceGroupAddFormShow(true); await nextTick(); await sleep(150)
   const dlgInput = document.querySelector('.n-dialog input')
-  check('设备分组「新增」弹窗（焦点陷阱 + 自动聚焦）：打开时键盘只弹一次，不会和焦点陷阱来回抢焦点（原来在这里卡死）', () => {
-    assert.ok(dlgInput, '弹窗里有设备名称输入框'); assert.ok(opens >= 1 && opens <= 2, 'openGlobalKeyBoard 调用次数 ' + opens)
+  check('任务 65：useDialog().create() 默认不再自动聚焦——设备分组「新增」弹窗打开时焦点不进输入框，也不弹键盘', () => {
+    assert.ok(dlgInput, '弹窗里有设备名称输入框'); assert.equal(opens, 0); assert.equal(store.globalKeyBoardShow, false)
+    assert.ok(!document.activeElement || !document.activeElement.closest('.n-dialog'), '焦点不在弹窗里')
+  })
+  dlgInput.focus(); await nextTick(); await sleep(60)
+  check('……点弹窗里的输入框（焦点陷阱 + 虚拟键盘）：键盘只弹一次，不会和焦点陷阱来回抢焦点（任务 64 原来在这里卡死）', () => {
+    assert.ok(opens >= 1 && opens <= 2, 'openGlobalKeyBoard 调用次数 ' + opens)
     assert.ok(visible()); assert.equal(store.keyboardTarget, dlgInput)
   })
   check('……焦点留在键盘输入区（焦点陷阱不再把它拉回弹窗）', () => assert.equal(document.activeElement, area()))
@@ -316,7 +338,54 @@ configStore.sysConfig.InputType = 1
   dlgInput.focus(); dlgInput.dispatchEvent(new window.FocusEvent('focusin', { bubbles: true })); await nextTick(); await sleep(30)
   check('键盘开着时同一个输入框再次获得焦点：不重新带入（不丢掉输入区里正在编辑的内容）', () => { assert.equal(opens, n1) })
   store.setGlobalKeyBoardShow(false); configStore.setDeviceGroupAddFormShow(false); await nextTick(); await sleep(150)
+  // 显式 autoFocus: true 的弹窗仍然自动聚焦；任务 64 的焦点陷阱修复照样防住循环
+  opens = 0; blurAll()
+  const ins = dialogApi.create({ title: 'auto', autoFocus: true, content: () => h('input', { id: 'dlg-auto', value: 'x' }) }); await nextTick(); await sleep(150)
+  check('显式 autoFocus: true：照常自动聚焦（弹出键盘），键盘只打开一次、焦点留在键盘输入区', () => {
+    assert.ok(opens >= 1 && opens <= 2, 'openGlobalKeyBoard 调用次数 ' + opens); assert.equal(store.keyboardTarget, document.getElementById('dlg-auto')); assert.equal(document.activeElement, area())
+  })
+  store.setGlobalKeyBoardShow(false); ins.destroy(); await nextTick(); await sleep(150)
+  opens = 0; blurAll()
+  const ins2 = dialogApi.warning({ title: 'warn', content: () => h('input', { id: 'dlg-warn', value: 'y' }) }); await nextTick(); await sleep(150)
+  check('dialog.warning（info / success / error 同理，内部都走 create）：同样默认不自动聚焦', () => { assert.equal(opens, 0); assert.ok(document.getElementById('dlg-warn')); assert.notEqual(document.activeElement, document.getElementById('dlg-warn')) })
+  ins2.title = 'warn-changed'; await nextTick()
+  check('……create 返回的 DialogReactive 改属性照常生效（改标题）', () => assert.ok([...document.querySelectorAll('.n-dialog')].some(d => d.textContent.includes('warn-changed'))))
+  ins2.destroy(); await nextTick(); await sleep(150)
   store.openGlobalKeyBoard = rawOpen
+}
+
+// ---- 任务 65：配方参数改成卡片布局（一行三张，多了换行） ----
+{
+  const formulaStore = useFormulaStore(pinia)
+  const cards = () => [...root.querySelectorAll('#f-formula [data-formula-param-card]')]
+  check('配方参数：没有选中设备组 / 没有参数时显示空状态，没有 tab', () => {
+    assert.equal(cards().length, 0); assert.equal(root.querySelector('#f-formula .n-tabs'), null); assert.ok(root.querySelector('#f-formula .formula-param-cards'))
+  })
+  formulaHost.fields = Array.from({ length: 7 }, (_, i) => ({ GId: 'dg' + i, DataName: '参数' + (i + 1), DeviceGroupId: 'dev1' }))
+  formulaHost.params = formulaHost.fields.map((f, i) => ({ GId: 'p' + i, FormulaId: 'f1', DataGroupId: f.GId, Standard: String(10 + i), UpperTol: '0.5', LowerTol: '0.3' }))
+  formulaStore.curEnableDataGroupConfig = { GId: 'cfg' }; await nextTick(); await sleep(20)
+  formulaStore.curFormulaConfigRow = { GId: 'f1' }; await nextTick(); await sleep(20)
+  formulaStore.curDeviceGroupRow = { GId: 'dev1', DeviceClass: '0' }; await nextTick(); await sleep(50)
+  check('7 个参数 → 7 张卡片，放在 3 列网格里（第 4 张起换行），容器可纵向滚动；没有 NTabs', () => {
+    assert.equal(cards().length, 7); const grid = cards()[0].parentElement
+    assert.ok(grid.className.includes('grid') && grid.className.includes('grid-cols-3'), grid.className)
+    assert.ok(root.querySelector('#f-formula .formula-param-cards').className.includes('overflow-y-auto')); assert.equal(root.querySelector('#f-formula .n-tabs'), null)
+  })
+  check('每张卡片：标题 = 参数名；标准值 / 上公差 / 下公差三个数字输入框（带数字标记），带入当前值', () => {
+    const c = cards()[2]; assert.ok(c.textContent.includes('参数3'))
+    const ins = [...c.querySelectorAll('.n-input-number input')]; assert.equal(ins.length, 3)
+    assert.deepEqual(ins.map(i => i.value), ['12', '0.5', '0.3']); assert.ok(ins.every(i => i.getAttribute(vk.NUM_INPUT_ATTR) === 'true'))
+    assert.ok(c.querySelector('.n-form-item--top-labelled'), '标签在输入框上方')
+  })
+  {
+    const input = cards()[2].querySelector('.n-input-number input')
+    blurAll(); input.focus(); await nextTick(); await nextTick(); await sleep(10)
+    await press('{bksp2}'); await press('{bksp2}'); await press('2'); await press('0'); await press('{enter}'); await sleep(40)
+    const map = formulaStore.getParamFormMapFn()
+    check('卡片里的输入框弹数字键盘，回车写回；保存用的 formMap（getParamFormMapFn）里是字符串 "20"', () => { assert.equal(map['f1-dg2'].Standard, '20'); assert.equal(Object.keys(map).length, 7) })
+  }
+  formulaStore.curDeviceGroupRow = { GId: 'dev-other', DeviceClass: '0' }; await nextTick(); await sleep(30)
+  check('切到没有参数的设备组：卡片清空，显示空状态', () => assert.equal(cards().length, 0))
 }
 
 app.unmount()
