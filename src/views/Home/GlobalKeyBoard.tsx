@@ -91,6 +91,38 @@ export default defineComponent({
       keyboardIns?.setCaretPosition(caret)
     }
 
+    /**
+     * 点击输入框打开键盘时，focusin 发生在 mousedown 阶段，loadFromTarget 的 nextTick 聚焦输入区后，
+     * naive 的 NInput / NInputNumber 在随后的 click 阶段会把焦点再 focus() 回它内部的 input，
+     * 键盘输入区刚拿到的焦点又被抢走（数字输入框 NInputNumber 必现）。
+     * 这里在本次点击手势结束（pointerup → click 处理完）之后把焦点补回输入区；
+     * 非指针方式触发（没有 pointerup）时用定时器兜底。只在焦点确实不在输入区时才补。
+     */
+    let cancelRefocus: (() => void) | undefined
+    const scheduleRefocusAfterClick = () => {
+      cancelRefocus?.()
+      const tryRefocus = () => {
+        const el = areaRef.value
+        if (keyborardShow.value && el && document.activeElement !== el) focusArea()
+      }
+      let t1: ReturnType<typeof setTimeout> | undefined
+      const onPointerUp = () => {
+        // click 在 pointerup 之后同步派发，setTimeout(0) 保证排在 naive 的 click 聚焦之后
+        t1 = setTimeout(tryRefocus, 0)
+      }
+      document.addEventListener('pointerup', onPointerUp, { once: true, capture: true })
+      const t2 = setTimeout(() => {
+        document.removeEventListener('pointerup', onPointerUp, true)
+        tryRefocus()
+      }, 200)
+      cancelRefocus = () => {
+        document.removeEventListener('pointerup', onPointerUp, true)
+        if (t1) clearTimeout(t1)
+        clearTimeout(t2)
+        cancelRefocus = undefined
+      }
+    }
+
     /** 打开键盘：把目标输入框现有的内容带入输入区，数字输入框切到数字键盘 */
     const loadFromTarget = () => {
       const target = store.keyboardTarget
@@ -107,6 +139,8 @@ export default defineComponent({
       nextTick(() => {
         setArea(target ? String(target.value ?? '') : '')
         focusArea()
+        // 点击打开的场景：click 阶段原输入框会把焦点抢回去，点击结束后再补一次聚焦
+        scheduleRefocusAfterClick()
       })
     }
 
@@ -291,6 +325,7 @@ export default defineComponent({
       })
     })
     onBeforeUnmount(() => {
+      cancelRefocus?.()
       removeFocusTrapBypass?.()
       keyboardIns?.destroy()
       keyboardIns = undefined
