@@ -270,6 +270,7 @@
     "heatOuterDiameter": "Đường kính ngoài nóng",
     "coldOuterDiameter": "Đường kính ngoài lạnh",
     "wallThickness": "Độ dày thành",
+    "applyToAllCards": "Áp dụng giá trị của thẻ này cho tất cả các thẻ khác",
     "eccentricity": "Lệch tâm",
     "showData": "Hiển thị dữ liệu",
     "diameterAvg": "Đường kính (Trung bình)",

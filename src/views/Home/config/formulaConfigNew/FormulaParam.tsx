@@ -172,6 +172,24 @@ export default defineComponent({
       return item.AdressItem?.DataName || prop || ''
     }
 
+    /** 将当前卡片的 标准值/上公差/下公差 一键应用到当前可见的其他所有卡片 */
+    const applyToAllCards = (item: FormulaParamEntity & { AdressItem?: DataGroupEntity }) => {
+      const srcId = item.FormulaId + '-' + item.DataGroupId
+      const src = alldata.formMap[srcId]
+      if (!src) return
+      curParamList.value.forEach(e => {
+        const tid = e.FormulaId + '-' + e.DataGroupId
+        if (tid == srcId) return
+        if (!alldata.formMap[tid]) {
+          alldata.formMap[tid] = e
+        }
+        alldata.formCfg.itemList.forEach(cfg => {
+          const prop = cfg.prop as keyof FormulaParamEntity
+          ;(alldata.formMap[tid] as any)[prop] = (src as any)[prop]
+        })
+      })
+    }
+
     /** 一个参数一张卡片：标题 = 参数名，内容 = 标准值 / 上公差 / 下公差（标签在上方，卡片窄也放得下各语言的标签） */
     const renderCard = (item: FormulaParamEntity & { AdressItem?: DataGroupEntity }) => {
       let totalId = item.FormulaId + '-' + item.DataGroupId
@@ -190,7 +208,20 @@ export default defineComponent({
       const name = getParamDisplayName(item)
       return (
         <div key={totalId} data-formula-param-card={item.DataGroupId || totalId} class={'min-w-0 flex flex-col bg-white border border-gray-600 border-solid rounded-xl overflow-hidden'}>
-          <div class={'px-4 py-2 text-[22px] font-bold truncate border-0 border-b border-gray-600 border-solid bg-[#f5f6f6]'} title={name}>{name}</div>
+          <div class={'flex items-center px-4 py-2 border-0 border-b border-gray-600 border-solid bg-[#f5f6f6]'}>
+            <div class={'flex-1 min-w-0 text-[22px] font-bold truncate'} title={name}>{name}</div>
+            {/* 简约图标按钮：把当前卡片数值一键应用到其他所有卡片 */}
+            <div
+              class={'shrink-0 ml-2 p-1 rounded-md cursor-pointer text-gray-400 hover:text-blue-500 hover:bg-gray-200 active:scale-90 transition flex items-center justify-center'}
+              title={t('config.applyToAllCards')}
+              onClick={() => applyToAllCards(item)}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="20" height="20">
+                <path fill="currentColor" d="M768 832a128 128 0 0 1-128 128H192A128 128 0 0 1 64 832V384a128 128 0 0 1 128-128v64a64 64 0 0 0-64 64v448a64 64 0 0 0 64 64h448a64 64 0 0 0 64-64z" />
+                <path fill="currentColor" d="M384 128a64 64 0 0 0-64 64v448a64 64 0 0 0 64 64h448a64 64 0 0 0 64-64V192a64 64 0 0 0-64-64H384zm0-64h448a128 128 0 0 1 128 128v448a128 128 0 0 1-128 128H384a128 128 0 0 1-128-128V192A128 128 0 0 1 384 64z" />
+              </svg>
+            </div>
+          </div>
           <div class={'px-4 pt-3'}>
             <MyFormWrap labelPlacement="top" labelAlign="left" fontSize={20} inputStyle={{ width: '100%', textAlign: 'center' }} {...alldata.formCfg} form={alldata.formMap[totalId]} />
           </div>

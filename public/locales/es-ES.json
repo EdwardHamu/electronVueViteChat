@@ -270,6 +270,7 @@
     "heatOuterDiameter": "Diámetro exterior caliente",
     "coldOuterDiameter": "Diámetro exterior frío",
     "wallThickness": "Espesor de pared",
+    "applyToAllCards": "Aplicar los valores de esta tarjeta a todas las demás",
     "eccentricity": "Excentricidad",
     "showData": "Mostrar datos",
     "diameterAvg": "Diámetro (Promedio)",

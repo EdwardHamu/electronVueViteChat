@@ -270,6 +270,7 @@
     "heatOuterDiameter": "热外径",
     "coldOuterDiameter": "冷外径",
     "wallThickness": "壁厚",
+    "applyToAllCards": "将此卡片数值应用到其他所有卡片",
     "eccentricity": "偏心",
     "showData": "显示数据",
     "diameterAvg": "直径(平均值)",

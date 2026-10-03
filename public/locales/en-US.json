@@ -270,6 +270,7 @@
     "heatOuterDiameter": "Heat Outer Diameter",
     "coldOuterDiameter": "Cold Outer Diameter",
     "wallThickness": "Wall Thickness",
+    "applyToAllCards": "Apply this card's values to all other cards",
     "eccentricity": "Eccentricity",
     "showData": "Show Data",
     "diameterAvg": "Diameter (Average)",
