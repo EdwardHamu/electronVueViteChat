@@ -331,7 +331,7 @@ export default defineComponent({
       keyboardIns = undefined
     })
 
-    /* 亮色工业风输入区：白色凹槽显示屏质感，等宽字体 + 琥珀光标 */
+    /* 亮色工业风输入区：白色凹槽显示屏质感，等宽字体 + 钢蓝光标 */
     const areaStyle = {
       width: '100%',
       boxSizing: 'border-box' as const,
@@ -344,7 +344,7 @@ export default defineComponent({
       borderRadius: '4px',
       boxShadow: 'inset 0 2px 4px rgba(71,85,105,0.16)',
       fontFamily: 'Consolas, Menlo, "Courier New", monospace',
-      caretColor: '#f59e0b',
+      caretColor: '#4d75a1',
       outline: 'none',
       userSelect: 'text' as const,
       resize: 'none' as const,
@@ -381,10 +381,10 @@ export default defineComponent({
             <Transition name='slide-fade'>
               {/* 亮色工业风面板：铝面板浅灰、小圆角、细边框，不用毛玻璃 / 渐变 */}
               <div v-drag={'.global-keyboard-value'} data-num-mode={commonData.isNum ? 'true' : 'false'} style={{ zIndex: 3000, willChange: 'transform', contain: 'layout style paint', transform: `scale(${winScale.value})`, left: leftMove.value + 'px', background: '#e9edf1', border: '1px solid #c2cbd4', borderRadius: '8px', boxShadow: '0 16px 40px rgba(15,23,42,0.22), 0 4px 12px rgba(15,23,42,0.12)', padding: '0 10px 14px' }} class={classnames(KEYBOARD_ROOT_CLASS, 'absolute bottom-40 flex flex-col items-center justify-end', { 'w-[354px]': commonData.isNum, 'w-[1000px]': !commonData.isNum, 'h-[540px]': !commonData.isTextarea, 'h-[570px]': commonData.isTextarea })} v-show={keyborardShow.value}>
-                {/* 标题栏：设备面板风格，状态指示灯 + 等宽大写标签，底部一条琥珀警示线 */}
-                <div class={'w-full global-keyboard-value flex justify-between items-center shrink-0'} style={{ background: '#dde3e9', borderRadius: '8px 8px 0 0', padding: '8px 12px', marginBottom: '8px', borderBottom: '1px solid #c2cbd4', boxShadow: 'inset 0 -2px 0 #f59e0b', cursor: 'move' }}>
+                {/* 标题栏：背景透明，shadow 只有底部一条钢蓝色线（inset 0 -2px 0，不带模糊和扩散，左右侧不会出现） */}
+                <div class={'w-full global-keyboard-value flex justify-between items-center shrink-0 drag-handle'} style={{ background: 'transparent', borderRadius: '8px 8px 0 0', padding: '8px 12px', marginBottom: '8px', borderBottom: '1px solid #c2cbd4', boxShadow: 'inset 0 -2px 0 #4d75a1', cursor: 'move' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: commonData.isNum ? '#f59e0b' : '#22c55e', border: commonData.isNum ? '1px solid #c27d08' : '1px solid #15803d', boxShadow: commonData.isNum ? '0 0 6px rgba(245,158,11,0.7)' : '0 0 6px rgba(34,197,94,0.6)', display: 'inline-block', flexShrink: 0, boxSizing: 'border-box' as const }}></span>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: commonData.isNum ? '#4d75a1' : '#22c55e', border: commonData.isNum ? '1px solid #3a5a7e' : '1px solid #15803d', boxShadow: commonData.isNum ? '0 0 6px rgba(77,117,161,0.7)' : '0 0 6px rgba(34,197,94,0.6)', display: 'inline-block', flexShrink: 0, boxSizing: 'border-box' as const }}></span>
                     <span style={{ color: '#5b6670', fontSize: '11px', letterSpacing: '0.22em', fontFamily: 'Consolas, Menlo, monospace', fontWeight: 700 as const, userSelect: 'none' as const }}>{commonData.isNum ? 'NUM PAD' : 'KEYBOARD'}</span>
                   </div>
                   <div data-keyboard-close style={{ background: '#eef1f4', border: '1px solid #c2cbd4', borderRadius: '4px', width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#5b6670', flexShrink: 0 }} onClick={closeKeyboard}>
