@@ -277,7 +277,7 @@ export default defineComponent({
       nextTick(() => {
         keyboardIns = new Keyboard({
           mergeDisplay: true,
-          theme: 'hg-theme-default hg-layout-default myTheme pureWhiteKeyboardTheme',
+          theme: 'hg-theme-default hg-layout-default myTheme industrialKeyboardTheme',
           display: {
             '{bksp2}': '←',
             '{123}': '123',
@@ -331,17 +331,20 @@ export default defineComponent({
       keyboardIns = undefined
     })
 
+    /* 简洁工业风输入区：深色凹槽显示屏质感，等宽字体 + 琥珀光标 */
     const areaStyle = {
       width: '100%',
       boxSizing: 'border-box' as const,
       fontSize: '22px',
       lineHeight: '30px',
       padding: '8px 12px',
-      color: '#1f2937',
-      background: '#ffffff',
-      border: '1px solid rgba(160,174,192,0.9)',
-      borderRadius: '10px',
-      boxShadow: 'inset 0 1px 3px rgba(15,23,42,0.12)',
+      color: '#e8f0f7',
+      background: '#14181d',
+      border: '1px solid #454f5a',
+      borderRadius: '4px',
+      boxShadow: 'inset 0 2px 5px rgba(0,0,0,0.45)',
+      fontFamily: 'Consolas, Menlo, "Courier New", monospace',
+      caretColor: '#f59e0b',
       outline: 'none',
       userSelect: 'text' as const,
       resize: 'none' as const,
@@ -376,17 +379,15 @@ export default defineComponent({
           {
             isMounted.value &&
             <Transition name='slide-fade'>
-              <div v-drag={'.global-keyboard-value'} data-num-mode={commonData.isNum ? 'true' : 'false'} style={{ zIndex: 3000, willChange: 'transform', contain: 'layout style paint', transform: `scale(${winScale.value})`, left: leftMove.value + 'px', background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(250,251,253,0.96) 100%)', border: '1px solid rgba(210,216,226,0.95)', borderRadius: '18px', boxShadow: '0 24px 60px rgba(15,23,42,0.18), 0 8px 24px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,1)', padding: '0 10px 14px', backdropFilter: 'blur(10px)' }} class={classnames(KEYBOARD_ROOT_CLASS, 'absolute bottom-40 flex flex-col items-center justify-end', { 'w-[354px]': commonData.isNum, 'w-[1000px]': !commonData.isNum, 'h-[540px]': !commonData.isTextarea, 'h-[570px]': commonData.isTextarea })} v-show={keyborardShow.value}>
-                <div class={'w-full global-keyboard-value flex justify-between items-center shrink-0'} style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(247,248,251,0.96) 100%)', borderRadius: '14px 14px 0 0', padding: '8px 12px', marginBottom: '8px', borderBottom: '1px solid rgba(218,223,232,0.95)', boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.95)', cursor: 'move' }}>
+              {/* 简洁工业风面板：扁平石墨灰、小圆角、细边框，不用毛玻璃 / 渐变 */}
+              <div v-drag={'.global-keyboard-value'} data-num-mode={commonData.isNum ? 'true' : 'false'} style={{ zIndex: 3000, willChange: 'transform', contain: 'layout style paint', transform: `scale(${winScale.value})`, left: leftMove.value + 'px', background: '#22272e', border: '1px solid #3a424c', borderRadius: '8px', boxShadow: '0 16px 40px rgba(0,0,0,0.45), 0 4px 12px rgba(0,0,0,0.3)', padding: '0 10px 14px' }} class={classnames(KEYBOARD_ROOT_CLASS, 'absolute bottom-40 flex flex-col items-center justify-end', { 'w-[354px]': commonData.isNum, 'w-[1000px]': !commonData.isNum, 'h-[540px]': !commonData.isTextarea, 'h-[570px]': commonData.isTextarea })} v-show={keyborardShow.value}>
+                {/* 标题栏：设备面板风格，状态指示灯 + 等宽大写标签，底部一条琥珀警示线 */}
+                <div class={'w-full global-keyboard-value flex justify-between items-center shrink-0'} style={{ background: '#1a1f24', borderRadius: '8px 8px 0 0', padding: '8px 12px', marginBottom: '8px', borderBottom: '1px solid #3a424c', boxShadow: 'inset 0 -2px 0 #f59e0b', cursor: 'move' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-                    <span style={{ display: 'flex', gap: '5px' }}>
-                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'linear-gradient(135deg,#ff6b6b,#e53935)', border: '1px solid #c62828', boxShadow: '0 1px 3px rgba(200,0,0,0.4), inset 0 1px 0 rgba(255,180,180,0.5)', display: 'inline-block' }}></span>
-                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'linear-gradient(135deg,#ffd54f,#ffa000)', border: '1px solid #e65100', boxShadow: '0 1px 3px rgba(200,100,0,0.4), inset 0 1px 0 rgba(255,230,160,0.5)', display: 'inline-block' }}></span>
-                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'linear-gradient(135deg,#81c784,#388e3c)', border: '1px solid #2e7d32', boxShadow: '0 1px 3px rgba(0,100,0,0.4), inset 0 1px 0 rgba(180,255,180,0.5)', display: 'inline-block' }}></span>
-                    </span>
-                    <span style={{ color: 'rgba(76,87,104,0.72)', fontSize: '10px', letterSpacing: '0.18em', fontFamily: 'monospace', userSelect: 'none' as const }}>{commonData.isNum ? 'NUMBER' : 'KEYBOARD'}</span>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: commonData.isNum ? '#f59e0b' : '#4ade80', boxShadow: commonData.isNum ? '0 0 6px rgba(245,158,11,0.8)' : '0 0 6px rgba(74,222,128,0.8)', display: 'inline-block', flexShrink: 0 }}></span>
+                    <span style={{ color: '#8b98a5', fontSize: '11px', letterSpacing: '0.22em', fontFamily: 'Consolas, Menlo, monospace', fontWeight: 700 as const, userSelect: 'none' as const }}>{commonData.isNum ? 'NUM PAD' : 'KEYBOARD'}</span>
                   </div>
-                  <div data-keyboard-close style={{ background: 'linear-gradient(180deg,#ffffff 0%,#f3f5f8 100%)', border: '1px solid rgba(203,211,222,0.95)', borderBottom: '2px solid rgba(178,188,202,0.95)', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 3px 0 rgba(148,163,184,0.22), 0 5px 12px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,1)', cursor: 'pointer', color: '#64748b', flexShrink: 0 }} onClick={closeKeyboard}>
+                  <div data-keyboard-close style={{ background: '#262c33', border: '1px solid #454f5a', borderRadius: '4px', width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#8b98a5', flexShrink: 0 }} onClick={closeKeyboard}>
                     <NIcon size={16}>  <CloseTwotone /> </NIcon>
                   </div>
                 </div>
