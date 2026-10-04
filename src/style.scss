@@ -552,7 +552,7 @@ body {
   }
 }
 
-/* ── Industrial Keyboard variant：简洁工业风（扁平深灰键帽 + 琥珀主操作键，弱化渐变与投影） ── */
+/* ── Industrial Keyboard variant：亮色工业风（铝面板浅灰键帽 + 琥珀主操作键，扁平弱投影） ── */
 .simple-keyboard.hg-theme-default.myTheme.industrialKeyboardTheme {
   padding: 4px 5px 6px;
 
@@ -568,27 +568,27 @@ body {
   .hg-button[data-skbtn="{123}"],
   .hg-button[data-skbtn="{abc}"],
   .hg-button[data-skbtn="{space}"] {
-    background: #2e353d;
-    color: #dbe3ea;
-    border: 1px solid #454f5a;
-    border-bottom: 2px solid #1c2127;
+    background: #fafbfc;
+    color: #2a333d;
+    border: 1px solid #c2cbd4;
+    border-bottom: 2px solid #99a4b0;
     border-radius: 4px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
     text-shadow: none;
     font-weight: 600;
 
     &:hover {
-      background: #39424c;
-      border-color: #525d69;
-      border-bottom-color: #1c2127;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+      background: #ffffff;
+      border-color: #aeb9c4;
+      border-bottom-color: #8e99a6;
+      box-shadow: inset 0 1px 0 #ffffff;
     }
 
     &:active {
-      background: #20262c;
-      border-top: 2px solid #1c2127;
-      border-bottom: 1px solid #454f5a;
-      box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+      background: #e2e7ec;
+      border-top: 2px solid #99a4b0;
+      border-bottom: 1px solid #c2cbd4;
+      box-shadow: inset 0 2px 4px rgba(71, 85, 105, 0.22);
       transform: translateY(1px);
     }
   }
@@ -599,6 +599,7 @@ body {
     color: #1a1205;
     border-color: #c27d08;
     border-bottom-color: #8a5906;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
 
     &:hover {
       background: #fbb024;
@@ -610,22 +611,22 @@ body {
       background: #d8890a;
       border-top-color: #8a5906;
       border-bottom-color: #c27d08;
-      box-shadow: inset 0 2px 5px rgba(90, 58, 4, 0.55);
+      box-shadow: inset 0 2px 5px rgba(90, 58, 4, 0.4);
     }
   }
 
-  /* Backspace — 深灰键 + 警示红字 */
+  /* Backspace — 浅灰键 + 警示红字 */
   .hg-button[data-skbtn="{bksp2}"] {
-    color: #ff7a6e;
+    color: #c6453a;
   }
 
-  /* 修饰键 / 切换键 — 更深一档的灰，弱化存在感 */
+  /* 修饰键 / 切换键 — 降一档的银灰，弱化存在感 */
   .hg-button[data-skbtn="{lock}"],
   .hg-button[data-skbtn="{shift}"],
   .hg-button[data-skbtn="{123}"],
   .hg-button[data-skbtn="{abc}"] {
-    background: #262c33;
-    color: #9fb0bf;
+    background: #e8ecf0;
+    color: #5b6670;
   }
 }
 

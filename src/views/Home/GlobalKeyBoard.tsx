@@ -331,18 +331,18 @@ export default defineComponent({
       keyboardIns = undefined
     })
 
-    /* 简洁工业风输入区：深色凹槽显示屏质感，等宽字体 + 琥珀光标 */
+    /* 亮色工业风输入区：白色凹槽显示屏质感，等宽字体 + 琥珀光标 */
     const areaStyle = {
       width: '100%',
       boxSizing: 'border-box' as const,
       fontSize: '22px',
       lineHeight: '30px',
       padding: '8px 12px',
-      color: '#e8f0f7',
-      background: '#14181d',
-      border: '1px solid #454f5a',
+      color: '#1f2933',
+      background: '#ffffff',
+      border: '1px solid #b9c2cc',
       borderRadius: '4px',
-      boxShadow: 'inset 0 2px 5px rgba(0,0,0,0.45)',
+      boxShadow: 'inset 0 2px 4px rgba(71,85,105,0.16)',
       fontFamily: 'Consolas, Menlo, "Courier New", monospace',
       caretColor: '#f59e0b',
       outline: 'none',
@@ -379,15 +379,15 @@ export default defineComponent({
           {
             isMounted.value &&
             <Transition name='slide-fade'>
-              {/* 简洁工业风面板：扁平石墨灰、小圆角、细边框，不用毛玻璃 / 渐变 */}
-              <div v-drag={'.global-keyboard-value'} data-num-mode={commonData.isNum ? 'true' : 'false'} style={{ zIndex: 3000, willChange: 'transform', contain: 'layout style paint', transform: `scale(${winScale.value})`, left: leftMove.value + 'px', background: '#22272e', border: '1px solid #3a424c', borderRadius: '8px', boxShadow: '0 16px 40px rgba(0,0,0,0.45), 0 4px 12px rgba(0,0,0,0.3)', padding: '0 10px 14px' }} class={classnames(KEYBOARD_ROOT_CLASS, 'absolute bottom-40 flex flex-col items-center justify-end', { 'w-[354px]': commonData.isNum, 'w-[1000px]': !commonData.isNum, 'h-[540px]': !commonData.isTextarea, 'h-[570px]': commonData.isTextarea })} v-show={keyborardShow.value}>
+              {/* 亮色工业风面板：铝面板浅灰、小圆角、细边框，不用毛玻璃 / 渐变 */}
+              <div v-drag={'.global-keyboard-value'} data-num-mode={commonData.isNum ? 'true' : 'false'} style={{ zIndex: 3000, willChange: 'transform', contain: 'layout style paint', transform: `scale(${winScale.value})`, left: leftMove.value + 'px', background: '#e9edf1', border: '1px solid #c2cbd4', borderRadius: '8px', boxShadow: '0 16px 40px rgba(15,23,42,0.22), 0 4px 12px rgba(15,23,42,0.12)', padding: '0 10px 14px' }} class={classnames(KEYBOARD_ROOT_CLASS, 'absolute bottom-40 flex flex-col items-center justify-end', { 'w-[354px]': commonData.isNum, 'w-[1000px]': !commonData.isNum, 'h-[540px]': !commonData.isTextarea, 'h-[570px]': commonData.isTextarea })} v-show={keyborardShow.value}>
                 {/* 标题栏：设备面板风格，状态指示灯 + 等宽大写标签，底部一条琥珀警示线 */}
-                <div class={'w-full global-keyboard-value flex justify-between items-center shrink-0'} style={{ background: '#1a1f24', borderRadius: '8px 8px 0 0', padding: '8px 12px', marginBottom: '8px', borderBottom: '1px solid #3a424c', boxShadow: 'inset 0 -2px 0 #f59e0b', cursor: 'move' }}>
+                <div class={'w-full global-keyboard-value flex justify-between items-center shrink-0'} style={{ background: '#dde3e9', borderRadius: '8px 8px 0 0', padding: '8px 12px', marginBottom: '8px', borderBottom: '1px solid #c2cbd4', boxShadow: 'inset 0 -2px 0 #f59e0b', cursor: 'move' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: commonData.isNum ? '#f59e0b' : '#4ade80', boxShadow: commonData.isNum ? '0 0 6px rgba(245,158,11,0.8)' : '0 0 6px rgba(74,222,128,0.8)', display: 'inline-block', flexShrink: 0 }}></span>
-                    <span style={{ color: '#8b98a5', fontSize: '11px', letterSpacing: '0.22em', fontFamily: 'Consolas, Menlo, monospace', fontWeight: 700 as const, userSelect: 'none' as const }}>{commonData.isNum ? 'NUM PAD' : 'KEYBOARD'}</span>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: commonData.isNum ? '#f59e0b' : '#22c55e', border: commonData.isNum ? '1px solid #c27d08' : '1px solid #15803d', boxShadow: commonData.isNum ? '0 0 6px rgba(245,158,11,0.7)' : '0 0 6px rgba(34,197,94,0.6)', display: 'inline-block', flexShrink: 0, boxSizing: 'border-box' as const }}></span>
+                    <span style={{ color: '#5b6670', fontSize: '11px', letterSpacing: '0.22em', fontFamily: 'Consolas, Menlo, monospace', fontWeight: 700 as const, userSelect: 'none' as const }}>{commonData.isNum ? 'NUM PAD' : 'KEYBOARD'}</span>
                   </div>
-                  <div data-keyboard-close style={{ background: '#262c33', border: '1px solid #454f5a', borderRadius: '4px', width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#8b98a5', flexShrink: 0 }} onClick={closeKeyboard}>
+                  <div data-keyboard-close style={{ background: '#eef1f4', border: '1px solid #c2cbd4', borderRadius: '4px', width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#5b6670', flexShrink: 0 }} onClick={closeKeyboard}>
                     <NIcon size={16}>  <CloseTwotone /> </NIcon>
                   </div>
                 </div>
