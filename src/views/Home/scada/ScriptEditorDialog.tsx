@@ -13,7 +13,7 @@ import { computed, defineComponent, reactive, ref, watch, type Component, type P
 import {
   SaveRound, ContentCutRound, ContentCopyRound, ContentPasteRound, UndoRound, RedoRound,
   FormatIndentIncreaseRound, FormatIndentDecreaseRound, CommentRound, SpellcheckRound,
-  DataObjectRound, FunctionsRound, DataArrayRound, AddCommentRound, HelpOutlineRound, SearchRound
+  DataObjectRound, DataArrayRound, AddCommentRound, HelpOutlineRound, SearchRound
 } from '@vicons/material'
 import { Variable as VariableIcon } from '@vicons/tabler'
 import CodeEditor from './CodeEditor'
@@ -36,7 +36,6 @@ const BLOCKS: Array<{ key: string; label: string; code: string }> = [
   { key: 'trycatch', label: 'try - catch', code: 'try {\n  \n} catch (e) {\n  \n}' },
   { key: 'exit', label: 'return', code: 'return' }
 ]
-const OPERATORS = ['+', '-', '*', '/', '%', '=', '==', '===', '!=', '!==', '>', '<', '>=', '<=', '&&', '||', '!', '? :']
 
 export default defineComponent({
   name: 'ScadaScriptEditorDialog',
@@ -359,7 +358,6 @@ export default defineComponent({
     }
 
     const blockOptions: DropdownOption[] = BLOCKS.map(b => ({ key: b.key, label: b.label }))
-    const operatorOptions: DropdownOption[] = OPERATORS.map(o => ({ key: o, label: o }))
 
     /** 工具栏图标按钮：悬停标题 = 本地化名称 + 快捷键 */
     const tbtn = (icon: Component, onClick: () => void, titleText: string) => (
@@ -447,9 +445,6 @@ export default defineComponent({
                 {sep()}
                 <NDropdown trigger="click" options={blockOptions} onSelect={(k: string) => { const b = BLOCKS.find(x => x.key === k); if (b) insertText(b.code) }}>
                   {dbtn(DataObjectRound, tt('scada.editor.block'))}
-                </NDropdown>
-                <NDropdown trigger="click" options={operatorOptions} onSelect={(k: string) => insertText(` ${k} `)}>
-                  {dbtn(FunctionsRound, tt('scada.editor.operator'))}
                 </NDropdown>
                 {tbtn(DataArrayRound, () => { const s = selectedText(); insertText(`(${s})`) }, tt('scada.editor.bracket'))}
                 {tbtn(AddCommentRound, () => { const s = selectedText(); insertText(s ? `/* ${s} */` : '// ') }, tt('scada.editor.insertComment'))}
