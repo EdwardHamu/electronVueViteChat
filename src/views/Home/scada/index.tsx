@@ -410,22 +410,10 @@ export default defineComponent({
     }
 
     // ---------------------------------------------------------------- 展示模式右键菜单：改由右键顶部「数据组态」tab 打开（openDisplayMenu）
+    // 只保留 编辑 / 刷新数据源 两项（导出导入走编辑模式工具栏）
     const menuOptions = computed<DropdownOption[]>(() => [
-      {
-        key: 'info',
-        type: 'render',
-        render: () => (
-          <div class={'px-3 py-1 text-xs text-gray-500 whitespace-nowrap'}>
-            {tt('scada.title')} · {tt('scada.panel.widgetCount')}: {scada.current.widgets.length}
-          </div>
-        )
-      },
-      { key: 'divider', type: 'divider' },
       { key: 'edit', label: tt('scada.edit') },
-      { key: 'refresh', label: tt('scada.refreshData'), disabled: refreshing.value },
-      { key: 'divider2', type: 'divider' },
-      { key: 'export', label: tt('scada.export'), disabled: exporting.value },
-      { key: 'import', label: tt('scada.import'), disabled: picking.value }
+      { key: 'refresh', label: tt('scada.refreshData'), disabled: refreshing.value }
     ])
     const onMenuSelect = (key: string | number) => {
       menu.show = false

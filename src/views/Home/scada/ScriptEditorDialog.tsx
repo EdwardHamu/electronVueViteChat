@@ -8,8 +8,14 @@
  * 从全局脚本 / 数据处理函数 / 自定义组件代码弹窗的「打开脚本编辑器」按钮进入，
  * 「保存」把内容写回原弹窗的草稿（仍需在原弹窗点确定才落盘）。
  */
-import { NButton, NCheckbox, NDropdown, NInput, NModal, NScrollbar, NTree, type DropdownOption, type TreeOption } from 'naive-ui'
-import { computed, defineComponent, reactive, ref, watch, type PropType } from 'vue'
+import { NButton, NCheckbox, NDropdown, NIcon, NInput, NModal, NScrollbar, NTree, type DropdownOption, type TreeOption } from 'naive-ui'
+import { computed, defineComponent, reactive, ref, watch, type Component, type PropType } from 'vue'
+import {
+  SaveRound, ContentCutRound, ContentCopyRound, ContentPasteRound, UndoRound, RedoRound,
+  FormatIndentIncreaseRound, FormatIndentDecreaseRound, CommentRound, SpellcheckRound,
+  DataObjectRound, FunctionsRound, DataArrayRound, AddCommentRound, HelpOutlineRound
+} from '@vicons/material'
+import { Variable as VariableIcon } from '@vicons/tabler'
 import CodeEditor from './CodeEditor'
 import { openScriptHelp } from './ScriptHelpDialog'
 import { compileScript } from './scripts'
@@ -286,9 +292,15 @@ export default defineComponent({
     const blockOptions: DropdownOption[] = BLOCKS.map(b => ({ key: b.key, label: b.label }))
     const operatorOptions: DropdownOption[] = OPERATORS.map(o => ({ key: o, label: o }))
 
-    const tbtn = (label: string, onClick: () => void, titleText?: string) => (
-      <NButton size="tiny" quaternary onClick={onClick} title={titleText || label}>
-        {label}
+    /** 工具栏图标按钮：悬停标题 = 本地化名称 + 快捷键 */
+    const tbtn = (icon: Component, onClick: () => void, titleText: string) => (
+      <NButton size="tiny" quaternary circle onClick={onClick} title={titleText}>
+        {{ icon: () => <NIcon size={16} component={icon} /> }}
+      </NButton>
+    )
+    const dbtn = (icon: Component, titleText: string) => (
+      <NButton size="tiny" quaternary circle title={titleText}>
+        {{ icon: () => <NIcon size={16} component={icon} /> }}
       </NButton>
     )
     const sep = () => <div class={'w-px h-4 bg-gray-300 mx-0.5 shrink-0'} />
@@ -310,34 +322,34 @@ export default defineComponent({
         {{
           default: () => (
             <div class={'flex flex-col gap-2'} onKeydown={onKeydown} data-script-editor>
-              {/* 工具栏 */}
+              {/* 工具栏（全图标, 悬停显示名称+快捷键） */}
               <div class={'flex items-center gap-0.5 flex-wrap'}>
-                {tbtn(tt('scada.editor.save'), doSave, tt('scada.editor.save') + ' Ctrl+S')}
+                {tbtn(SaveRound, doSave, tt('scada.editor.save') + ' Ctrl+S')}
                 {sep()}
-                {tbtn(tt('scada.editor.cut'), doCut, tt('scada.editor.cut') + ' Ctrl+X')}
-                {tbtn(tt('scada.editor.copy'), doCopy, tt('scada.editor.copy') + ' Ctrl+C')}
-                {tbtn(tt('scada.editor.paste'), doPaste, tt('scada.editor.paste') + ' Ctrl+V')}
+                {tbtn(ContentCutRound, doCut, tt('scada.editor.cut') + ' Ctrl+X')}
+                {tbtn(ContentCopyRound, doCopy, tt('scada.editor.copy') + ' Ctrl+C')}
+                {tbtn(ContentPasteRound, doPaste, tt('scada.editor.paste') + ' Ctrl+V')}
                 {sep()}
-                {tbtn(tt('scada.editor.undo'), doUndo, tt('scada.editor.undo') + ' Ctrl+Z')}
-                {tbtn(tt('scada.editor.redo'), doRedo, tt('scada.editor.redo') + ' Ctrl+Y')}
+                {tbtn(UndoRound, doUndo, tt('scada.editor.undo') + ' Ctrl+Z')}
+                {tbtn(RedoRound, doRedo, tt('scada.editor.redo') + ' Ctrl+Y')}
                 {sep()}
-                {tbtn(tt('scada.editor.indent'), doIndent, tt('scada.editor.indent') + ' Ctrl+I')}
-                {tbtn(tt('scada.editor.outdent'), doOutdent, tt('scada.editor.outdent') + ' Ctrl+B')}
-                {tbtn(tt('scada.editor.comment'), doComment, tt('scada.editor.comment') + " Ctrl+'")}
+                {tbtn(FormatIndentIncreaseRound, doIndent, tt('scada.editor.indent') + ' Ctrl+I')}
+                {tbtn(FormatIndentDecreaseRound, doOutdent, tt('scada.editor.outdent') + ' Ctrl+B')}
+                {tbtn(CommentRound, doComment, tt('scada.editor.comment') + " Ctrl+'")}
                 {sep()}
-                {tbtn(tt('scada.editor.check'), doCheck, tt('scada.editor.check') + ' Ctrl+E')}
+                {tbtn(SpellcheckRound, doCheck, tt('scada.editor.check') + ' Ctrl+E')}
                 {sep()}
                 <NDropdown trigger="click" options={blockOptions} onSelect={(k: string) => { const b = BLOCKS.find(x => x.key === k); if (b) insertText(b.code) }}>
-                  <NButton size="tiny" quaternary>{tt('scada.editor.block')}</NButton>
+                  {dbtn(DataObjectRound, tt('scada.editor.block'))}
                 </NDropdown>
                 <NDropdown trigger="click" options={operatorOptions} onSelect={(k: string) => insertText(` ${k} `)}>
-                  <NButton size="tiny" quaternary>{tt('scada.editor.operator')}</NButton>
+                  {dbtn(FunctionsRound, tt('scada.editor.operator'))}
                 </NDropdown>
-                {tbtn('( )', () => { const s = selectedText(); insertText(`(${s})`) }, tt('scada.editor.bracket'))}
-                {tbtn('//', () => { const s = selectedText(); insertText(s ? `/* ${s} */` : '// ') }, tt('scada.editor.insertComment'))}
+                {tbtn(DataArrayRound, () => { const s = selectedText(); insertText(`(${s})`) }, tt('scada.editor.bracket'))}
+                {tbtn(AddCommentRound, () => { const s = selectedText(); insertText(s ? `/* ${s} */` : '// ') }, tt('scada.editor.insertComment'))}
                 {sep()}
-                {tbtn(tt('scada.editor.variables'), () => (scada.varsShow = true))}
-                {tbtn(tt('scada.editor.help'), () => openScriptHelp('editor'), tt('scada.editor.help') + ' Ctrl+H')}
+                {tbtn(VariableIcon, () => (scada.varsShow = true), tt('scada.editor.variables'))}
+                {tbtn(HelpOutlineRound, () => openScriptHelp('editor'), tt('scada.editor.help') + ' Ctrl+H')}
               </div>
               {/* 编辑区 + 右侧查找/对象树 */}
               <div class={'flex gap-2'} style={{ height: 'min(440px, 56vh)' }}>
@@ -368,7 +380,7 @@ export default defineComponent({
                       <div class={'text-xs text-gray-600 mt-1'}>{tt('scada.editor.objects')}</div>
                       <div class={'flex-1 min-h-0 border border-solid border-gray-200 rounded'}>
                         <NScrollbar class={'h-full'}>
-                          <NTree blockLine selectable={false} data={treeData.value} nodeProps={nodeProps as never} />
+                          <NTree blockLine selectable={false} expandOnClick data={treeData.value} nodeProps={nodeProps as never} />
                         </NScrollbar>
                       </div>
                     </>

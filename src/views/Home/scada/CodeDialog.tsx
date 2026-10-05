@@ -118,6 +118,7 @@ export default defineComponent({
           closable
           maskClosable={false}
           autoFocus={false}
+        trapFocus={false}
           style={{ width: row ? '1180px' : '760px', maxWidth: '96vw' }}
           onUpdateShow={(v: boolean) => {
             if (!v) close()

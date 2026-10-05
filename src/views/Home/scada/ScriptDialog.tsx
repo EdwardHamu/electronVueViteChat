@@ -51,6 +51,7 @@ export default defineComponent({
         closable
         maskClosable={false}
         autoFocus={false}
+        trapFocus={false}
         style={{ width: '680px', maxWidth: '96vw' }}
         contentStyle={{ padding: '10px 14px' }}
         footerStyle={{ padding: '8px 14px 12px' }}
