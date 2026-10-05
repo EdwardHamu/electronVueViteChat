@@ -857,7 +857,7 @@
       "transformEmptyPreview": "Type some code and the output will be previewed here with live data",
       "transformInput": "Input",
       "transformOutput": "Output",
-      "transformHint": "Args: value (current value), point (raw data point), ctx (history / state / widget).\nReturn: number → new value; string → display text; object → overrides value / text / unit / status / standard / upper / lower (status is re-evaluated when limits change); undefined → unchanged.\nctx.get(nameOrKey, source?): watch/read another data item (auto-subscribed; the function re-runs when it changes). ctx.setProp(key, value): temporarily override this widget's properties in display mode (any prop key plus hidden/x/y/w/h; not persisted).",
+      "transformHint": "Args: value (current value), point (raw data point), ctx (history / state / widget).\nReturn: number → new value; string → display text; object → overrides value / text / unit / status / standard / upper / lower (status is re-evaluated when limits change); undefined → unchanged.\nctx.get(nameOrKey, source?): watch/read another data item (auto-subscribed; the function re-runs when it changes). ctx.setProp(key, value): temporarily override this widget's properties (any prop key plus hidden/x/y/w/h; not persisted); works in both edit and display mode, x/y/w/h apply in display mode only.",
       "optional": " (optional)",
       "widget": "Widget",
       "title": "Title",

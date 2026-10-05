@@ -26,16 +26,25 @@ export const clearRuntimeOverrides = () => {
   Object.keys(runtimeOverrides).forEach(k => delete runtimeOverrides[k])
 }
 
-/** 展示渲染用：把运行时覆盖合并进组件实例（无覆盖时原样返回，不产生新对象） */
-export const applyRuntime = (w: WidgetInstance): WidgetInstance => {
+/** 展示渲染用：把运行时覆盖合并进组件实例（无覆盖时原样返回，不产生新对象）。
+ *  includeGeometry = false（编辑模式）时跳过 x / y / w / h，避免和拖拽、选择框、手柄打架 */
+export const applyRuntime = (w: WidgetInstance, includeGeometry = true): WidgetInstance => {
   const ov = runtimeOverrides[w.id]
   if (!ov || !Object.keys(ov).length) return w
+  const GEOMETRY = ['x', 'y', 'w', 'h']
+  const entries = Object.entries(ov).filter(([k]) => includeGeometry || !GEOMETRY.includes(k))
+  if (!entries.length) return w
   const out: any = { ...w, props: { ...w.props } }
-  Object.entries(ov).forEach(([k, v]) => {
+  entries.forEach(([k, v]) => {
     if (TOP_KEYS.has(k)) out[k] = v
     else out.props[k] = v
   })
   return out as WidgetInstance
+}
+
+/** 清掉某个组件的全部运行时覆盖（组件的处理函数代码改变 / 组件卸载时调用） */
+export const clearWidgetOverrides = (widgetId: string) => {
+  delete runtimeOverrides[widgetId]
 }
 
 /** 读取合并覆盖后的属性值（全局脚本 getProp 用） */

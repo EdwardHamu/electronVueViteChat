@@ -857,7 +857,7 @@
       "transformEmptyPreview": "输入代码后，这里会用当前数据实时预览输出",
       "transformInput": "输入",
       "transformOutput": "输出",
-      "transformHint": "参数：value 当前值、point 原始数据点、ctx（history 历史值 / state 持久状态 / widget）。\n返回：数字 → 新值；字符串 → 显示文本；对象 → 覆盖 value / text / unit / status / standard / upper / lower（改了公差会重新判定状态）；undefined → 不改动。\nctx.get(名称或key, 数据源?)：监听/读取其他数据项（自动订阅，它变化时函数会重新执行）；ctx.setProp(属性名, 值)：展示模式下临时修改本组件属性（props 任意键 + hidden/x/y/w/h，不写进布局）。",
+      "transformHint": "参数：value 当前值、point 原始数据点、ctx（history 历史值 / state 持久状态 / widget）。\n返回：数字 → 新值；字符串 → 显示文本；对象 → 覆盖 value / text / unit / status / standard / upper / lower（改了公差会重新判定状态）；undefined → 不改动。\nctx.get(名称或key, 数据源?)：监听/读取其他数据项（自动订阅，它变化时函数会重新执行）；ctx.setProp(属性名, 值)：临时修改本组件属性（props 任意键 + hidden/x/y/w/h，不写进布局）；编辑和展示模式都生效，x/y/w/h 仅展示模式应用。",
       "optional": "（可选）",
       "widget": "组件",
       "title": "标题",

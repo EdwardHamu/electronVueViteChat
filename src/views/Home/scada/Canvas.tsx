@@ -22,7 +22,7 @@ import { getWidgetDefinition } from './registry'
 import { FONT_FAMILY_KEY, fontFamilyCss } from './fonts'
 import { toArrangeItem, useScadaStore } from './store'
 import { clearTransformReport, compileTransform, reportTransform, runTransform, type TransformContext } from './transform'
-import { applyRuntime, resolveParam, setRuntimeProp, SubPool } from './runtime'
+import { applyRuntime, clearWidgetOverrides, resolveParam, setRuntimeProp, SubPool } from './runtime'
 import type { DataPoint, WidgetInstance, WidgetRect } from './types'
 import { tt } from './widgets/common'
 
@@ -106,9 +106,14 @@ const WidgetHost = defineComponent({
         Object.keys(state).forEach(k => delete state[k])
         prev = undefined
         extraSubs.clear()
+        // 代码改了：旧代码留下的属性覆盖作废（比如删掉了 setProp('bg', …)，背景要还原）
+        clearWidgetOverrides(props.widget.id)
       }
     )
-    onBeforeUnmount(() => extraSubs.clear())
+    onBeforeUnmount(() => {
+      extraSubs.clear()
+      clearWidgetOverrides(props.widget.id)
+    })
     /** ctx.get：监听 / 读取其他数据项（在 processed 计算属性里调用 → 读到的值是响应式依赖，变化时处理函数自动重新执行） */
     const ctxGet = (keyOrName: string, sourceId?: string) => {
       const ref = resolveParam(keyOrName, sourceId, props.widget.binding?.source)
@@ -899,8 +904,9 @@ export default defineComponent({
             onPointercancel={onPointerUp}
           >
             {l.widgets.map(w0 => {
-              // 展示模式合并脚本 / 处理函数的运行时属性覆盖（props + hidden / x / y / w / h）；编辑模式永远用真实值
-              const w = editing ? w0 : applyRuntime(w0)
+              // 合并脚本 / 处理函数的运行时属性覆盖：展示模式全量（props + hidden / x / y / w / h），
+              // 编辑模式也应用 props / hidden（处理函数在编辑态同样运行、效果可见），但几何覆盖不参与，避免干扰拖拽
+              const w = applyRuntime(w0, !editing)
               const selected = editing && selectedSet.value.has(w.id)
               // 多选时参考对象（最先选中的）用橙色外框，其余蓝色
               const isRef = selected && multi && scada.referenceId === w.id

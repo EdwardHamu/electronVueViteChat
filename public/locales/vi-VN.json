@@ -857,7 +857,7 @@
       "transformEmptyPreview": "Nhập mã, kết quả sẽ được xem trước tại đây với dữ liệu hiện tại",
       "transformInput": "Đầu vào",
       "transformOutput": "Đầu ra",
-      "transformHint": "Tham số: value (giá trị hiện tại), point (điểm dữ liệu gốc), ctx (history / state / widget).\nTrả về: số → giá trị mới; chuỗi → chữ hiển thị; đối tượng → ghi đè value / text / unit / status / standard / upper / lower (đổi dung sai sẽ đánh giá lại trạng thái); undefined → giữ nguyên.\nctx.get(tênHoặcKey, nguồn?): theo dõi/đọc mục dữ liệu khác (tự đăng ký; hàm chạy lại khi nó thay đổi). ctx.setProp(thuộcTính, giáTrị): tạm thời đổi thuộc tính thành phần này ở chế độ trình chiếu (mọi prop + hidden/x/y/w/h; không lưu).",
+      "transformHint": "Tham số: value (giá trị hiện tại), point (điểm dữ liệu gốc), ctx (history / state / widget).\nTrả về: số → giá trị mới; chuỗi → chữ hiển thị; đối tượng → ghi đè value / text / unit / status / standard / upper / lower (đổi dung sai sẽ đánh giá lại trạng thái); undefined → giữ nguyên.\nctx.get(tênHoặcKey, nguồn?): theo dõi/đọc mục dữ liệu khác (tự đăng ký; hàm chạy lại khi nó thay đổi). ctx.setProp(thuộcTính, giáTrị): tạm thời đổi thuộc tính thành phần này (mọi prop + hidden/x/y/w/h; không lưu); chạy ở cả chế độ sửa và trình chiếu, x/y/w/h chỉ áp dụng khi trình chiếu.",
       "optional": " (tùy chọn)",
       "widget": "Thành phần",
       "title": "Tiêu đề",

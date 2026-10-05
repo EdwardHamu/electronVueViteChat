@@ -11,7 +11,7 @@
  *       ctx = { widget, history, state, prev, now, get, setProp }，其中 state 是该组件专属的持久对象（可做滑动平均等），
  *       history 是宿主保留的最近 N 个显示值（keepHistory 组件），prev 为上一次处理结果；
  *       ctx.get(名称或key, 数据源?) 监听 / 读取其他数据项（自动订阅，变化时函数重新执行），
- *       ctx.setProp(属性名, 值) 在展示模式下临时修改本组件属性（含 hidden / x / y / w / h）。
+ *       ctx.setProp(属性名, 值) 临时修改本组件属性（含 hidden / x / y / w / h；编辑态也生效，但几何键只在展示态应用）。
  * 返回值：
  *   - undefined            不改动
  *   - null                 清空数值（显示 --）
@@ -39,7 +39,8 @@ export interface TransformContext {
   get?: (keyOrName: string, sourceId?: string) => DataPoint | undefined
   /**
    * 修改本组件的属性（propSchema 里的任意键，以及 hidden / x / y / w / h）。
-   * 只在展示（运行）模式下生效：是临时的运行时覆盖，不写进布局，进入展示模式时重置
+   * 编辑和展示模式都生效（编辑模式下 x / y / w / h 不应用，避免和拖拽冲突；hidden 按编辑态惯例显示为半透明）。
+   * 是临时的运行时覆盖，不写进布局；代码改变时该组件的覆盖会被清掉，进入展示模式时全部重置
    */
   setProp?: (key: string, value: any) => void
 }
@@ -237,6 +238,6 @@ export const TRANSFORM_EXAMPLES: { key: string; code: string }[] = [
   { key: 'status', code: "// 自定义报警：大于 5 视为超上限\nreturn { status: value !== null && value > 5 ? 'high' : 'ok' }" },
   {
     key: 'listen',
-    code: "// 监听其他参数并修改本组件属性（展示模式下生效）：\n// var1 > 5 时背景变红、var1 > 10 时隐藏本组件\nconst p = ctx.get('var1')          // 按名称或 key 读取，自动订阅\nconst v = p ? p.value : null\nctx.setProp('bg', v !== null && v > 5 ? '#dc2626' : '')\nctx.setProp('hidden', v !== null && v > 10)\nreturn value"
+    code: "// 监听其他参数并修改本组件属性（编辑 / 展示模式都生效）：\n// var1 > 5 时背景变红、var1 > 10 时隐藏本组件（编辑态显示为半透明）\nconst p = ctx.get('var1')          // 按名称或 key 读取，自动订阅\nconst v = p ? p.value : null\nctx.setProp('bg', v !== null && v > 5 ? '#dc2626' : '')\nctx.setProp('hidden', v !== null && v > 10)\nreturn value"
   }
 ]
