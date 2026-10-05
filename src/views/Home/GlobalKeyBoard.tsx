@@ -9,7 +9,7 @@
  * 以前的做法是每按一个键就经宿主 JsBridge 模拟一次系统按键（KeyPress）打到目标输入框里，现在不再调用宿主。
  */
 import { NIcon } from "naive-ui";
-import { defineComponent, onMounted, onBeforeUnmount, watch, ref, Transition, nextTick, computed, reactive } from "vue";
+import { defineComponent, onMounted, onBeforeUnmount, watch, ref, nextTick, computed, reactive } from "vue";
 import { useMain } from "@/store";
 import { useConfigStore } from "@/store/config";
 import Keyboard from "simple-keyboard";
@@ -78,17 +78,18 @@ export default defineComponent({
         keyboardIns.setCaretPosition(caret)
       }
     }
+    /** 聚焦输入区并全选带入的内容：直接输入即可整体替换，无需先清空；选区同步给 simple-keyboard（虚拟按键也按替换选区处理） */
     const focusArea = () => {
       const el = areaRef.value
       if (!el || !keyborardShow.value) return
       el.focus({ preventScroll: true })
-      const caret = areaValue.value.length
+      const len = areaValue.value.length
       try {
-        el.setSelectionRange(caret, caret)
+        el.setSelectionRange(0, len)
       } catch {
-        /* ignore */
+        /* 个别 input type 不支持选区 */
       }
-      keyboardIns?.setCaretPosition(caret)
+      keyboardIns?.setCaretPosition(0, len)
     }
 
     /**
@@ -377,8 +378,9 @@ export default defineComponent({
       return (
         <div class={'absolute right-4 bottom-8 h-[10vh] w-[10vh] flex flex-col items-center justify-center'} onMousedown={(e) => { e.preventDefault() }} >
           {
+            /* 不使用弹出 / 位移动画：面板直接 v-show 显示隐藏 */
             isMounted.value &&
-            <Transition name='slide-fade'>
+            <>
               {/* 亮色工业风面板：铝面板浅灰、小圆角、细边框，不用毛玻璃 / 渐变 */}
               <div v-drag={'.global-keyboard-value'} data-num-mode={commonData.isNum ? 'true' : 'false'} style={{ zIndex: 3000, willChange: 'transform', contain: 'layout style paint', transform: `scale(${winScale.value})`, left: leftMove.value + 'px', background: '#e9edf1', border: '1px solid #c2cbd4', borderRadius: '8px', boxShadow: '0 16px 40px rgba(15,23,42,0.22), 0 4px 12px rgba(15,23,42,0.12)', padding: '0 10px 14px' }} class={classnames(KEYBOARD_ROOT_CLASS, 'absolute bottom-40 flex flex-col items-center justify-end', { 'w-[354px]': commonData.isNum, 'w-[1000px]': !commonData.isNum, 'h-[540px]': !commonData.isTextarea, 'h-[570px]': commonData.isTextarea })} v-show={keyborardShow.value}>
                 {/* 标题栏：背景透明，底部分隔线用 borderBottom（2px 钢蓝）实现，不再用 boxShadow */}
@@ -397,7 +399,7 @@ export default defineComponent({
                 </div>
                 <div class={'simple-keyboard w-full h-full shrink'}></div>
               </div>
-            </Transition>
+            </>
           }
         </div>
       )
