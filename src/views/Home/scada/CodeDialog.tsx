@@ -4,9 +4,10 @@
  * 每段各有「插入示例」「清空」和说明文字。
  */
 import { NButton, NModal } from 'naive-ui'
-import { defineComponent, reactive, watch, type PropType } from 'vue'
+import { defineComponent, reactive, ref, watch, type PropType } from 'vue'
 import { useMain } from '@/store'
 import CodeEditor from './CodeEditor'
+import ScriptEditorDialog from './ScriptEditorDialog'
 import type { CodePart, PropField } from './types'
 import { tt } from './widgets/common'
 
@@ -61,6 +62,8 @@ export default defineComponent({
       }
     }
 
+    /** 正在用脚本编辑器编辑的部分（仅 js 部分提供），null 表示没开 */
+    const editorPart = ref<string | null>(null)
     const renderPart = (p: CodePart, multi: boolean) => {
       const example = p.example ? p.example() : ''
       const hint = p.hint ? p.hint() : ''
@@ -76,6 +79,11 @@ export default defineComponent({
                 {tt('scada.panel.codeExample')}
               </NButton>
             ) : null}
+            {p.language === 'js' ? (
+              <NButton size="tiny" secondary data-open-script-editor onClick={() => (editorPart.value = p.key)}>
+                {tt('scada.editor.open')}
+              </NButton>
+            ) : null}
             <NButton size="tiny" quaternary disabled={!draft[p.key]} onClick={() => (draft[p.key] = '')}>
               {tt('scada.panel.codeClear')}
             </NButton>
@@ -83,6 +91,16 @@ export default defineComponent({
           <div style={{ height }}>
             <CodeEditor value={draft[p.key] || ''} language={p.language} placeholder={PLACEHOLDER[p.language] || ''} onUpdateValue={(v: string) => (draft[p.key] = v)} />
           </div>
+          {p.language === 'js' ? (
+            <ScriptEditorDialog
+              show={editorPart.value === p.key}
+              value={draft[p.key] || ''}
+              mode="plain"
+              title={p.label()}
+              onClose={() => (editorPart.value = null)}
+              onSave={(v: string) => (draft[p.key] = v)}
+            />
+          ) : null}
           {hint ? <div class={'text-xs text-gray-500 leading-5 whitespace-pre-line break-all'}>{hint}</div> : null}
         </div>
       )

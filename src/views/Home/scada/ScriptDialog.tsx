@@ -5,6 +5,8 @@
 import { NButton, NModal } from 'naive-ui'
 import { computed, defineComponent, ref, watch } from 'vue'
 import CodeEditor from './CodeEditor'
+import ScriptEditorDialog from './ScriptEditorDialog'
+import { openScriptHelp } from './ScriptHelpDialog'
 import { compileScript, type ScriptKind } from './scripts'
 import { useScadaStore } from './store'
 import { tt } from './widgets/common'
@@ -35,6 +37,7 @@ export default defineComponent({
       { immediate: true }
     )
     const compiled = computed(() => compileScript(draft.value))
+    const editorShow = ref(false)
     const apply = () => {
       if (compiled.value.error) return
       scada.setScripts({ [props.kind]: draft.value.trim() } as any)
@@ -58,11 +61,28 @@ export default defineComponent({
         {{
           default: () => (
             <div data-scada-script-dialog>
-              <div class={'text-xs text-gray-500 whitespace-pre-line mb-2'}>{tt('scada.panel.scriptHint')}</div>
+              {/* 说明文字已集中到脚本帮助弹窗（帮助按钮打开） */}
+              <div class={'flex items-center gap-2 mb-2'}>
+                <NButton size="tiny" secondary data-open-script-editor onClick={() => (editorShow.value = true)}>
+                  {tt('scada.editor.open')}
+                </NButton>
+                <div class={'flex-1'} />
+                <NButton size="tiny" quaternary onClick={() => openScriptHelp('global')}>
+                  {tt('scada.editor.help')}
+                </NButton>
+              </div>
               <div style={{ height: '300px' }}>
                 <CodeEditor value={draft.value} language="js" placeholder={'// JS'} onUpdateValue={(v: string) => (draft.value = v)} />
               </div>
               {compiled.value.error && <div class={'mt-1 text-xs text-red-500 break-all'}>{compiled.value.error}</div>}
+              <ScriptEditorDialog
+                show={editorShow.value}
+                value={draft.value}
+                mode="script"
+                title={tt(KIND_LABEL[props.kind])}
+                onClose={() => (editorShow.value = false)}
+                onSave={(v: string) => (draft.value = v)}
+              />
             </div>
           ),
           footer: () => (

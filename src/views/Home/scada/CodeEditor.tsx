@@ -22,15 +22,21 @@ export default defineComponent({
   props: {
     value: { type: String, default: '' },
     language: { type: String as PropType<CodeLang>, default: 'js' },
-    placeholder: { type: String, default: '' }
+    placeholder: { type: String, default: '' },
+    /** 行号模式（脚本编辑器用）：左侧行号槽 + 不自动换行（横向滚动），行号才能和内容逐行对齐 */
+    lineNumbers: { type: Boolean, default: false }
   },
   emits: {
     updateValue: (_v: string) => true
   },
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     ensureCodeEditorStyle()
     const ta = ref<HTMLTextAreaElement>()
     const pre = ref<HTMLElement>()
+    // 行号模式：行数 / 槽宽 / 随内容滚动
+    const scrollTop = ref(0)
+    const lineCount = computed(() => (props.value ? props.value.split('\n').length : 1))
+    const gutterW = computed(() => Math.max(34, 16 + String(lineCount.value).length * 8))
     // 末尾是换行时补一个空格，否则 pre 不会为最后的空行留出高度，滚到底会和 textarea 错位
     const html = computed(() => {
       const v = props.value || ''
@@ -40,6 +46,7 @@ export default defineComponent({
       if (!pre.value || !ta.value) return
       pre.value.scrollTop = ta.value.scrollTop
       pre.value.scrollLeft = ta.value.scrollLeft
+      scrollTop.value = ta.value.scrollTop
     }
     const onInput = (e: Event) => emit('updateValue', (e.target as HTMLTextAreaElement).value)
 
@@ -92,23 +99,38 @@ export default defineComponent({
       }
     }
 
-    return () => (
-      <div class={'scada-code-editor w-full h-full rounded border border-solid border-gray-300 overflow-hidden'} data-code-editor={props.language}>
-        <pre ref={pre} class={'scada-code-pre'} aria-hidden="true" innerHTML={html.value} />
-        <textarea
-          ref={ta}
-          class={'scada-code-ta'}
-          value={props.value}
-          placeholder={props.placeholder}
-          spellcheck={false}
-          autocapitalize="off"
-          autocomplete="off"
-          wrap="soft"
-          onInput={onInput}
-          onScroll={sync}
-          onKeydown={onKeydown}
-        />
-      </div>
-    )
+    // 脚本编辑器需要直接操作原生 textarea（剪贴板 / 缩进 / 查找选区等）
+    expose({ textarea: ta })
+
+    return () => {
+      const ln = props.lineNumbers
+      const side = ln ? { left: gutterW.value + 'px', whiteSpace: 'pre' as const } : undefined
+      return (
+        <div class={'scada-code-editor w-full h-full rounded border border-solid border-gray-300 overflow-hidden'} data-code-editor={props.language}>
+          {ln && (
+            <div class={'scada-code-gutter'} style={{ width: gutterW.value + 'px' }} aria-hidden="true">
+              <pre class={'scada-code-gutter-in'} style={{ transform: `translateY(${-scrollTop.value}px)` }}>
+                {Array.from({ length: lineCount.value }, (_, i) => i + 1).join('\n')}
+              </pre>
+            </div>
+          )}
+          <pre ref={pre} class={'scada-code-pre'} style={side} aria-hidden="true" innerHTML={html.value} />
+          <textarea
+            ref={ta}
+            class={'scada-code-ta'}
+            style={side}
+            value={props.value}
+            placeholder={props.placeholder}
+            spellcheck={false}
+            autocapitalize="off"
+            autocomplete="off"
+            wrap={ln ? 'off' : 'soft'}
+            onInput={onInput}
+            onScroll={sync}
+            onKeydown={onKeydown}
+          />
+        </div>
+      )
+    }
   }
 })

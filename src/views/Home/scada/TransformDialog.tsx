@@ -12,6 +12,8 @@ import { getWidgetDefinition } from './registry'
 import { useScadaStore } from './store'
 import { resolveParam } from './runtime'
 import WidgetPropsPopover from './WidgetPropsPopover'
+import ScriptEditorDialog from './ScriptEditorDialog'
+import { openScriptHelp } from './ScriptHelpDialog'
 import { compileTransform, runTransform, TRANSFORM_EXAMPLES, type TransformContext } from './transform'
 import type { DataPoint, WidgetInstance } from './types'
 import { tt } from './widgets/common'
@@ -59,6 +61,7 @@ export default defineComponent({
     watch(draft, resetPreview)
 
     const compiled = computed(() => compileTransform(draft.value))
+    const editorShow = ref(false)
     const exampleOptions = computed(() => TRANSFORM_EXAMPLES.map(e => ({ label: tt('scada.transformExample.' + e.key), value: e.key })))
     /** 组件当前绑定的原始数据点（未绑定为 undefined） */
     const rawPoint = computed<DataPoint | undefined>(() => {
@@ -107,6 +110,14 @@ export default defineComponent({
       const p = preview.value
       return (
         <div class={'flex flex-col gap-2'} onKeydown={onKeydown}>
+          <ScriptEditorDialog
+            show={editorShow.value}
+            value={draft.value}
+            mode="transform"
+            title={tt('scada.panel.transform')}
+            onClose={() => (editorShow.value = false)}
+            onSave={(v: string) => (draft.value = v)}
+          />
           {/* 带语法高亮的代码编辑器（和全局脚本 / 自定义组件代码弹窗同一个 CodeEditor），高度由外层容器决定 */}
           <div style={{ height: '340px' }}>
             <CodeEditor
@@ -133,6 +144,12 @@ export default defineComponent({
             </NButton>
             {/* 「组件属性」浮窗（共享组件）：写 ctx.setProp / 读 ctx.widget.props 时对照 */}
             <WidgetPropsPopover widget={props.widget} placement="right-start" />
+            <NButton size="small" secondary data-open-script-editor onClick={() => (editorShow.value = true)}>
+              {tt('scada.editor.open')}
+            </NButton>
+            <NButton size="small" quaternary onClick={() => openScriptHelp('transform')}>
+              {tt('scada.editor.help')}
+            </NButton>
             <div class={'flex-1'} />
             {!props.widget?.binding && <span class={'text-xs text-orange-500'}>{tt('scada.panel.transformNoBinding')}</span>}
           </div>
@@ -148,7 +165,6 @@ export default defineComponent({
               </>
             )}
           </div>
-          <div class={'text-xs text-gray-500 leading-5 whitespace-pre-line'}>{tt('scada.panel.transformHint')}</div>
         </div>
       )
     }

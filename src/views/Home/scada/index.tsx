@@ -42,6 +42,7 @@ import { downloadBlob, hasHostBridge } from './resource'
 import { isTextEntry, matchShortcut, overlayOpen } from './shortcuts'
 import { useScadaStore } from './store'
 import { toolIcons } from './toolIcons'
+import ScriptHelpDialog from './ScriptHelpDialog'
 import VariableDialog from './VariableDialog'
 import { tt } from './widgets/common'
 import './widgets'
@@ -524,6 +525,7 @@ export default defineComponent({
           {editing ? renderToolbar() : null}
           {editing ? renderHelp() : null}
           {editing ? <VariableDialog /> : null}
+          {editing ? <ScriptHelpDialog /> : null}
           <input ref={fileInputRef} type="file" accept=".zip,.json,application/zip,application/json" class={'hidden'} data-scada-import onChange={onImportFileChange} />
           <ImportDialog show={importShow.value} file={importFile.value} preview={importPreview.value} onClose={closeImport} />
           {!editing && (
