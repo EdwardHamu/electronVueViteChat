@@ -5,8 +5,6 @@
  * 编辑模式下画布把组件内容设为 pointer-events: none，所以这些组件在编辑时不会被误触发。
  */
 import { computed, defineComponent, nextTick, ref } from 'vue'
-import { callBrige } from '@/utils/callm'
-import { callFnName } from '@/utils/enum'
 import { isLightColor, normalizeHex } from '../color'
 import type { PropField, WidgetDefinition } from '../types'
 import { icons } from './icons'
@@ -190,14 +188,8 @@ const DateTimeField = defineComponent({
   }
 })
 
-// ---------------------------------------------------------------- 按钮（写值 / 取反 / 采集命令）
-type ButtonAction = 'none' | 'write' | 'toggle' | 'startCollect' | 'stopCollect' | 'clearCollect' | 'shaftCollect'
-const BRIDGE_ACTIONS: Record<string, string> = {
-  startCollect: callFnName.StartCollect,
-  stopCollect: callFnName.StopCollect,
-  clearCollect: callFnName.ClearCollect,
-  shaftCollect: callFnName.ShaftCollect
-}
+// ---------------------------------------------------------------- 按钮（写入 / 取反 / 置 0 / 置 1）
+type ButtonAction = 'write' | 'toggle' | 'set0' | 'set1'
 const ActionButton = defineComponent({
   name: 'ScadaButton',
   props: widgetProps,
@@ -208,7 +200,7 @@ const ActionButton = defineComponent({
     const pressed = ref(false)
     const run = async () => {
       if (props.editing || busy.value) return
-      const action = (p.value.action as ButtonAction) || 'none'
+      const action = (p.value.action as ButtonAction) || 'write'
       busy.value = true
       try {
         if (action === 'write') {
@@ -216,14 +208,12 @@ const ActionButton = defineComponent({
           const n = Number(raw)
           await write(raw.trim() !== '' && Number.isFinite(n) ? n : raw)
         } else if (action === 'toggle') {
-          await write(!pointOn(props.point))
-        } else if (BRIDGE_ACTIONS[action]) {
-          // 开始 / 停止采集优先走首页注册的 window.frontFn（会顺带刷新配置、更新采集状态），没有时直接调桥
-          const front = typeof window !== 'undefined' ? (window as any).frontFn : null
-          const fn = front && typeof front[action] === 'function' ? front[action] : null
-          if (fn) await fn()
-          else await callBrige(BRIDGE_ACTIONS[action])
-          notify('success', tt('scada.widget.actionDone'))
+          // 取反：当前为 1（真）写 0，否则写 1
+          await write(pointOn(props.point) ? 0 : 1)
+        } else if (action === 'set0') {
+          await write(0)
+        } else if (action === 'set1') {
+          await write(1)
         }
       } catch (err) {
         console.warn('[scada] button action failed', err)
@@ -615,11 +605,8 @@ export const controlDefinitions: WidgetDefinition[] = [
         options: () => [
           { label: tt('scada.prop.actionWrite'), value: 'write' },
           { label: tt('scada.prop.actionToggle'), value: 'toggle' },
-          { label: tt('scada.prop.actionStart'), value: 'startCollect' },
-          { label: tt('scada.prop.actionStop'), value: 'stopCollect' },
-          { label: tt('scada.prop.actionClear'), value: 'clearCollect' },
-          { label: tt('scada.prop.actionShaft'), value: 'shaftCollect' },
-          { label: tt('scada.prop.actionNone'), value: 'none' }
+          { label: tt('scada.prop.actionSet0'), value: 'set0' },
+          { label: tt('scada.prop.actionSet1'), value: 'set1' }
         ]
       },
       { key: 'value', label: () => tt('scada.prop.writeValue'), type: 'text' },

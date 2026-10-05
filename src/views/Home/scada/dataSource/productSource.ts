@@ -10,7 +10,8 @@ import i18n from '@/i18n'
 import { useConfigStore } from '@/store/config'
 import { callBrige } from '@/utils/callm'
 import { callFnName } from '@/utils/enum'
-import type { DataGroupEntity, DataValue, DeviceGroupEntity } from '~/me'
+import { safeJsonParse } from '@/utils/utils'
+import type { DataGroupEntity, DataValue, DeviceGroupEntity, ModbusAdressRow } from '~/me'
 import type { BindingOption, DataPoint, DataSourceProvider, PointStatus } from '../types'
 
 export const PRODUCT_SOURCE_ID = 'product'
@@ -21,6 +22,8 @@ interface ItemMeta {
   device: string
   unit?: string
   precision?: number
+  /** 采集地址的数据类型（AddressString JSON 里的 DataType 数值索引） */
+  dataType?: number
 }
 
 interface Sample {
@@ -69,6 +72,8 @@ const refresh = async () => {
     if (seq !== refreshSeq) return
     const meta: Record<string, ItemMeta> = {}
     const options: BindingOption[] = []
+    /** 数据项 GId → 采集地址 GId（DataGroupEntity.DataId），用来查数据类型 */
+    const dataIdByKey: Record<string, string> = {}
     perDevice.forEach(({ dev, items }) => {
       items.forEach(item => {
         if (!item || !item.GId || meta[item.GId]) return
@@ -81,8 +86,30 @@ const refresh = async () => {
         }
         meta[item.GId] = m
         options.push({ key: m.key, label: m.name, group: m.device, unit: m.unit, precision: m.precision })
+        if (item.DataId) dataIdByKey[item.GId] = item.DataId
       })
     })
+    // 从设备配置接口查每个数据项的数据类型（propNameEnum.DataType，在 AddressString JSON 里）
+    const dataIds = Array.from(new Set(Object.values(dataIdByKey)))
+    if (dataIds.length) {
+      const rows = await asPromise<ModbusAdressRow[]>(callBrige(callFnName.GetDataAddressesWithIds, dataIds))
+      if (seq !== refreshSeq) return
+      const typeByDataId: Record<string, number> = {}
+      ;(Array.isArray(rows) ? rows : []).forEach(row => {
+        if (!row || !row.GId || !row.AddressString) return
+        const sub = safeJsonParse(row.AddressString) as { DataType?: unknown }
+        const n = Number(sub?.DataType)
+        if (Number.isFinite(n)) typeByDataId[row.GId] = n
+      })
+      options.forEach(o => {
+        const did = dataIdByKey[o.key]
+        const n = did === undefined ? undefined : typeByDataId[did]
+        if (n !== undefined) {
+          o.dataType = n
+          meta[o.key].dataType = n
+        }
+      })
+    }
     state.meta = meta
     state.options = options
     state.groupId = groupId

@@ -1,15 +1,23 @@
 /**
  * 数据项选择浮窗（属性面板「数据绑定」区块的「数据项」按钮打开），样式仿经典 HMI 变量选择对话框：
  *  - 左侧树：数据源 → 分组（如设备名）；点数据源 = 看它的全部数据项，点分组 = 只看该组；
- *  - 右侧表格：名称 / 标识 / 单位，「名称」表头下带一个快速过滤输入框（按名称 / 标识模糊匹配）；
+ *  - 右侧表格：名称 / 数据类型 / 单位，「名称」表头下带一个快速过滤输入框（按名称模糊匹配）；
+ *    数据类型来自设备配置接口（采集地址 AddressString 里的 DataType，经 DataTypeList 翻译成文本）；
  *  - 单击行选中，双击行 = 选中并确定；底部「显示全部」勾选后忽略左侧分组、显示当前数据源全部数据项；
  *  - 「确定」把选择回传（onApply），「关闭」不改任何东西。
  */
 import { NButton, NCheckbox, NInput, NModal, NScrollbar } from 'naive-ui'
 import { computed, defineComponent, ref, watch, type PropType } from 'vue'
+import { DataTypeList } from '../config/devConfig/enum'
 import { dataSourceList, getDataSource } from './dataSource'
 import type { BindingOption, DataBinding } from './types'
 import { tt } from './widgets/common'
+
+/** 数据类型索引 → 显示文本；没有类型信息（如本地数据源）显示「—」 */
+const dataTypeName = (o: BindingOption) => {
+  if (o.dataType === undefined || o.dataType === null) return '—'
+  return DataTypeList.find(e => e.value === o.dataType)?.label || String(o.dataType)
+}
 
 export default defineComponent({
   name: 'ScadaBindingPickerDialog',
@@ -61,7 +69,7 @@ export default defineComponent({
       let list = provider.options()
       if (!showAll.value && curGroup.value) list = list.filter(o => o.group === curGroup.value)
       const kw = filter.value.trim().toLowerCase()
-      if (kw) list = list.filter(o => o.label.toLowerCase().includes(kw) || o.key.toLowerCase().includes(kw))
+      if (kw) list = list.filter(o => o.label.toLowerCase().includes(kw))
       return list
     })
 
@@ -82,7 +90,7 @@ export default defineComponent({
       <div
         {...attrs}
         class={
-          'flex items-center gap-1.5 px-2 py-1 text-xs cursor-pointer select-none truncate ' +
+          'flex items-center gap-1 px-1.5 py-0.5 text-xs cursor-pointer select-none truncate ' +
           (active ? 'bg-[#cfe0f3] text-[#1f3b5c] font-bold' : 'text-gray-700 hover:bg-gray-100')
         }
         style={{ paddingLeft: `${8 + depth * 16}px` }}
@@ -113,9 +121,9 @@ export default defineComponent({
         {/* 表头 + 名称列下的快速过滤输入框 */}
         <div class={'shrink-0 border-0 border-b border-solid border-gray-300 bg-[#eef1f5]'}>
           <div class={'flex items-center text-xs font-bold text-gray-700'}>
-            <span class={'flex-1 min-w-0 px-2 py-1.5'}>{tt('scada.panel.pickerName')}</span>
-            <span class={'w-[120px] shrink-0 px-2 py-1.5 border-0 border-l border-solid border-gray-300'}>{tt('scada.panel.pickerKey')}</span>
-            <span class={'w-[72px] shrink-0 px-2 py-1.5 border-0 border-l border-solid border-gray-300'}>{tt('scada.panel.pickerUnit')}</span>
+            <span class={'flex-1 min-w-0 px-1.5 py-1'}>{tt('scada.panel.pickerName')}</span>
+            <span class={'w-[110px] shrink-0 px-1.5 py-1 border-0 border-l border-solid border-gray-300'}>{tt('scada.panel.pickerType')}</span>
+            <span class={'w-[64px] shrink-0 px-1.5 py-1 border-0 border-l border-solid border-gray-300'}>{tt('scada.panel.pickerUnit')}</span>
           </div>
           <div class={'px-1 pb-1'}>
             <NInput size="small" value={filter.value} placeholder={tt('scada.panel.pickerFilter')} clearable data-picker-filter onUpdateValue={(v: string) => (filter.value = v)} />
@@ -137,9 +145,9 @@ export default defineComponent({
                   apply()
                 }}
               >
-                <span class={'flex-1 min-w-0 px-2 py-1.5 truncate'} title={o.label}>{o.label}</span>
-                <span class={'w-[120px] shrink-0 px-2 py-1.5 font-mono truncate'} title={o.key}>{o.key}</span>
-                <span class={'w-[72px] shrink-0 px-2 py-1.5 truncate'}>{o.unit || '—'}</span>
+                <span class={'flex-1 min-w-0 px-1.5 py-1 truncate'} title={o.label}>{o.label}</span>
+                <span class={'w-[110px] shrink-0 px-1.5 py-1 truncate'} data-picker-datatype>{dataTypeName(o)}</span>
+                <span class={'w-[64px] shrink-0 px-1.5 py-1 truncate'}>{o.unit || '—'}</span>
               </div>
             ))
           ) : (
@@ -157,28 +165,31 @@ export default defineComponent({
         closable
         maskClosable={false}
         autoFocus={false}
-        style={{ width: '720px', maxWidth: '96vw' }}
+        style={{ width: '700px', maxWidth: '96vw' }}
+        headerStyle={{ padding: '8px 14px' }}
+        contentStyle={{ padding: '8px 14px' }}
+        footerStyle={{ padding: '6px 14px 10px' }}
         onUpdateShow={(v: boolean) => {
           if (!v) emit('close')
         }}
       >
         {{
           default: () => (
-            <div class={'flex gap-2'} style={{ height: 'min(52vh, 420px)' }} data-scada-binding-picker>
+            <div class={'flex gap-1.5'} style={{ height: 'min(52vh, 420px)' }} data-scada-binding-picker>
               {renderTree()}
               {renderTable()}
             </div>
           ),
           footer: () => (
-            <div class={'flex items-center gap-2'}>
+            <div class={'flex items-center gap-1.5'}>
               <NCheckbox size="small" checked={showAll.value} data-picker-show-all onUpdateChecked={(v: boolean) => (showAll.value = v)}>
                 {tt('scada.panel.pickerShowAll')}
               </NCheckbox>
               <div class={'flex-1'} />
-              <NButton type="primary" data-picker-apply disabled={!canApply.value} onClick={apply}>
+              <NButton size="small" type="primary" data-picker-apply disabled={!canApply.value} onClick={apply}>
                 {tt('scada.confirm')}
               </NButton>
-              <NButton data-picker-close onClick={() => emit('close')}>{tt('scada.panel.pickerClose')}</NButton>
+              <NButton size="small" data-picker-close onClick={() => emit('close')}>{tt('scada.panel.pickerClose')}</NButton>
             </div>
           )
         }}

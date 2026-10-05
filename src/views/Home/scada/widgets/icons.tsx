@@ -150,6 +150,7 @@ export const icons: Record<string, () => VNodeChild> = {
     </>
   ),
   sparkline: () => svg(<path d="M3 16 L7.5 10 L11 14 L15 7 L18 12 L21 9" {...S} />),
+  trend: () => svg(<><path d="M4 4 V19 H21" {...S} /><path d="M6.5 15.5 L10 10.5 L13 13 L16.5 7.5 L19.5 11" {...S} /><path d="M6.5 6.5 H21" {...S} stroke-dasharray="2.5 2" stroke-width="1" /></>),
   statusLamp: () => svg(
     <>
       <circle cx="12" cy="12" r="5.5" fill="currentColor" fill-opacity="0.35" stroke="currentColor" stroke-width="1.5" />

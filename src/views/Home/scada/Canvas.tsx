@@ -28,7 +28,6 @@ import { tt } from './widgets/common'
 export const ZOOM_MIN = 0.25
 export const ZOOM_MAX = 6
 /** 平移时画布至少保留在视口内的像素 */
-const PAN_MARGIN = 60
 
 /** 画布视图状态（编辑模式的缩放 / 平移；退出编辑自动复位）。供工具栏、组件库拖放换算使用 */
 export const canvasView = reactive({
@@ -253,11 +252,8 @@ export default defineComponent({
     const fit = computed(() => fitScale(size.w, size.h, layout.value.canvas.width, layout.value.canvas.height))
     /** 实际缩放 = 适配比例 × 用户缩放 */
     const scale = computed(() => fit.value * canvasView.zoom)
-    /** 某个缩放下把画布居中所需的偏移（画布比容器大时贴左上角） */
-    const centerOffset = (s: number) => ({
-      x: Math.max(0, (size.w - layout.value.canvas.width * s) / 2),
-      y: Math.max(0, (size.h - layout.value.canvas.height * s) / 2)
-    })
+    /** 画布左上角始终固定在容器左上角：无论缩放还是拖动都不移动原点 */
+    const centerOffset = (_s: number) => ({ x: 0, y: 0 })
     const offset = computed(() => {
       const o = centerOffset(scale.value)
       return { x: o.x + canvasView.panX, y: o.y + canvasView.panY }
@@ -293,60 +289,35 @@ export default defineComponent({
       canvasView.scale = scale.value
     })
 
-    // ---------------------------------------------------------------- 视图缩放 / 平移
-    /** 平移不能把画布整个拖出视口 */
+    // ---------------------------------------------------------------- 视图缩放
+    /** 原点固定在容器左上角，平移恒为 0 */
     const clampPan = () => {
-      if (!size.w || !size.h) return
-      const s = scale.value
-      const W = layout.value.canvas.width * s
-      const H = layout.value.canvas.height * s
-      const o = centerOffset(s)
-      const mx = Math.min(PAN_MARGIN, W / 2)
-      const my = Math.min(PAN_MARGIN, H / 2)
-      const left = Math.min(Math.max(o.x + canvasView.panX, mx - W), size.w - mx)
-      const top = Math.min(Math.max(o.y + canvasView.panY, my - H), size.h - my)
-      canvasView.panX = left - o.x
-      canvasView.panY = top - o.y
+      canvasView.panX = 0
+      canvasView.panY = 0
     }
-    /** 以容器内 (cx, cy) 为不动点缩放；缺省取容器中心 */
-    const zoomAt = (factor: number, cx?: number, cy?: number) => {
+    /** 缩放以画布左上角（= 容器左上角）为不动点 */
+    const zoomAt = (factor: number, _cx?: number, _cy?: number) => {
       if (!scada.editing || !Number.isFinite(factor) || factor <= 0) return
       const z0 = canvasView.zoom
       const z1 = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z0 * factor))
       if (Math.abs(z1 - z0) < 1e-6) return
-      const px = cx === undefined ? size.w / 2 : cx
-      const py = cy === undefined ? size.h / 2 : cy
-      const s0 = fit.value * z0
-      const s1 = fit.value * z1
-      const left0 = centerOffset(s0).x + canvasView.panX
-      const top0 = centerOffset(s0).y + canvasView.panY
-      const lx = (px - left0) / s0
-      const ly = (py - top0) / s0
-      const o1 = centerOffset(s1)
       canvasView.zoom = z1
-      canvasView.panX = px - lx * s1 - o1.x
-      canvasView.panY = py - ly * s1 - o1.y
       clampPan()
     }
     const onWheel = (e: WheelEvent) => {
       if (!scada.editing) return
+      // 只有按住 Ctrl（Mac 上 ⌘）滚动滚轮才缩放；普通滚轮不拦截
+      if (!e.ctrlKey && !e.metaKey) return
       e.preventDefault()
-      const el = containerRef.value
-      if (!el) return
-      const r = el.getBoundingClientRect()
       // deltaMode：0 像素 / 1 行 / 2 页；一格滚轮（约 100px 或 3 行）≈ 缩放 15%
       const unit = e.deltaMode === 1 ? 0.05 : e.deltaMode === 2 ? 1 : 0.0015
       const factor = Math.min(2, Math.max(0.5, Math.exp(-e.deltaY * unit)))
-      zoomAt(factor, e.clientX - r.left, e.clientY - r.top)
+      zoomAt(factor)
     }
 
     const clearPress = () => {
       press = null
       canvasView.panning = false
-    }
-    const beginPan = (e: PointerEvent) => {
-      press = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, panX0: canvasView.panX, panY0: canvasView.panY }
-      canvasView.panning = true
     }
     const capturePointer = (el: HTMLElement | undefined, pointerId: number) => {
       if (!el || !el.setPointerCapture) return
@@ -446,9 +417,8 @@ export default defineComponent({
       const byMiddle = e.pointerType === 'mouse' && e.button === 1
       const bySpace = canvasView.spaceDown && (e.pointerType !== 'mouse' || e.button === 0)
       if (byMiddle || bySpace) {
-        // 中键要阻止浏览器的自动滚动；空格平移时阻止选中文字
+        // 画布固定在容器左上角，不再支持平移；仍阻止中键的浏览器自动滚动
         e.preventDefault()
-        beginPan(e)
         return
       }
       // 空白处（画布 / 灰色区域；组件和手柄的 pointerdown 已 stopPropagation，到不了这里）左键 / 触摸：开始框选。
@@ -473,9 +443,6 @@ export default defineComponent({
         const el = containerRef.value
         const r = el ? el.getBoundingClientRect() : { left: 0, top: 0 }
         if (pinch.dist > 0 && d > 0) zoomAt(d / pinch.dist, midX - r.left, midY - r.top)
-        canvasView.panX += midX - pinch.midX
-        canvasView.panY += midY - pinch.midY
-        clampPan()
         pinch.dist = d
         pinch.midX = midX
         pinch.midY = midY
@@ -485,10 +452,7 @@ export default defineComponent({
         updateMarquee(e)
         return
       }
-      if (!press || press.pointerId !== e.pointerId) return
-      canvasView.panX = press.panX0 + (e.clientX - press.startX)
-      canvasView.panY = press.panY0 + (e.clientY - press.startY)
-      clampPan()
+      // 画布固定在容器左上角，平移手势已移除（press 只保留结构以防其他手势误判）
     }
     const onContainerPointerUp = (e: PointerEvent) => {
       if (!pointers.has(e.pointerId)) return
@@ -809,7 +773,7 @@ export default defineComponent({
                 top: f.y + f.h * p.fy - hit / 2 + 'px',
                 width: hit + 'px',
                 height: hit + 'px',
-                cursor: canvasView.spaceDown ? 'grab' : HANDLE_CURSORS[h],
+                cursor: HANDLE_CURSORS[h],
                 touchAction: 'none',
                 pointerEvents: 'auto'
               }}
@@ -860,7 +824,7 @@ export default defineComponent({
           style={{
             background: editing ? '#d9dde3' : 'transparent',
             touchAction: editing ? 'none' : 'auto',
-            cursor: canvasView.panning ? 'grabbing' : canvasView.spaceDown ? 'grab' : 'default'
+            cursor: 'default'
           }}
           onPointerdown={onContainerPointerDown}
           onPointermove={onContainerPointerMove}
@@ -908,7 +872,7 @@ export default defineComponent({
                     opacity: w.hidden && editing ? 0.35 : undefined,
                     display: w.hidden && !editing ? 'none' : undefined,
                     touchAction: editing ? 'none' : 'auto',
-                    cursor: editing ? (canvasView.spaceDown ? 'grab' : w.locked ? 'default' : 'move') : 'default',
+                    cursor: editing ? (w.locked ? 'default' : 'move') : 'default',
                     outline: selected ? `2px solid ${isRef ? '#f59e0b' : '#2563eb'}` : editing ? '1px dashed rgba(37,99,235,.35)' : 'none',
                     outlineOffset: '1px'
                   }}

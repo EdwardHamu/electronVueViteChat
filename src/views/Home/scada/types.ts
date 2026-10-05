@@ -46,6 +46,8 @@ export interface BindingOption {
   group?: string
   unit?: string
   precision?: number
+  /** 数据类型（设备配置采集地址里的 DataType 数值索引，对应 DataTypeList），数据项选择弹窗显示用 */
+  dataType?: number
 }
 
 /**
