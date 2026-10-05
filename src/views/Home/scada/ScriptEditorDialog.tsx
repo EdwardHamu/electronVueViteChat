@@ -21,6 +21,7 @@ import { openScriptHelp } from './ScriptHelpDialog'
 import { compileScript } from './scripts'
 import { compileTransform } from './transform'
 import { useScadaStore } from './store'
+import { getWidgetDefinition } from './registry'
 import { tt } from './widgets/common'
 
 export type EditorMode = 'script' | 'transform' | 'plain'
@@ -238,16 +239,22 @@ export default defineComponent({
               { key: 'a6', label: 'value', insert: 'value' },
               { key: 'a7', label: 'point', insert: 'point' }
             ]
-      const widgets: TreeOption[] = scada.current.widgets.map(w => ({
+      const widgets: TreeOption[] = scada.current.widgets.map(w => {
+        // 节点文案: 组件类型中文名 + (自定义命名) + id 前 4 位省略号
+        const typeName = getWidgetDefinition(w.type)?.label() || w.type
+        const named = (w.title || '').trim()
+        const shortId = w.id.length > 4 ? w.id.slice(0, 4) + '…' : w.id
+        return {
         key: 'w:' + w.id,
-        label: `${w.title || w.type} · ${w.id}`,
+        label: `${typeName}${named ? `（${named}）` : ''} · ${shortId}`,
         insert: `'${w.id}'`,
         children: Object.keys(w.props || {}).map(k => ({
           key: `w:${w.id}:${k}`,
           label: k,
           insert: mode === 'script' ? `scada.getProp('${w.id}', '${k}')` : `ctx.setProp('${k}', '')`
         }))
-      })) as TreeOption[]
+        }
+      }) as TreeOption[]
       const vars: TreeOption[] = scada.variables.map(v => ({
         key: 'v:' + v.key,
         label: (v.name || '').trim() ? `${v.name} · ${v.key}` : v.key,
@@ -294,16 +301,16 @@ export default defineComponent({
 
     /** 工具栏图标按钮：悬停标题 = 本地化名称 + 快捷键 */
     const tbtn = (icon: Component, onClick: () => void, titleText: string) => (
-      <NButton size="tiny" quaternary circle onClick={onClick} title={titleText}>
-        {{ icon: () => <NIcon size={16} component={icon} /> }}
+      <NButton size="small" quaternary circle onClick={onClick} title={titleText}>
+        {{ icon: () => <NIcon size={20} component={icon} /> }}
       </NButton>
     )
     const dbtn = (icon: Component, titleText: string) => (
-      <NButton size="tiny" quaternary circle title={titleText}>
-        {{ icon: () => <NIcon size={16} component={icon} /> }}
+      <NButton size="small" quaternary circle title={titleText}>
+        {{ icon: () => <NIcon size={20} component={icon} /> }}
       </NButton>
     )
-    const sep = () => <div class={'w-px h-4 bg-gray-300 mx-0.5 shrink-0'} />
+    const sep = () => <div class={'w-px h-5 bg-gray-300 mx-1 shrink-0'} />
 
     return () => (
       <NModal

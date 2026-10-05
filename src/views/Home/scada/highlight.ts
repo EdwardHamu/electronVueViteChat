@@ -403,6 +403,7 @@ export const CODE_EDITOR_CSS = `
 .tok-function{color:#795e26}.tok-prop{color:#001080}.tok-regex{color:#811f3f}.tok-operator{color:#374151}.tok-punct{color:#4b5563}
 .tok-tag{color:#800000}.tok-attr{color:#e50000}.tok-entity{color:#0000ff}.tok-doctype{color:#6b7280}
 .tok-selector{color:#800000}.tok-cssprop{color:#e50000}.tok-value{color:#0451a5}.tok-atrule{color:#af00db}
+.scada-code-editor,.scada-code-editor *{font-family:ui-monospace,Consolas,"Cascadia Mono","JetBrains Mono","Fira Code","Courier New",monospace !important;font-weight:normal !important}
 .scada-code-gutter{position:absolute;top:0;bottom:0;left:0;overflow:hidden;background:#f3f4f6;border-right:1px solid #e5e7eb;z-index:2;pointer-events:none}
 .scada-code-gutter-in{margin:0;padding:8px 6px 8px 0;font:inherit;line-height:inherit;color:#9ca3af;text-align:right;white-space:pre}
 `
