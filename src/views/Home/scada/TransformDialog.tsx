@@ -114,6 +114,7 @@ export default defineComponent({
             show={editorShow.value}
             value={draft.value}
             mode="transform"
+            widget={props.widget}
             title={tt('scada.panel.transform')}
             onClose={() => (editorShow.value = false)}
             onSave={(v: string) => (draft.value = v)}

@@ -8,12 +8,12 @@
  * 从全局脚本 / 数据处理函数 / 自定义组件代码弹窗的「打开脚本编辑器」按钮进入，
  * 「保存」把内容写回原弹窗的草稿（仍需在原弹窗点确定才落盘）。
  */
-import { NButton, NCheckbox, NDropdown, NIcon, NInput, NModal, NScrollbar, NTree, type DropdownOption, type TreeOption } from 'naive-ui'
+import { NButton, NCheckbox, NDropdown, NIcon, NInput, NModal, NPopover, NScrollbar, NTree, type DropdownOption, type TreeOption } from 'naive-ui'
 import { computed, defineComponent, reactive, ref, watch, type Component, type PropType } from 'vue'
 import {
   SaveRound, ContentCutRound, ContentCopyRound, ContentPasteRound, UndoRound, RedoRound,
   FormatIndentIncreaseRound, FormatIndentDecreaseRound, CommentRound, SpellcheckRound,
-  DataObjectRound, FunctionsRound, DataArrayRound, AddCommentRound, HelpOutlineRound
+  DataObjectRound, FunctionsRound, DataArrayRound, AddCommentRound, HelpOutlineRound, SearchRound
 } from '@vicons/material'
 import { Variable as VariableIcon } from '@vicons/tabler'
 import CodeEditor from './CodeEditor'
@@ -22,6 +22,8 @@ import { compileScript } from './scripts'
 import { compileTransform } from './transform'
 import { useScadaStore } from './store'
 import { getWidgetDefinition } from './registry'
+import { getDataSource, PRODUCT_SOURCE_ID } from './dataSource'
+import type { WidgetInstance } from './types'
 import { tt } from './widgets/common'
 
 export type EditorMode = 'script' | 'transform' | 'plain'
@@ -42,7 +44,9 @@ export default defineComponent({
     show: { type: Boolean, default: false },
     value: { type: String, default: '' },
     title: { type: String, default: '' },
-    mode: { type: String as PropType<EditorMode>, default: 'script' }
+    mode: { type: String as PropType<EditorMode>, default: 'script' },
+    /** 数据处理函数弹窗打开时传入当前组件：对象树的「组件」部分只显示它 */
+    widget: { type: Object as PropType<WidgetInstance | undefined>, default: undefined }
   },
   emits: {
     close: () => true,
@@ -53,6 +57,11 @@ export default defineComponent({
     const draft = ref('')
     const edRef = ref<{ textarea?: HTMLTextAreaElement }>()
     const find = reactive({ text: '', replace: '', whole: false, count: -1 })
+    const findShow = ref(false)
+    const openFind = (which: 'find' | 'replace') => {
+      findShow.value = true
+      setTimeout(() => (which === 'find' ? findInputRef.value?.focus?.() : replaceInputRef.value?.focus?.()), 60)
+    }
     const checkMsg = ref<{ ok: boolean; text: string } | null>(null)
     const findInputRef = ref<{ focus?: () => void }>()
     const replaceInputRef = ref<{ focus?: () => void }>()
@@ -239,7 +248,8 @@ export default defineComponent({
               { key: 'a6', label: 'value', insert: 'value' },
               { key: 'a7', label: 'point', insert: 'point' }
             ]
-      const widgets: TreeOption[] = scada.current.widgets.map(w => {
+      const widgetSource = props.widget ? [props.widget] : scada.current.widgets
+      const widgets: TreeOption[] = widgetSource.map(w => {
         // 节点文案: 组件类型中文名 + (自定义命名) + id 前 4 位省略号
         const typeName = getWidgetDefinition(w.type)?.label() || w.type
         const named = (w.title || '').trim()
@@ -264,9 +274,28 @@ export default defineComponent({
         getCode: mode === 'script' ? `scada.value('${v.key}', 'local')` : `ctx.get('${v.key}', 'local')`,
         setCode: mode === 'script' ? `scada.write('${v.key}', '', 'local')` : undefined
       })) as TreeOption[]
+      // 产品数据源(系统配置的产品分类数据)按分组建子树; 写值接口后端尚未完善, 先按可写生成代码
+      const prodOpts = getDataSource(PRODUCT_SOURCE_ID)?.options() || []
+      const prodLeaf = (o: { key: string; label: string }) => ({
+        key: 'p:' + o.key,
+        label: o.label || o.key,
+        insert: mode === 'script' ? `scada.value('${o.key}', '${PRODUCT_SOURCE_ID}')` : `ctx.get('${o.key}', '${PRODUCT_SOURCE_ID}')`,
+        getCode: mode === 'script' ? `scada.value('${o.key}', '${PRODUCT_SOURCE_ID}')` : `ctx.get('${o.key}', '${PRODUCT_SOURCE_ID}')`,
+        setCode: mode === 'script' ? `scada.write('${o.key}', '', '${PRODUCT_SOURCE_ID}')` : undefined
+      })
+      const prodGroups = Array.from(new Set(prodOpts.map(o => o.group).filter((g): g is string => !!g)))
+      const product: TreeOption[] = [
+        ...prodGroups.map(g => ({
+          key: 'pg:' + g,
+          label: g,
+          children: prodOpts.filter(o => o.group === g).map(prodLeaf)
+        })),
+        ...prodOpts.filter(o => !o.group).map(prodLeaf)
+      ] as TreeOption[]
       return [
         { key: 'api', label: tt('scada.editor.api'), children: api },
         { key: 'widgets', label: tt('scada.editor.widgets'), children: widgets },
+        { key: 'product', label: getDataSource(PRODUCT_SOURCE_ID)?.label() || PRODUCT_SOURCE_ID, children: product },
         { key: 'vars', label: tt('scada.editor.localVars'), children: vars }
       ] as TreeOption[]
     })
@@ -313,8 +342,8 @@ export default defineComponent({
       const k = e.key.toLowerCase()
       const run = (fn: () => void) => { e.preventDefault(); e.stopPropagation(); fn() }
       if (k === 's') run(doSave)
-      else if (k === 'f') run(() => findInputRef.value?.focus?.())
-      else if (k === 'r') run(() => replaceInputRef.value?.focus?.())
+      else if (k === 'f') run(() => openFind('find'))
+      else if (k === 'r') run(() => openFind('replace'))
       else if (k === 'i') run(doIndent)
       else if (k === 'b') run(doOutdent)
       else if (k === "'") run(doComment)
@@ -373,6 +402,43 @@ export default defineComponent({
                 {sep()}
                 {tbtn(SpellcheckRound, doCheck, tt('scada.editor.check') + ' Ctrl+E')}
                 {sep()}
+                <NPopover
+                  trigger="manual"
+                  show={findShow.value}
+                  placement="bottom-start"
+                  style={{ padding: '10px' }}
+                  onClickoutside={() => (findShow.value = false)}
+                >
+                  {{
+                    trigger: () => (
+                      <NButton size="small" quaternary circle title={tt('scada.editor.find') + ' Ctrl+F / Ctrl+R'} onClick={() => openFind('find')}>
+                        {{ icon: () => <NIcon size={20} component={SearchRound} /> }}
+                      </NButton>
+                    ),
+                    default: () => (
+                      <div class={'flex flex-col gap-1.5'} style={{ width: '320px' }}>
+                        <div class={'flex gap-1'}>
+                          <NInput ref={findInputRef} size="small" class={'flex-1 min-w-0'} value={find.text} placeholder={tt('scada.editor.searchPlaceholder')}
+                            onUpdateValue={(v: string) => { find.text = v; find.count = -1 }} onKeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') doFindNext() }} />
+                          <NButton size="small" onClick={doFindNext} disabled={!find.text}>{tt('scada.editor.findNext')}</NButton>
+                        </div>
+                        <div class={'flex gap-1'}>
+                          <NInput ref={replaceInputRef} size="small" class={'flex-1 min-w-0'} value={find.replace} placeholder={tt('scada.editor.replacePlaceholder')}
+                            onUpdateValue={(v: string) => (find.replace = v)} />
+                          <NButton size="small" onClick={doReplaceOne} disabled={!find.text}>{tt('scada.editor.replaceOne')}</NButton>
+                          <NButton size="small" onClick={doReplaceAll} disabled={!find.text}>{tt('scada.editor.replaceAll')}</NButton>
+                        </div>
+                        <div class={'flex items-center justify-between'}>
+                          <NCheckbox size="small" checked={find.whole} onUpdateChecked={(v: boolean) => { find.whole = v; find.count = -1 }}>
+                            <span class={'text-xs'}>{tt('scada.editor.wholeWord')}</span>
+                          </NCheckbox>
+                          <span class={'text-xs text-gray-500'}>{find.count >= 0 ? `${tt('scada.editor.found')}: ${find.count}` : ''}</span>
+                        </div>
+                      </div>
+                    )
+                  }}
+                </NPopover>
+                {sep()}
                 <NDropdown trigger="click" options={blockOptions} onSelect={(k: string) => { const b = BLOCKS.find(x => x.key === k); if (b) insertText(b.code) }}>
                   {dbtn(DataObjectRound, tt('scada.editor.block'))}
                 </NDropdown>
@@ -390,46 +456,26 @@ export default defineComponent({
                 <div class={'flex-1 min-w-0'}>
                   <CodeEditor ref={edRef} value={draft.value} language="js" lineNumbers placeholder={'// JS'} onUpdateValue={(v: string) => (draft.value = v)} />
                 </div>
-                <div class={'w-[250px] shrink-0 flex flex-col gap-1.5 min-h-0'}>
-                  <div class={'text-xs text-gray-600'}>{tt('scada.editor.find')}</div>
-                  <div class={'flex gap-1'}>
-                    <NInput ref={findInputRef} size="small" class={'flex-1 min-w-0'} value={find.text} placeholder={tt('scada.editor.searchPlaceholder')}
-                      onUpdateValue={(v: string) => { find.text = v; find.count = -1 }} onKeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') doFindNext() }} />
-                    <NButton size="small" onClick={doFindNext} disabled={!find.text}>{tt('scada.editor.findNext')}</NButton>
+                {props.mode !== 'plain' && (
+                  <div class={'w-[250px] shrink-0 flex flex-col gap-1.5 min-h-0'}>
+                    <div class={'text-xs text-gray-600'}>{tt('scada.editor.objects')}</div>
+                    <div class={'flex-1 min-h-0 border border-solid border-gray-200 rounded'}>
+                      <NScrollbar class={'h-full'}>
+                        <NTree blockLine selectable={false} expandOnClick data={treeData.value} nodeProps={nodeProps as never} />
+                        <NDropdown
+                          trigger="manual"
+                          placement="bottom-start"
+                          show={treeMenu.show}
+                          x={treeMenu.x}
+                          y={treeMenu.y}
+                          options={treeMenuOptions.value}
+                          onClickoutside={() => (treeMenu.show = false)}
+                          onSelect={onTreeMenuSelect}
+                        />
+                      </NScrollbar>
+                    </div>
                   </div>
-                  <div class={'flex gap-1'}>
-                    <NInput ref={replaceInputRef} size="small" class={'flex-1 min-w-0'} value={find.replace} placeholder={tt('scada.editor.replacePlaceholder')}
-                      onUpdateValue={(v: string) => (find.replace = v)} />
-                    <NButton size="small" onClick={doReplaceOne} disabled={!find.text}>{tt('scada.editor.replaceOne')}</NButton>
-                    <NButton size="small" onClick={doReplaceAll} disabled={!find.text}>{tt('scada.editor.replaceAll')}</NButton>
-                  </div>
-                  <div class={'flex items-center justify-between'}>
-                    <NCheckbox size="small" checked={find.whole} onUpdateChecked={(v: boolean) => { find.whole = v; find.count = -1 }}>
-                      <span class={'text-xs'}>{tt('scada.editor.wholeWord')}</span>
-                    </NCheckbox>
-                    <span class={'text-xs text-gray-500'}>{find.count >= 0 ? `${tt('scada.editor.found')}: ${find.count}` : ''}</span>
-                  </div>
-                  {props.mode !== 'plain' && (
-                    <>
-                      <div class={'text-xs text-gray-600 mt-1'}>{tt('scada.editor.objects')}</div>
-                      <div class={'flex-1 min-h-0 border border-solid border-gray-200 rounded'}>
-                        <NScrollbar class={'h-full'}>
-                          <NTree blockLine selectable={false} expandOnClick data={treeData.value} nodeProps={nodeProps as never} />
-                          <NDropdown
-                            trigger="manual"
-                            placement="bottom-start"
-                            show={treeMenu.show}
-                            x={treeMenu.x}
-                            y={treeMenu.y}
-                            options={treeMenuOptions.value}
-                            onClickoutside={() => (treeMenu.show = false)}
-                            onSelect={onTreeMenuSelect}
-                          />
-                        </NScrollbar>
-                      </div>
-                    </>
-                  )}
-                </div>
+                )}
               </div>
               {/* 状态栏：检查结果 */}
               {checkMsg.value && (
