@@ -184,6 +184,11 @@ export interface WidgetDefinition {
   minSize?: { w: number; h: number }
   /** 是否需要绑定数据；false 表示绑定可选（如文本标签：不绑定显示静态文字，绑定后显示数据 / 处理函数的输出） */
   needsBinding: boolean
+  /**
+   * 多数据绑定（如标准趋势）：属性面板「数据绑定」区块改为绑定列表，复用同一个数据项选择浮窗逐个添加，
+   * 绑定存在 widget.props.bindings（DataBinding[]），与单绑定的 widget.binding 互不相干
+   */
+  multiBinding?: boolean
   /** >0 时宿主保留最近 N 个数值传给组件（迷你趋势用） */
   keepHistory?: number
   defaultProps: () => Record<string, any>

@@ -1,18 +1,20 @@
 /**
  * 标准趋势：可绑定多个数据项的时间趋势图（迷你趋势的完整版）。
- *  - 数据项来自所选数据源，多选；组件自己按秒采样维护每条曲线的历史（带时间戳，与宿主 history 无关）；
+ *  - 多数据绑定：绑定列表存在 props.bindings（DataBinding[]），由属性面板复用数据项选择浮窗逐个添加，
+ *    每条绑定记录自己的数据源，组件按绑定各自订阅 / 读取；
+ *  - 组件自己按秒采样维护每条曲线的历史（带时间戳，与宿主 history 无关）；
  *  - 明确的 X / Y 坐标轴：X 轴为时间轴（显示格式可自定义，YYYY MM DD HH mm ss 令牌），Y 轴为数值轴，带刻度和网格线；
- *  - 公差线：取第一个数据项的上 / 下限画横向虚线，公差值直接标注在对应虚线旁。
+ *  - 公差线：取第一条绑定的上 / 下限画横向虚线，公差值直接标注在对应虚线旁。
  */
 import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { formatValue } from '../geometry'
-import { dataSourceList, getDataSource } from '../dataSource'
-import type { DataPoint, WidgetDefinition } from '../types'
+import { getDataSource } from '../dataSource'
+import type { DataBinding, DataPoint, WidgetDefinition } from '../types'
 import { STATUS_COLORS, tt, widgetProps } from './common'
 import { formatDate } from './controlCommon'
 import { icons } from './icons'
 
-/** 曲线调色板（按数据项顺序取色，循环使用） */
+/** 曲线调色板（按绑定顺序取色，循环使用） */
 const SERIES_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#f59e0b', '#7c3aed', '#0891b2', '#be185d', '#4b5563']
 
 const LEGEND_H = 22
@@ -26,58 +28,65 @@ interface TrendSample {
   v: number
 }
 
+const bufKey = (b: DataBinding) => `${b.source}|${b.key}`
+
 const Trend = defineComponent({
   name: 'ScadaTrend',
   props: widgetProps,
   setup(props) {
     const p = computed(() => props.widget.props)
-    const provider = computed(() => getDataSource(p.value.source) || dataSourceList()[0])
-    const keys = computed<string[]>(() => (Array.isArray(p.value.items) ? p.value.items.filter((k: unknown): k is string => typeof k === 'string' && !!k) : []))
+    const bindings = computed<DataBinding[]>(() =>
+      Array.isArray(p.value.bindings) ? (p.value.bindings as DataBinding[]).filter(b => b && typeof b === 'object' && !!b.source && !!b.key) : []
+    )
     const spanMs = computed(() => Math.max(5, Number(p.value.timeSpan) || 60) * 1000)
+    const readOf = (b: DataBinding): DataPoint | undefined => getDataSource(b.source)?.read(b.key)
+    /** 图例 / 提示用名称：数据源里的当前名称优先，数据项已被删时退回绑定时记下的名称 */
+    const labelOf = (b: DataBinding) => {
+      const opt = getDataSource(b.source)?.options().find(o => o.key === b.key)
+      return opt ? opt.label : b.label || b.key
+    }
 
     // ---- 自己维护带时间戳的历史：每秒采样一次当前值
     const buffers = new Map<string, TrendSample[]>()
     const rev = ref(0)
     const now = ref(Date.now())
 
-    // ---- 订阅所选数据项（与表格组件相同的按需订阅模式）
+    // ---- 按绑定订阅（每条绑定各自的数据源；与表格组件相同的按需订阅模式）
     let unsubs: (() => void)[] = []
-    let prevProviderId = ''
     const clearSubs = () => {
       unsubs.forEach(u => u())
       unsubs = []
     }
     watch(
-      () => `${provider.value?.id || ''}|${keys.value.join(',')}`,
+      () => bindings.value.map(bufKey).join(','),
       () => {
         clearSubs()
-        const prov = provider.value
-        if (prov && prov.subscribe) unsubs = keys.value.map(k => prov.subscribe!(k))
-        // 数据源变了全部作废；数据项变了只丢弃被移除的曲线
-        const pid = prov?.id || ''
-        if (pid !== prevProviderId) buffers.clear()
-        else Array.from(buffers.keys()).forEach(k => { if (!keys.value.includes(k)) buffers.delete(k) })
-        prevProviderId = pid
+        unsubs = bindings.value
+          .map(b => getDataSource(b.source)?.subscribe?.(b.key))
+          .filter((u): u is () => void => typeof u === 'function')
+        // 被移除的绑定丢弃对应曲线
+        const keep = new Set(bindings.value.map(bufKey))
+        Array.from(buffers.keys()).forEach(k => { if (!keep.has(k)) buffers.delete(k) })
         rev.value++
       },
       { immediate: true }
     )
+
     const sample = () => {
-      const prov = provider.value
       now.value = Date.now()
-      if (!prov) return
       let changed = false
-      keys.value.forEach(k => {
-        const pt = prov.read(k)
+      bindings.value.forEach(b => {
+        const pt = readOf(b)
         const v = pt && typeof pt.value === 'number' && Number.isFinite(pt.value) ? pt.value : null
         if (v === null) return
+        const k = bufKey(b)
         let buf = buffers.get(k)
         if (!buf) {
           buf = []
           buffers.set(k, buf)
         }
         const last = buf[buf.length - 1]
-        // 同一次更新（时间戳相同）不重复记录；值变化或到了新周期才追加
+        // 同一次更新（时间戳相同且值未变）不重复记录
         const t = pt?.time && pt.time > 0 ? pt.time : now.value
         if (last && last.t === t && last.v === v) return
         buf.push({ t, v })
@@ -117,8 +126,7 @@ const Trend = defineComponent({
       const y1 = Math.max(y0 + 10, h - MB)
       const t1 = now.value
       const t0 = t1 - spanMs.value
-      const prov = provider.value
-      const firstPoint: DataPoint | undefined = prov && keys.value.length ? prov.read(keys.value[0]) : undefined
+      const firstPoint = bindings.value.length ? readOf(bindings.value[0]) : undefined
       const showLimits = p.value.showLimits !== false
       const upper = showLimits ? firstPoint?.upper : undefined
       const lower = showLimits ? firstPoint?.lower : undefined
@@ -126,8 +134,8 @@ const Trend = defineComponent({
 
       // Y 轴范围：窗口内全部采样值 + 公差线
       const vals: number[] = []
-      keys.value.forEach(k => {
-        const buf = buffers.get(k)
+      bindings.value.forEach(b => {
+        const buf = buffers.get(bufKey(b))
         if (buf) buf.forEach(s => { if (s.t >= t0 - 1000) vals.push(s.v) })
       })
       if (upper !== undefined) vals.push(upper)
@@ -148,10 +156,10 @@ const Trend = defineComponent({
       const yOf = (v: number) => y1 - ((v - min) / (max - min)) * (y1 - y0)
 
       // 曲线
-      const lines = keys.value.map((k, i) => {
-        const buf = (buffers.get(k) || []).filter(s => s.t >= t0 && s.t <= t1)
+      const lines = bindings.value.map((b, i) => {
+        const buf = (buffers.get(bufKey(b)) || []).filter(s => s.t >= t0 && s.t <= t1)
         return {
-          key: k,
+          key: bufKey(b),
           color: SERIES_COLORS[i % SERIES_COLORS.length],
           pts: buf.map(s => `${xOf(s.t).toFixed(1)},${yOf(s.v).toFixed(1)}`).join(' ')
         }
@@ -173,26 +181,21 @@ const Trend = defineComponent({
 
     return () => {
       const g = geometry.value
-      const prov = provider.value
       const lw = Number(p.value.lineWidth) || 2
       const dec = decimalsOf(g.firstPoint)
       const limitLabel = (v: number) => formatValue(v, dec)
-      const optLabel = (k: string) => {
-        const o = prov?.options().find(e => e.key === k)
-        return o ? o.label : k
-      }
       return (
         <div class={'w-full h-full flex flex-col rounded-md overflow-hidden border border-solid border-gray-300'}
           style={{ background: p.value.bg || '#ffffff', color: p.value.fg || '#1f2937' }} data-scada-trend>
           {g.showLegend && (
             <div class={'px-2 flex items-center gap-3 overflow-hidden shrink-0 text-xs'} style={{ height: LEGEND_H + 'px' }}>
-              {keys.value.length ? (
-                keys.value.map((k, i) => {
-                  const pt = prov?.read(k)
+              {bindings.value.length ? (
+                bindings.value.map((b, i) => {
+                  const pt = readOf(b)
                   return (
-                    <span key={k} class={'flex items-center gap-1 min-w-0 shrink'} title={optLabel(k)}>
+                    <span key={bufKey(b)} class={'flex items-center gap-1 min-w-0 shrink'} title={labelOf(b)}>
                       <span class={'shrink-0 rounded-full'} style={{ width: '8px', height: '8px', background: SERIES_COLORS[i % SERIES_COLORS.length] }} />
-                      <span class={'truncate'}>{optLabel(k)}</span>
+                      <span class={'truncate'}>{labelOf(b)}</span>
                       <span class={'shrink-0 font-bold value-number'}>
                         {pt && pt.value !== null && pt.value !== undefined ? formatValue(pt.value, dec) : '--'}{pt?.unit ? ' ' + pt.unit : ''}
                       </span>
@@ -263,16 +266,9 @@ export const trendDefinition: WidgetDefinition = {
   defaultSize: { w: 420, h: 240 },
   minSize: { w: 160, h: 100 },
   needsBinding: false,
-  defaultProps: () => ({ source: 'product', items: [], timeSpan: 60, timeFormat: 'HH:mm:ss', showLegend: true, showLimits: true, lineWidth: 2, decimals: null, bg: '#ffffff', fg: '#1f2937' }),
+  multiBinding: true,
+  defaultProps: () => ({ bindings: [], timeSpan: 60, timeFormat: 'HH:mm:ss', showLegend: true, showLimits: true, lineWidth: 2, decimals: null, bg: '#ffffff', fg: '#1f2937' }),
   propSchema: [
-    { key: 'source', label: () => tt('scada.panel.source'), type: 'select', options: () => dataSourceList().map(s => ({ label: s.label(), value: s.id })) },
-    {
-      key: 'items', label: () => tt('scada.prop.trendItems'), type: 'multiselect', placeholder: () => tt('scada.prop.trendItemsPlaceholder'),
-      options: w => {
-        const prov = getDataSource(w?.props.source) || dataSourceList()[0]
-        return prov ? prov.options().map(o => ({ label: o.group ? `${o.group} · ${o.label}` : o.label, value: o.key })) : []
-      }
-    },
     { key: 'timeSpan', label: () => tt('scada.prop.timeSpan'), type: 'number', min: 5, max: 86400, step: 1 },
     { key: 'timeFormat', label: () => tt('scada.prop.timeFormat'), type: 'text', placeholder: 'HH:mm:ss' },
     { key: 'showLegend', label: () => tt('scada.prop.showLegend'), type: 'boolean' },

@@ -24,7 +24,7 @@ import CodeDialog, { codeParts } from './CodeDialog'
 import BindingPickerDialog from './BindingPickerDialog'
 import FontField from './FontField'
 import { FONT_FAMILY_KEY } from './fonts'
-import type { PropField, WidgetInstance } from './types'
+import type { DataBinding, PropField, WidgetInstance } from './types'
 import { LOCAL_SOURCE_ID } from './variables'
 import { tt } from './widgets/common'
 
@@ -112,6 +112,18 @@ export default defineComponent({
       if (opt) return opt.unit ? `${opt.label} (${opt.unit})` : opt.label
       return `${b.label || b.key} (${tt('scada.panel.missing')})`
     }
+
+    // ---------------------------------------------------------------- 多数据绑定（definition.multiBinding，如标准趋势）
+    /** 多绑定列表存在 props.bindings，复用同一个数据项选择浮窗逐个添加 */
+    const multiBindings = (w: WidgetInstance): DataBinding[] => (Array.isArray(w.props.bindings) ? (w.props.bindings as DataBinding[]) : [])
+    const multiBindingLabel = (b: DataBinding) => {
+      const prov = getDataSource(b.source)
+      const opt = prov?.options().find(o => o.key === b.key)
+      if (opt) return opt.unit ? `${opt.label} (${opt.unit})` : opt.label
+      return `${b.label || b.key} (${tt('scada.panel.missing')})`
+    }
+    const removeMultiBinding = (w: WidgetInstance, idx: number) =>
+      scada.setWidgetProp(w.id, 'bindings', multiBindings(w).filter((_, i) => i !== idx))
 
     /** 位置 / 尺寸输入：显示的是画面上的外框（旋转 90° / 270° 时宽高互换），写回时换算成组件的 x / y / w / h */
     const setRect = (key: 'x' | 'y' | 'w' | 'h', v: number | null) => {
@@ -242,27 +254,51 @@ export default defineComponent({
               <NSwitch size="small" value={!!w.locked} data-scada-lock-switch onUpdateValue={(v: boolean) => scada.setLocked([w.id], v)} />
             </Row>
           </Section>
-          <Section sid="binding" title={tt('scada.panel.binding') + (optionalBinding ? tt('scada.panel.optional') : '')}>
-            <Row label={tt('scada.panel.source')}>
-              {/* 纯显示框：数据源跟随选择浮窗里选中的数据项自动更新，不在这里切换 */}
-              <div class={'h-[28px] px-2 flex items-center text-xs text-gray-700 bg-gray-50 border border-solid border-gray-200 rounded truncate'} data-scada-binding-source title={getDataSource(sourceId.value)?.label() || ''}>
-                {getDataSource(sourceId.value)?.label() || '—'}
-              </div>
-            </Row>
-            <Row label={tt('scada.panel.item')}>
-              {/* 点按钮弹出 HMI 风格的数据项选择浮窗（左侧分组树 + 右侧表格 + 名称列下的快速过滤） */}
-              <div class={'flex items-center gap-1 min-w-0'}>
-                <NButton size="small" class={'flex-1 min-w-0 justify-start'} data-scada-binding-pick onClick={() => (pickerShow.value = true)}>
-                  <span class={'truncate ' + (bindingText(w) ? '' : 'text-gray-400 font-normal')}>{bindingText(w) || tt('scada.panel.selectPlaceholder')}</span>
+          <Section sid="binding" title={tt('scada.panel.binding') + (optionalBinding && !def?.multiBinding ? tt('scada.panel.optional') : '')}>
+            {def?.multiBinding ? (
+              /* 多数据绑定（如标准趋势）：绑定列表 + 复用数据项选择浮窗逐个添加 */
+              <div data-scada-multi-binding>
+                {multiBindings(w).map((b, i) => (
+                  <div key={`${b.source}|${b.key}`} class={'flex items-center gap-1 min-w-0 mb-1'} data-scada-binding-row={b.key}>
+                    <div
+                      class={'flex-1 min-w-0 h-[28px] px-2 flex items-center text-xs text-gray-700 bg-gray-50 border border-solid border-gray-200 rounded truncate'}
+                      title={`${getDataSource(b.source)?.label() || b.source} · ${multiBindingLabel(b)}`}
+                    >
+                      {multiBindingLabel(b)}
+                    </div>
+                    <NButton size="small" quaternary circle data-scada-binding-remove onClick={() => removeMultiBinding(w, i)}>
+                      ✕
+                    </NButton>
+                  </div>
+                ))}
+                <NButton size="small" dashed block data-scada-binding-add onClick={() => (pickerShow.value = true)}>
+                  + {tt('scada.panel.item')}
                 </NButton>
-                {w.binding ? (
-                  <NButton size="small" quaternary circle data-scada-binding-clear onClick={() => scada.setBinding(w.id, null)}>
-                    ✕
-                  </NButton>
-                ) : null}
               </div>
-            </Row>
-            {sourceEmpty.value && <div class={'text-xs text-orange-500 mt-1'}>{tt('scada.panel.noOptions')}</div>}
+            ) : (
+              <>
+                <Row label={tt('scada.panel.source')}>
+                  {/* 纯显示框：数据源跟随选择浮窗里选中的数据项自动更新，不在这里切换 */}
+                  <div class={'h-[28px] px-2 flex items-center text-xs text-gray-700 bg-gray-50 border border-solid border-gray-200 rounded truncate'} data-scada-binding-source title={getDataSource(sourceId.value)?.label() || ''}>
+                    {getDataSource(sourceId.value)?.label() || '—'}
+                  </div>
+                </Row>
+                <Row label={tt('scada.panel.item')}>
+                  {/* 点按钮弹出 HMI 风格的数据项选择浮窗（左侧分组树 + 右侧表格 + 名称列下的快速过滤） */}
+                  <div class={'flex items-center gap-1 min-w-0'}>
+                    <NButton size="small" class={'flex-1 min-w-0 justify-start'} data-scada-binding-pick onClick={() => (pickerShow.value = true)}>
+                      <span class={'truncate ' + (bindingText(w) ? '' : 'text-gray-400 font-normal')}>{bindingText(w) || tt('scada.panel.selectPlaceholder')}</span>
+                    </NButton>
+                    {w.binding ? (
+                      <NButton size="small" quaternary circle data-scada-binding-clear onClick={() => scada.setBinding(w.id, null)}>
+                        ✕
+                      </NButton>
+                    ) : null}
+                  </div>
+                </Row>
+              </>
+            )}
+            {sourceEmpty.value && !def?.multiBinding && <div class={'text-xs text-orange-500 mt-1'}>{tt('scada.panel.noOptions')}</div>}
             {/* 内部变量可以增删改名：从这里直接打开管理弹窗 */}
             {sourceId.value === LOCAL_SOURCE_ID ? (
               <div class={'mt-1'}>
@@ -451,12 +487,21 @@ export default defineComponent({
         <BindingPickerDialog
           show={pickerShow.value && !!selected.value}
           sourceId={sourceId.value}
-          value={selected.value?.binding || null}
+          value={definition.value?.multiBinding ? null : selected.value?.binding || null}
           onClose={() => (pickerShow.value = false)}
           onApply={(b: { source: string; key: string; label?: string }) => {
-            if (!selected.value) return
+            const w = selected.value
+            if (!w) return
             sourceId.value = b.source
-            scada.setBinding(selected.value.id, b)
+            if (definition.value?.multiBinding) {
+              // 多数据绑定：追加到 props.bindings（同一数据项不重复添加）
+              const list = multiBindings(w)
+              if (!list.some(e => e.source === b.source && e.key === b.key)) {
+                scada.setWidgetProp(w.id, 'bindings', [...list, { source: b.source, key: b.key, label: b.label }])
+              }
+            } else {
+              scada.setBinding(w.id, b)
+            }
           }}
         />
         <TransformDialog show={transformShow.value} widget={selected.value} onClose={() => (transformShow.value = false)} />
