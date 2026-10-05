@@ -251,14 +251,18 @@ export default defineComponent({
         children: Object.keys(w.props || {}).map(k => ({
           key: `w:${w.id}:${k}`,
           label: k,
-          insert: mode === 'script' ? `scada.getProp('${w.id}', '${k}')` : `ctx.setProp('${k}', '')`
+          insert: mode === 'script' ? `scada.getProp('${w.id}', '${k}')` : `ctx.widget.props['${k}']`,
+          getCode: mode === 'script' ? `scada.getProp('${w.id}', '${k}')` : `ctx.widget.props['${k}']`,
+          setCode: mode === 'script' ? `scada.setProp('${w.id}', '${k}', 0)` : `ctx.setProp('${k}', 0)`
         }))
         }
       }) as TreeOption[]
       const vars: TreeOption[] = scada.variables.map(v => ({
         key: 'v:' + v.key,
         label: (v.name || '').trim() ? `${v.name} · ${v.key}` : v.key,
-        insert: mode === 'script' ? `scada.read('${v.key}', 'local')` : `ctx.get('${v.key}', 'local')`
+        insert: mode === 'script' ? `scada.value('${v.key}', 'local')` : `ctx.get('${v.key}', 'local')`,
+        getCode: mode === 'script' ? `scada.value('${v.key}', 'local')` : `ctx.get('${v.key}', 'local')`,
+        setCode: mode === 'script' ? `scada.write('${v.key}', 0, 'local')` : undefined
       })) as TreeOption[]
       return [
         { key: 'api', label: tt('scada.editor.api'), children: api },
@@ -266,8 +270,31 @@ export default defineComponent({
         { key: 'vars', label: tt('scada.editor.localVars'), children: vars }
       ] as TreeOption[]
     })
-    const nodeProps = ({ option }: { option: TreeOption & { insert?: string } }) => ({
+    /** 对象树右键菜单：组件属性 / 内部变量节点分「取值」「写值」插入不同代码 */
+    const treeMenu = reactive({ show: false, x: 0, y: 0, getCode: '', setCode: '' })
+    const treeMenuOptions = computed<DropdownOption[]>(() => {
+      const list: DropdownOption[] = []
+      if (treeMenu.getCode) list.push({ key: 'get', label: tt('scada.editor.menuGet') })
+      if (treeMenu.setCode) list.push({ key: 'set', label: tt('scada.editor.menuSet') })
+      return list
+    })
+    const onTreeMenuSelect = (key: string | number) => {
+      treeMenu.show = false
+      const code = key === 'set' ? treeMenu.setCode : treeMenu.getCode
+      if (code) insertText(code)
+    }
+    const nodeProps = ({ option }: { option: TreeOption & { insert?: string; getCode?: string; setCode?: string } }) => ({
       ondblclick: () => { if (option.insert) insertText(option.insert) },
+      oncontextmenu: (e: MouseEvent) => {
+        if (!option.getCode && !option.setCode) return
+        e.preventDefault()
+        e.stopPropagation()
+        treeMenu.getCode = option.getCode || ''
+        treeMenu.setCode = option.setCode || ''
+        treeMenu.x = e.clientX
+        treeMenu.y = e.clientY
+        treeMenu.show = true
+      },
       title: option.insert || '',
       style: option.insert ? { cursor: 'pointer' } : undefined
     })
@@ -388,6 +415,16 @@ export default defineComponent({
                       <div class={'flex-1 min-h-0 border border-solid border-gray-200 rounded'}>
                         <NScrollbar class={'h-full'}>
                           <NTree blockLine selectable={false} expandOnClick data={treeData.value} nodeProps={nodeProps as never} />
+                          <NDropdown
+                            trigger="manual"
+                            placement="bottom-start"
+                            show={treeMenu.show}
+                            x={treeMenu.x}
+                            y={treeMenu.y}
+                            options={treeMenuOptions.value}
+                            onClickoutside={() => (treeMenu.show = false)}
+                            onSelect={onTreeMenuSelect}
+                          />
                         </NScrollbar>
                       </div>
                     </>
