@@ -46,7 +46,7 @@ import { createEmptyLayout, LAYOUT_VERSION } from './layout'
 import { getWidgetDefinition } from './registry'
 import { cleanupUnusedResources } from './resource'
 import { getLayoutStorage } from './storage'
-import type { CanvasConfig, DataBinding, LocalVarDef, ScadaLayout, WidgetInstance, WidgetRect } from './types'
+import type { CanvasConfig, DataBinding, LocalVarDef, ScadaLayout, ScadaScripts, WidgetInstance, WidgetRect } from './types'
 import { defaultVariables, nextVarSeq, sanitizeVariables, unbindVariables } from './variables'
 
 const DEFAULT_MIN = { w: 20, h: 20 }
@@ -167,6 +167,7 @@ const HISTORY_ACTIONS: Record<string, (args: any[], store: any) => HistorySpec> 
   updateWidget: a => ({ merge: `upd:${a[0]}:${keysOf(a[1])}` }),
   setWidgetProp: a => ({ merge: `prop:${a[0]}:${a[1]}` }),
   setCanvas: a => ({ merge: `canvas:${keysOf(a[0])}` }),
+  setScripts: a => ({ merge: `scripts:${keysOf(a[0])}` }),
   updateWidgetRect: a => ({ merge: `rect:${a[0]}` }),
   setRotation: a => ({ merge: `rot:${a[0]}` }),
   nudgeSelection: (_a, s) => ({ merge: `nudge:${s.selectedIds.join(',')}`, window: 600 }),
@@ -846,6 +847,12 @@ export const useScadaStore = defineStore('scada', {
       if (!this.draft) return
       this.draft.widgets = []
       this.selectedIds = []
+      this.dirty = true
+    },
+    /** 画布级全局脚本（启动 / 循环 / 结束 / 循环间隔）：存在布局里，随保存 / 导出 / 撤销 */
+    setScripts(patch: Partial<ScadaScripts>) {
+      if (!this.draft) return
+      this.draft.scripts = { ...(this.draft.scripts || {}), ...patch }
       this.dirty = true
     },
     setCanvas(patch: Partial<CanvasConfig>) {

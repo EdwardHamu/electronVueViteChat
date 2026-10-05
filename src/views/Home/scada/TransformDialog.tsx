@@ -9,6 +9,7 @@ import { getDataSource } from './dataSource'
 import { formatValue } from './geometry'
 import { getWidgetDefinition } from './registry'
 import { useScadaStore } from './store'
+import { resolveParam } from './runtime'
 import { compileTransform, runTransform, TRANSFORM_EXAMPLES, type TransformContext } from './transform'
 import type { DataPoint, WidgetInstance } from './types'
 import { tt } from './widgets/common'
@@ -70,7 +71,19 @@ export default defineComponent({
       const w = props.widget
       const c = compiled.value
       if (!w || !c.source) return null
-      const ctx: TransformContext = { widget: w, history: [], state: previewState, prev: previewPrev, now: Date.now() }
+      const ctx: TransformContext = {
+        widget: w,
+        history: [],
+        state: previewState,
+        prev: previewPrev,
+        now: Date.now(),
+        // 预览里 ctx.get 只读不订阅（轮询型数据源可能取到的是旧值）；ctx.setProp 在预览中不生效
+        get: (keyOrName: string, sourceId?: string) => {
+          const ref = resolveParam(keyOrName, sourceId, w.binding?.source)
+          return ref ? ref.prov.read(ref.key) : undefined
+        },
+        setProp: () => {}
+      }
       const r = runTransform(c, rawPoint.value, ctx)
       previewPrev = r.point
       return r

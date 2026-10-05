@@ -22,6 +22,7 @@ import { getWidgetDefinition } from './registry'
 import { FONT_FAMILY_KEY, fontFamilyCss } from './fonts'
 import { toArrangeItem, useScadaStore } from './store'
 import { clearTransformReport, compileTransform, reportTransform, runTransform, type TransformContext } from './transform'
+import { applyRuntime, resolveParam, setRuntimeProp, SubPool } from './runtime'
 import type { DataPoint, WidgetInstance, WidgetRect } from './types'
 import { tt } from './widgets/common'
 
@@ -97,19 +98,32 @@ const WidgetHost = defineComponent({
     let prev: DataPoint | undefined
 
     const compiled = computed(() => compileTransform(props.widget.transform))
+    // ctx.get 读到的其他数据项按需订阅（轮询型数据源才会请求它们）；代码改变 / 卸载时退订
+    const extraSubs = new SubPool()
     watch(
       () => compiled.value.source,
       () => {
         Object.keys(state).forEach(k => delete state[k])
         prev = undefined
+        extraSubs.clear()
       }
     )
+    onBeforeUnmount(() => extraSubs.clear())
+    /** ctx.get：监听 / 读取其他数据项（在 processed 计算属性里调用 → 读到的值是响应式依赖，变化时处理函数自动重新执行） */
+    const ctxGet = (keyOrName: string, sourceId?: string) => {
+      const ref = resolveParam(keyOrName, sourceId, props.widget.binding?.source)
+      if (!ref) return undefined
+      extraSubs.ensure(ref)
+      return ref.prov.read(ref.key)
+    }
+    /** ctx.setProp：对本组件的运行时属性覆盖（展示模式渲染时合并，见下方 Canvas 渲染处的 applyRuntime） */
+    const ctxSetProp = (key: string, value: any) => setRuntimeProp(props.widget.id, key, value)
     /** 交给组件渲染的数据点：原始数据点经过处理函数（若有） */
     const processed = computed(() => {
       const c = compiled.value
       const input = raw.value
       if (!c.fn && !c.error) return { point: input, error: null as string | null }
-      const ctx: TransformContext = { widget: props.widget, history: historyArr, state, prev, now: Date.now() }
+      const ctx: TransformContext = { widget: props.widget, history: historyArr, state, prev, now: Date.now(), get: ctxGet, setProp: ctxSetProp }
       const result = runTransform(c, input, ctx)
       prev = result.point
       return result
@@ -884,7 +898,9 @@ export default defineComponent({
             onPointerup={onPointerUp}
             onPointercancel={onPointerUp}
           >
-            {l.widgets.map(w => {
+            {l.widgets.map(w0 => {
+              // 展示模式合并脚本 / 处理函数的运行时属性覆盖（props + hidden / x / y / w / h）；编辑模式永远用真实值
+              const w = editing ? w0 : applyRuntime(w0)
               const selected = editing && selectedSet.value.has(w.id)
               // 多选时参考对象（最先选中的）用橙色外框，其余蓝色
               const isRef = selected && multi && scada.referenceId === w.id

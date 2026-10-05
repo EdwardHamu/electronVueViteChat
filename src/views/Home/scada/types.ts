@@ -225,6 +225,21 @@ export interface LocalVarDef {
   name: string
 }
 
+/**
+ * 画布级全局脚本（随布局保存）：
+ *  - start 启动脚本：画布进入展示（运行）模式后执行一次；
+ *  - loop  循环脚本：展示模式下按 loopMs 间隔反复执行；
+ *  - end   结束脚本：应用退出前（beforeunload）执行。
+ * 脚本内可用全局对象 scada：read / value / write / widgets / setProp / getProp / state / log（见 scripts.ts）
+ */
+export interface ScadaScripts {
+  start?: string
+  loop?: string
+  end?: string
+  /** 循环脚本执行间隔 ms，默认 1000 */
+  loopMs?: number
+}
+
 export interface ScadaLayout {
   version: number
   canvas: CanvasConfig
@@ -233,5 +248,7 @@ export interface ScadaLayout {
   variables?: LocalVarDef[]
   /** 下一个自动编号（删掉 var17 后新增得到 var18，不复用旧标识） */
   variableSeq?: number
+  /** 画布级全局脚本（启动 / 循环 / 结束） */
+  scripts?: ScadaScripts
   updatedAt?: number
 }

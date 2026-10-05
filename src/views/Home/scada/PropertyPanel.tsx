@@ -22,6 +22,8 @@ import { transformErrors } from './transform'
 import TransformDialog from './TransformDialog'
 import CodeDialog, { codeParts } from './CodeDialog'
 import BindingPickerDialog from './BindingPickerDialog'
+import ScriptDialog from './ScriptDialog'
+import { scriptErrors, type ScriptKind } from './scripts'
 import FontField from './FontField'
 import { FONT_FAMILY_KEY } from './fonts'
 import type { DataBinding, MultiBindingEntry, PropField, WidgetInstance } from './types'
@@ -83,6 +85,8 @@ export default defineComponent({
     const pickerShow = ref(false)
     /** 正在用弹窗编辑的代码字段（自定义组件的 HTML / CSS / JS） */
     const codeField = ref<{ widgetId: string; field: PropField } | null>(null)
+    /** 正在编辑的全局脚本（启动 / 循环 / 结束）；null = 弹窗关闭 */
+    const scriptEdit = ref<ScriptKind | null>(null)
     // 选中项变化 / 退出编辑时关掉弹窗，避免弹窗里的草稿写到别的组件上
     watch(
       () => `${selected.value?.id || ''}|${scada.editing}`,
@@ -481,6 +485,43 @@ export default defineComponent({
               </NPopconfirm>
             </div>
           </Section>
+          {/* 画布级全局脚本：启动（进入展示模式执行一次）/ 循环（展示中按间隔反复执行）/ 结束（应用退出前执行） */}
+          <Section sid="scripts" title={tt('scada.panel.scripts')}>
+            {(['start', 'loop', 'end'] as ScriptKind[]).map(k => {
+              const code = (l.scripts?.[k] || '').trim()
+              return (
+                <Row key={k} label={tt('scada.panel.script' + k.charAt(0).toUpperCase() + k.slice(1))}>
+                  <div class={'flex items-center gap-1 min-w-0'}>
+                    <NButton size="small" class={'flex-1 min-w-0 justify-start'} data-scada-script-edit={k} onClick={() => (scriptEdit.value = k)}>
+                      <span class={'truncate ' + (code ? '' : 'text-gray-400 font-normal')}>
+                        {code ? tt('scada.panel.scriptSet') : tt('scada.panel.scriptNone')}
+                      </span>
+                    </NButton>
+                    {code ? (
+                      <NButton size="small" quaternary circle data-scada-script-clear={k} onClick={() => scada.setScripts({ [k]: '' } as any)}>
+                        ✕
+                      </NButton>
+                    ) : null}
+                  </div>
+                </Row>
+              )
+            })}
+            <Row label={tt('scada.panel.scriptInterval')}>
+              <NInputNumber
+                size="small" min={100} max={60000} step={100}
+                value={Number(l.scripts?.loopMs) > 0 ? Number(l.scripts?.loopMs) : 1000}
+                onUpdateValue={(v: number | null) => v && scada.setScripts({ loopMs: Math.round(v) })}
+              />
+            </Row>
+            {(['start', 'loop', 'end'] as ScriptKind[]).map(k =>
+              scriptErrors[k] ? (
+                <div key={'err' + k} class={'text-xs text-red-500 mt-1 break-all'}>
+                  {tt('scada.panel.script' + k.charAt(0).toUpperCase() + k.slice(1))}: {scriptErrors[k]}
+                </div>
+              ) : null
+            )}
+            <div class={'text-xs text-gray-400 mt-1 whitespace-pre-line leading-4'}>{tt('scada.panel.scriptWhen')}</div>
+          </Section>
           <div class={'px-3 py-3 text-xs text-gray-500 leading-5'}>
             <div>{tt('scada.panel.widgetCount')}: {l.widgets.length}</div>
             <div>{tt('scada.panel.noneSelected')}</div>
@@ -535,6 +576,7 @@ export default defineComponent({
           }}
         />
         <TransformDialog show={transformShow.value} widget={selected.value} onClose={() => (transformShow.value = false)} />
+        <ScriptDialog show={!!scriptEdit.value} kind={scriptEdit.value || 'start'} onClose={() => (scriptEdit.value = null)} />
         <CodeDialog
           show={!!codeField.value && !!selected.value && codeField.value.widgetId === selected.value.id}
           title={`${definition.value ? definition.value.label() : ''} · ${codeField.value ? codeField.value.field.label() : ''}`}

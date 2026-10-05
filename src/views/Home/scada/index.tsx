@@ -32,6 +32,7 @@ import { useMain } from '@/store'
 import ArrangeBar from './ArrangeBar'
 import Canvas, { canvasFocused, canvasHasFocus, canvasView, resetCanvasView, zoomCanvas } from './Canvas'
 import { refreshAllDataSources, startAllDataSources, stopAllDataSources } from './dataSource'
+import { startScripts, stopScripts } from './scripts'
 import ImportDialog from './ImportDialog'
 import LayerPanel from './LayerPanel'
 import { buildPackage, exportPackageViaHost, previewPackageViaHost, type HostPackagePreview } from './package'
@@ -252,6 +253,9 @@ export default defineComponent({
       v => {
         // store 里的 fullscreen 此时已被 save / cancelEdit 清掉，这里是为了把真全屏（若有）一并退出
         if (!v) exitFullscreen()
+        // 全局脚本：进入展示（运行）模式 → 启动脚本 + 循环脚本；回编辑模式 → 停循环（结束脚本只在应用退出前执行）
+        if (v) stopScripts()
+        else startScripts(() => scada.current)
       }
     )
     watch(
@@ -277,6 +281,8 @@ export default defineComponent({
       store.setGlobalKeyBoardBlocked(true)
       startAllDataSources()
       await scada.load(screenSize.w && screenSize.h ? { width: screenSize.w, height: screenSize.h } : undefined)
+      // 布局加载完、数据源已启动：非编辑态（默认展示模式）执行启动脚本并开始循环
+      if (!scada.editing) startScripts(() => scada.current)
     })
     onBeforeUnmount(() => {
       if (ro) ro.disconnect()
@@ -284,6 +290,7 @@ export default defineComponent({
       window.removeEventListener('keydown', onShortcut)
       exitFullscreen()
       store.setGlobalKeyBoardBlocked(false)
+      stopScripts()
       stopAllDataSources()
     })
 

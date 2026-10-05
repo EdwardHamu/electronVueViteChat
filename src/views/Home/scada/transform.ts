@@ -8,8 +8,10 @@
  *   3. 单个表达式：    value * 1000
  *
  * 参数：value = point.value（无数据时为 null），point = 原始数据点（未绑定时为 undefined），
- *       ctx = { widget, history, state, prev, now }，其中 state 是该组件专属的持久对象（可做滑动平均等），
- *       history 是宿主保留的最近 N 个显示值（keepHistory 组件），prev 为上一次处理结果。
+ *       ctx = { widget, history, state, prev, now, get, setProp }，其中 state 是该组件专属的持久对象（可做滑动平均等），
+ *       history 是宿主保留的最近 N 个显示值（keepHistory 组件），prev 为上一次处理结果；
+ *       ctx.get(名称或key, 数据源?) 监听 / 读取其他数据项（自动订阅，变化时函数重新执行），
+ *       ctx.setProp(属性名, 值) 在展示模式下临时修改本组件属性（含 hidden / x / y / w / h）。
  * 返回值：
  *   - undefined            不改动
  *   - null                 清空数值（显示 --）
@@ -30,6 +32,16 @@ export interface TransformContext {
   /** 上一次处理结果 */
   prev: DataPoint | undefined
   now: number
+  /**
+   * 监听 / 读取其他数据项：按 key 或名称查找（可选第二参限定数据源 id），返回 DataPoint（含 value / status 等）。
+   * 宿主会自动按需订阅被读到的数据项，它的值变化时处理函数会重新执行——即「监听某个参数」
+   */
+  get?: (keyOrName: string, sourceId?: string) => DataPoint | undefined
+  /**
+   * 修改本组件的属性（propSchema 里的任意键，以及 hidden / x / y / w / h）。
+   * 只在展示（运行）模式下生效：是临时的运行时覆盖，不写进布局，进入展示模式时重置
+   */
+  setProp?: (key: string, value: any) => void
 }
 
 export type TransformFn = (value: number | null, point: DataPoint | undefined, ctx: TransformContext) => unknown
@@ -222,5 +234,9 @@ export const TRANSFORM_EXAMPLES: { key: string; code: string }[] = [
     key: 'average',
     code: '// 最近 10 个值的滑动平均（ctx.state 在两次调用之间保留）\nconst buf = ctx.state.buf || (ctx.state.buf = [])\nif (value !== null) buf.push(value)\nif (buf.length > 10) buf.shift()\nif (!buf.length) return null\nreturn buf.reduce((a, b) => a + b, 0) / buf.length'
   },
-  { key: 'status', code: "// 自定义报警：大于 5 视为超上限\nreturn { status: value !== null && value > 5 ? 'high' : 'ok' }" }
+  { key: 'status', code: "// 自定义报警：大于 5 视为超上限\nreturn { status: value !== null && value > 5 ? 'high' : 'ok' }" },
+  {
+    key: 'listen',
+    code: "// 监听其他参数并修改本组件属性（展示模式下生效）：\n// var1 > 5 时背景变红、var1 > 10 时隐藏本组件\nconst p = ctx.get('var1')          // 按名称或 key 读取，自动订阅\nconst v = p ? p.value : null\nctx.setProp('bg', v !== null && v > 5 ? '#dc2626' : '')\nctx.setProp('hidden', v !== null && v > 10)\nreturn value"
+  }
 ]

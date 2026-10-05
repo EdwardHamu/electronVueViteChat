@@ -94,6 +94,17 @@ export const normalizeLayout = (raw: any): ScadaLayout | null => {
   })
   // 内部变量定义（任务 60）：没有这个字段的老布局补默认的 var1 ~ var16；有就按它来（可以是空数组 = 用户删光了）
   const variables = sanitizeVariables(raw.variables) || defaultVariables()
+  // 画布级全局脚本：只收字符串，老布局没有该字段则不带
+  const scriptsRaw = raw.scripts && typeof raw.scripts === 'object' ? raw.scripts : null
+  const str = (v: unknown) => (typeof v === 'string' ? v : '')
+  const scripts = scriptsRaw
+    ? {
+        start: str(scriptsRaw.start),
+        loop: str(scriptsRaw.loop),
+        end: str(scriptsRaw.end),
+        loopMs: Number.isFinite(Number(scriptsRaw.loopMs)) && Number(scriptsRaw.loopMs) > 0 ? Number(scriptsRaw.loopMs) : undefined
+      }
+    : undefined
   // let version = num(raw.version, 1)
   // if (version < 2) { ...migrate...; version = 2 }
   return {
@@ -102,6 +113,7 @@ export const normalizeLayout = (raw: any): ScadaLayout | null => {
     widgets,
     variables,
     variableSeq: nextVarSeq(variables, raw.variableSeq),
+    ...(scripts ? { scripts } : {}),
     updatedAt: num(raw.updatedAt, Date.now())
   }
 }
