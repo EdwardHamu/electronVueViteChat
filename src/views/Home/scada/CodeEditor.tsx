@@ -46,14 +46,26 @@ export default defineComponent({
     const rootEl = ref<HTMLElement>()
     const lineHeights = ref<number[]>([])
     let ro: ResizeObserver | null = null
+    let retries = 0
     const measure = () => {
       if (!(props.lineNumbers && props.wrap) || !mirror.value) {
         if (lineHeights.value.length) lineHeights.value = []
         return
       }
+      // 弹窗打开动画是 transform: scale，挂载瞬间 rect 量到的是缩放中的高度，而布局尺寸不变、ResizeObserver 不会再触发。
+      // 用镜像层整体的 rect 高 / offsetHeight 求出当前缩放比例，把每行的 rect 高度除回去，动画中测量也准确。
+      const box = mirror.value.getBoundingClientRect()
+      const oh = mirror.value.offsetHeight
+      if (!box.height || !oh) {
+        // 还没布局出来（display:none / 尺寸为 0）：下一帧重试，最多 20 次
+        if (retries++ < 20) requestAnimationFrame(measure)
+        return
+      }
+      retries = 0
+      const scale = box.height / oh
       const kids = mirror.value.children
       const hs: number[] = []
-      for (let i = 0; i < kids.length; i++) hs.push(kids[i].getBoundingClientRect().height)
+      for (let i = 0; i < kids.length; i++) hs.push(kids[i].getBoundingClientRect().height / scale)
       lineHeights.value = hs
     }
     watch(() => [props.value, props.wrap, props.lineNumbers], () => nextTick(measure))
@@ -63,6 +75,9 @@ export default defineComponent({
         ro = new ResizeObserver(() => measure())
         ro.observe(rootEl.value)
       }
+      // 自定义字体晚于首次测量就绪时行高会变，就绪后补测一次
+      const fonts = (document as Document & { fonts?: { ready?: Promise<unknown> } }).fonts
+      if (fonts?.ready) fonts.ready.then(() => measure()).catch(() => {})
     })
     onBeforeUnmount(() => { if (ro) ro.disconnect() })
     // 末尾是换行时补一个空格，否则 pre 不会为最后的空行留出高度，滚到底会和 textarea 错位
