@@ -58,7 +58,7 @@ export default defineComponent({
     const edRef = ref<{ textarea?: HTMLTextAreaElement }>()
     const find = reactive({ text: '', replace: '', whole: false, count: -1 })
     const findShow = ref(false)
-    /** 自动换行（工具栏开关，默认开启；开启时编辑区长行折行、行号槽隐藏） */
+    /** 自动换行（工具栏开关，默认开启）：长行折行显示，行号照常显示并按逻辑行的实际折行高度对齐 */
     const wordWrap = ref(true)
     const openFind = (which: 'find' | 'replace') => {
       findShow.value = true
