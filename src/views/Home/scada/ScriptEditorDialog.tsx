@@ -253,7 +253,7 @@ export default defineComponent({
           label: k,
           insert: mode === 'script' ? `scada.getProp('${w.id}', '${k}')` : `ctx.widget.props['${k}']`,
           getCode: mode === 'script' ? `scada.getProp('${w.id}', '${k}')` : `ctx.widget.props['${k}']`,
-          setCode: mode === 'script' ? `scada.setProp('${w.id}', '${k}', 0)` : `ctx.setProp('${k}', 0)`
+          setCode: mode === 'script' ? `scada.setProp('${w.id}', '${k}', '')` : `ctx.setProp('${k}', '')`
         }))
         }
       }) as TreeOption[]
@@ -262,7 +262,7 @@ export default defineComponent({
         label: (v.name || '').trim() ? `${v.name} · ${v.key}` : v.key,
         insert: mode === 'script' ? `scada.value('${v.key}', 'local')` : `ctx.get('${v.key}', 'local')`,
         getCode: mode === 'script' ? `scada.value('${v.key}', 'local')` : `ctx.get('${v.key}', 'local')`,
-        setCode: mode === 'script' ? `scada.write('${v.key}', 0, 'local')` : undefined
+        setCode: mode === 'script' ? `scada.write('${v.key}', '', 'local')` : undefined
       })) as TreeOption[]
       return [
         { key: 'api', label: tt('scada.editor.api'), children: api },
