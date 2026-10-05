@@ -267,8 +267,8 @@ export default defineComponent({
       v => {
         // store 里的 fullscreen 此时已被 save / cancelEdit 清掉，这里是为了把真全屏（若有）一并退出
         if (!v) exitFullscreen()
-        // 全局脚本：进入展示（运行）模式 → 启动脚本 + 循环脚本；回编辑模式 → 停循环（结束脚本只在应用退出前执行）
-        if (v) stopScripts()
+        // 全局脚本：进入展示（运行）模式 → 启动脚本 + 循环脚本；编辑模式 → 只跑循环脚本（skipStart，启动/结束脚本仍只在展示/退出时机执行）
+        if (v) startScripts(() => scada.current, { skipStart: true })
         else startScripts(() => scada.current)
       }
     )
@@ -295,8 +295,8 @@ export default defineComponent({
       store.setGlobalKeyBoardBlocked(true)
       startAllDataSources()
       await scada.load(screenSize.w && screenSize.h ? { width: screenSize.w, height: screenSize.h } : undefined)
-      // 布局加载完、数据源已启动：非编辑态（默认展示模式）执行启动脚本并开始循环
-      if (!scada.editing) startScripts(() => scada.current)
+      // 布局加载完、数据源已启动：展示模式执行启动脚本并开始循环；编辑模式只开循环（skipStart）
+      startScripts(() => scada.current, scada.editing ? { skipStart: true } : undefined)
     })
     onBeforeUnmount(() => {
       if (ro) ro.disconnect()

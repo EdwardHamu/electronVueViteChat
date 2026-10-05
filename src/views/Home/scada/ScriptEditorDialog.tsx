@@ -13,7 +13,7 @@ import { computed, defineComponent, reactive, ref, watch, type Component, type P
 import {
   SaveRound, ContentCutRound, ContentCopyRound, ContentPasteRound, UndoRound, RedoRound,
   FormatIndentIncreaseRound, FormatIndentDecreaseRound, CommentRound, SpellcheckRound,
-  DataObjectRound, DataArrayRound, AddCommentRound, HelpOutlineRound, SearchRound
+  DataObjectRound, DataArrayRound, AddCommentRound, HelpOutlineRound, SearchRound, WrapTextRound
 } from '@vicons/material'
 import { Variable as VariableIcon } from '@vicons/tabler'
 import CodeEditor from './CodeEditor'
@@ -57,6 +57,8 @@ export default defineComponent({
     const edRef = ref<{ textarea?: HTMLTextAreaElement }>()
     const find = reactive({ text: '', replace: '', whole: false, count: -1 })
     const findShow = ref(false)
+    /** 自动换行（工具栏开关，开启时编辑区长行折行、行号槽隐藏） */
+    const wordWrap = ref(false)
     const openFind = (which: 'find' | 'replace') => {
       findShow.value = true
       setTimeout(() => (which === 'find' ? findInputRef.value?.focus?.() : replaceInputRef.value?.focus?.()), 60)
@@ -442,6 +444,14 @@ export default defineComponent({
                     )
                   }}
                 </NPopover>
+                <NButton
+                  size="small" quaternary circle
+                  type={wordWrap.value ? 'primary' : 'default'}
+                  title={tt('scada.editor.wrap')}
+                  onClick={() => (wordWrap.value = !wordWrap.value)}
+                >
+                  {{ icon: () => <NIcon size={20} component={WrapTextRound} /> }}
+                </NButton>
                 {sep()}
                 <NDropdown trigger="click" options={blockOptions} onSelect={(k: string) => { const b = BLOCKS.find(x => x.key === k); if (b) insertText(b.code) }}>
                   {dbtn(DataObjectRound, tt('scada.editor.block'))}
@@ -455,7 +465,7 @@ export default defineComponent({
               {/* 编辑区 + 右侧查找/对象树 */}
               <div class={'flex gap-2'} style={{ height: 'min(440px, 56vh)' }}>
                 <div class={'flex-1 min-w-0'}>
-                  <CodeEditor ref={edRef} value={draft.value} language="js" lineNumbers placeholder={'// JS'} onUpdateValue={(v: string) => (draft.value = v)} />
+                  <CodeEditor ref={edRef} value={draft.value} language="js" lineNumbers wrap={wordWrap.value} placeholder={'// JS'} onUpdateValue={(v: string) => (draft.value = v)} />
                 </div>
                 {props.mode !== 'plain' && (
                   <div class={'w-[250px] shrink-0 flex flex-col gap-1.5 min-h-0'}>

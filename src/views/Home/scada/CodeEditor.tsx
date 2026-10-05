@@ -24,7 +24,9 @@ export default defineComponent({
     language: { type: String as PropType<CodeLang>, default: 'js' },
     placeholder: { type: String, default: '' },
     /** 行号模式（脚本编辑器用）：左侧行号槽 + 不自动换行（横向滚动），行号才能和内容逐行对齐 */
-    lineNumbers: { type: Boolean, default: false }
+    lineNumbers: { type: Boolean, default: false },
+    /** 自动换行（脚本编辑器工具栏开关）：长行折行显示、无横向滚动；开启时行号槽隐藏（逻辑行会占多个视觉行，行号无法对齐） */
+    wrap: { type: Boolean, default: false }
   },
   emits: {
     updateValue: (_v: string) => true
@@ -103,7 +105,8 @@ export default defineComponent({
     expose({ textarea: ta })
 
     return () => {
-      const ln = props.lineNumbers
+      // 行号槽只在「行号模式且未开自动换行」时显示：折行后一个逻辑行占多个视觉行，行号对不齐
+      const ln = props.lineNumbers && !props.wrap
       const side = ln ? { left: gutterW.value + 'px', whiteSpace: 'pre' as const } : undefined
       return (
         <div class={'scada-code-editor w-full h-full rounded border border-solid border-gray-300 overflow-hidden'} data-code-editor={props.language}>

@@ -3,8 +3,8 @@
  *
  * 执行时机：
  *  - 启动脚本：画布进入展示（运行）模式后执行一次；
- *  - 循环脚本：展示模式下按 loopMs（默认 1000ms）反复执行；
- *  - 结束脚本：应用退出前（window beforeunload）执行；回到编辑模式只停止循环，不触发结束脚本。
+ *  - 循环脚本：编辑 / 展示模式下都按 loopMs（默认 1000ms）反复执行（每次执行前重读代码和间隔，编辑时改完即生效）；
+ *  - 结束脚本：应用退出前（window beforeunload）执行；回到编辑模式不触发结束脚本。
  *
  * 脚本写法：一段普通 JS 语句（不需要包成函数），全局对象 scada 提供：
  *  - scada.read(名称或key, 数据源?)   读数据项，返回 DataPoint（含 value / text / status / upper / lower…），自动按需订阅
@@ -55,7 +55,7 @@ export const compileScript = (code: string | null | undefined): { fn: ScriptFn |
 
 // ---------------------------------------------------------------- 运行引擎（同一时间只为一个画布服务）
 let getLayout: (() => ScadaLayout) | null = null
-let timer: ReturnType<typeof setInterval> | null = null
+let timer: ReturnType<typeof setTimeout> | null = null
 let exitBound = false
 const subs = new SubPool()
 /** 三个脚本共享的持久状态，进入展示模式时重置 */
@@ -121,19 +121,29 @@ const run = (kind: ScriptKind) => {
 
 const onBeforeUnload = () => run('end')
 
-/** 进入展示（运行）模式：清掉上一轮的运行时覆盖和共享状态，执行启动脚本并开始循环 */
-export const startScripts = (layoutGetter: () => ScadaLayout) => {
+/** 循环脚本调度：自排程 setTimeout，每一轮都重读最新的代码和间隔（编辑模式下改脚本 / 改间隔立即生效） */
+const scheduleLoop = () => {
+  const l = getLayout ? getLayout() : null
+  if (!l) return
+  const ms = Math.min(60000, Math.max(100, Number(l.scripts?.loopMs) || 1000))
+  timer = setTimeout(() => {
+    run('loop') // run 内部读的也是 getLayout() 的最新代码，空代码直接跳过
+    scheduleLoop()
+  }, ms)
+}
+
+/**
+ * 启动全局脚本引擎：清掉上一轮的运行时覆盖和共享状态并开始循环。
+ * 进入展示（运行）模式时执行启动脚本；编辑模式传 { skipStart: true }（只跑循环脚本，启动/结束脚本仍只属于展示/退出时机）
+ */
+export const startScripts = (layoutGetter: () => ScadaLayout, opts?: { skipStart?: boolean }) => {
   stopScripts()
   getLayout = layoutGetter
   sharedState = {}
   clearRuntimeOverrides()
   ;(['start', 'loop', 'end'] as const).forEach(k => delete scriptErrors[k])
-  run('start')
-  const scripts = layoutGetter().scripts
-  if (scripts?.loop && scripts.loop.trim()) {
-    const ms = Math.min(60000, Math.max(100, Number(scripts.loopMs) || 1000))
-    timer = setInterval(() => run('loop'), ms)
-  }
+  if (!opts?.skipStart) run('start')
+  scheduleLoop()
   if (!exitBound) {
     window.addEventListener('beforeunload', onBeforeUnload)
     exitBound = true
@@ -142,7 +152,7 @@ export const startScripts = (layoutGetter: () => ScadaLayout) => {
 
 /** 回到编辑模式 / 页面卸载：停止循环并退订（不执行结束脚本——那是应用退出时的事） */
 export const stopScripts = () => {
-  if (timer) clearInterval(timer)
+  if (timer) clearTimeout(timer)
   timer = null
   subs.clear()
   clearRuntimeOverrides()
