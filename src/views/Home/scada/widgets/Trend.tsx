@@ -40,11 +40,18 @@ const Trend = defineComponent({
     )
     const spanMs = computed(() => Math.max(5, Number(p.value.timeSpan) || 60) * 1000)
     const readOf = (b: DataBinding): DataPoint | undefined => getDataSource(b.source)?.read(b.key)
-    /** 生效的上 / 下公差：绑定里自定义的优先（临时覆盖），没填（null / undefined）跟随数据源（配方） */
-    const limitsOf = (b: MultiBindingEntry, pt?: DataPoint) => ({
-      upper: typeof b.upper === 'number' && Number.isFinite(b.upper) ? b.upper : pt?.upper,
-      lower: typeof b.lower === 'number' && Number.isFinite(b.lower) ? b.lower : pt?.lower
-    })
+    /**
+     * 生效的上 / 下公差线。自定义值是「差值」而不是结果值（与配方 UpperTol / LowerTol 同语义）：
+     * 上公差线 = 标准值 + 上公差，下公差线 = 标准值 - 下公差（没有标准值时以 0 为基准）；
+     * 没填（null / undefined）跟随数据源（配方）给的上下限结果值
+     */
+    const limitsOf = (b: MultiBindingEntry, pt?: DataPoint) => {
+      const std = pt?.standard ?? 0
+      return {
+        upper: typeof b.upper === 'number' && Number.isFinite(b.upper) ? std + b.upper : pt?.upper,
+        lower: typeof b.lower === 'number' && Number.isFinite(b.lower) ? std - b.lower : pt?.lower
+      }
+    }
     /** 图例 / 提示用名称：数据源里的当前名称优先，数据项已被删时退回绑定时记下的名称 */
     const labelOf = (b: DataBinding) => {
       const opt = getDataSource(b.source)?.options().find(o => o.key === b.key)

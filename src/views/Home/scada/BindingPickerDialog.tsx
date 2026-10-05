@@ -110,7 +110,7 @@ export default defineComponent({
     )
 
     const renderTree = () => (
-      <div class={'w-[190px] shrink-0 border border-solid border-gray-300 rounded bg-white overflow-hidden flex flex-col'}>
+      <div class={'w-[140px] shrink-0 border border-solid border-gray-300 rounded bg-white overflow-hidden flex flex-col'}>
         <NScrollbar class={'flex-1 min-h-0'}>
           {tree.value.map(src => (
             <div key={src.id}>
@@ -173,7 +173,7 @@ export default defineComponent({
         closable
         maskClosable={false}
         autoFocus={false}
-        style={{ width: '700px', maxWidth: '96vw' }}
+        style={{ width: '490px', maxWidth: '96vw' }}
         headerStyle={{ padding: '8px 14px' }}
         contentStyle={{ padding: '8px 14px' }}
         footerStyle={{ padding: '6px 14px 10px' }}
@@ -183,7 +183,7 @@ export default defineComponent({
       >
         {{
           default: () => (
-            <div class={'flex gap-1.5'} style={{ height: 'min(52vh, 420px)' }} data-scada-binding-picker>
+            <div class={'flex gap-1.5'} style={{ height: 'min(36vh, 294px)' }} data-scada-binding-picker>
               {renderTree()}
               {renderTable()}
             </div>

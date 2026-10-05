@@ -263,6 +263,9 @@ export default defineComponent({
               <div data-scada-multi-binding>
                 {multiBindings(w).map((b, i) => {
                   const pt = getDataSource(b.source)?.read(b.key)
+                  // 占位提示配方里的公差「差值」（上 = 上限-标准值，下 = 标准值-下限），与输入框的语义一致
+                  const defUp = pt && pt.upper !== undefined && pt.standard !== undefined ? Number((pt.upper - pt.standard).toFixed(6)) : undefined
+                  const defDown = pt && pt.lower !== undefined && pt.standard !== undefined ? Number((pt.standard - pt.lower).toFixed(6)) : undefined
                   return (
                     <div key={`${b.source}|${b.key}`} class={'mb-1 p-1 border border-solid border-gray-200 rounded'} data-scada-binding-row={b.key}>
                       <div class={'flex items-center gap-1 min-w-0'}>
@@ -282,7 +285,7 @@ export default defineComponent({
                         <NInputNumber
                           size="tiny" class={'flex-1 min-w-0'} showButton={false} clearable
                           value={typeof b.upper === 'number' ? b.upper : null}
-                          placeholder={pt?.upper !== undefined ? String(pt.upper) : '—'}
+                          placeholder={defUp !== undefined ? String(defUp) : '—'}
                           data-scada-binding-upper
                           onUpdateValue={(v: number | null) => setMultiBindingLimit(w, i, 'upper', v)}
                         />
@@ -290,7 +293,7 @@ export default defineComponent({
                         <NInputNumber
                           size="tiny" class={'flex-1 min-w-0'} showButton={false} clearable
                           value={typeof b.lower === 'number' ? b.lower : null}
-                          placeholder={pt?.lower !== undefined ? String(pt.lower) : '—'}
+                          placeholder={defDown !== undefined ? String(defDown) : '—'}
                           data-scada-binding-lower
                           onUpdateValue={(v: number | null) => setMultiBindingLimit(w, i, 'lower', v)}
                         />
