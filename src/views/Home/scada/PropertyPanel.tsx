@@ -24,7 +24,7 @@ import CodeDialog, { codeParts } from './CodeDialog'
 import BindingPickerDialog from './BindingPickerDialog'
 import FontField from './FontField'
 import { FONT_FAMILY_KEY } from './fonts'
-import type { DataBinding, PropField, WidgetInstance } from './types'
+import type { DataBinding, MultiBindingEntry, PropField, WidgetInstance } from './types'
 import { LOCAL_SOURCE_ID } from './variables'
 import { tt } from './widgets/common'
 
@@ -115,7 +115,7 @@ export default defineComponent({
 
     // ---------------------------------------------------------------- 多数据绑定（definition.multiBinding，如标准趋势）
     /** 多绑定列表存在 props.bindings，复用同一个数据项选择浮窗逐个添加 */
-    const multiBindings = (w: WidgetInstance): DataBinding[] => (Array.isArray(w.props.bindings) ? (w.props.bindings as DataBinding[]) : [])
+    const multiBindings = (w: WidgetInstance): MultiBindingEntry[] => (Array.isArray(w.props.bindings) ? (w.props.bindings as MultiBindingEntry[]) : [])
     const multiBindingLabel = (b: DataBinding) => {
       const prov = getDataSource(b.source)
       const opt = prov?.options().find(o => o.key === b.key)
@@ -124,6 +124,9 @@ export default defineComponent({
     }
     const removeMultiBinding = (w: WidgetInstance, idx: number) =>
       scada.setWidgetProp(w.id, 'bindings', multiBindings(w).filter((_, i) => i !== idx))
+    /** 每条绑定可自定义上 / 下公差（临时覆盖配方值）；清空（null）= 跟随数据源 */
+    const setMultiBindingLimit = (w: WidgetInstance, idx: number, key: 'upper' | 'lower', v: number | null) =>
+      scada.setWidgetProp(w.id, 'bindings', multiBindings(w).map((b, i) => (i === idx ? { ...b, [key]: v } : b)))
 
     /** 位置 / 尺寸输入：显示的是画面上的外框（旋转 90° / 270° 时宽高互换），写回时换算成组件的 x / y / w / h */
     const setRect = (key: 'x' | 'y' | 'w' | 'h', v: number | null) => {
@@ -258,19 +261,43 @@ export default defineComponent({
             {def?.multiBinding ? (
               /* 多数据绑定（如标准趋势）：绑定列表 + 复用数据项选择浮窗逐个添加 */
               <div data-scada-multi-binding>
-                {multiBindings(w).map((b, i) => (
-                  <div key={`${b.source}|${b.key}`} class={'flex items-center gap-1 min-w-0 mb-1'} data-scada-binding-row={b.key}>
-                    <div
-                      class={'flex-1 min-w-0 h-[28px] px-2 flex items-center text-xs text-gray-700 bg-gray-50 border border-solid border-gray-200 rounded truncate'}
-                      title={`${getDataSource(b.source)?.label() || b.source} · ${multiBindingLabel(b)}`}
-                    >
-                      {multiBindingLabel(b)}
+                {multiBindings(w).map((b, i) => {
+                  const pt = getDataSource(b.source)?.read(b.key)
+                  return (
+                    <div key={`${b.source}|${b.key}`} class={'mb-1 p-1 border border-solid border-gray-200 rounded'} data-scada-binding-row={b.key}>
+                      <div class={'flex items-center gap-1 min-w-0'}>
+                        <div
+                          class={'flex-1 min-w-0 h-[24px] px-1.5 flex items-center text-xs text-gray-700 bg-gray-50 rounded truncate'}
+                          title={`${getDataSource(b.source)?.label() || b.source} · ${multiBindingLabel(b)}`}
+                        >
+                          {multiBindingLabel(b)}
+                        </div>
+                        <NButton size="tiny" quaternary circle data-scada-binding-remove onClick={() => removeMultiBinding(w, i)}>
+                          ✕
+                        </NButton>
+                      </div>
+                      {/* 每条数据可临时自定义上 / 下公差；清空 = 跟随数据源（配方值做占位提示） */}
+                      <div class={'flex items-center gap-1 mt-1'}>
+                        <span class={'shrink-0 text-[11px] text-gray-500'}>{tt('data.toleranceUp')}</span>
+                        <NInputNumber
+                          size="tiny" class={'flex-1 min-w-0'} showButton={false} clearable
+                          value={typeof b.upper === 'number' ? b.upper : null}
+                          placeholder={pt?.upper !== undefined ? String(pt.upper) : '—'}
+                          data-scada-binding-upper
+                          onUpdateValue={(v: number | null) => setMultiBindingLimit(w, i, 'upper', v)}
+                        />
+                        <span class={'shrink-0 text-[11px] text-gray-500'}>{tt('data.toleranceDwon')}</span>
+                        <NInputNumber
+                          size="tiny" class={'flex-1 min-w-0'} showButton={false} clearable
+                          value={typeof b.lower === 'number' ? b.lower : null}
+                          placeholder={pt?.lower !== undefined ? String(pt.lower) : '—'}
+                          data-scada-binding-lower
+                          onUpdateValue={(v: number | null) => setMultiBindingLimit(w, i, 'lower', v)}
+                        />
+                      </div>
                     </div>
-                    <NButton size="small" quaternary circle data-scada-binding-remove onClick={() => removeMultiBinding(w, i)}>
-                      ✕
-                    </NButton>
-                  </div>
-                ))}
+                  )
+                })}
                 <NButton size="small" dashed block data-scada-binding-add onClick={() => (pickerShow.value = true)}>
                   + {tt('scada.panel.item')}
                 </NButton>

@@ -2,21 +2,29 @@
  * 数据项选择浮窗（属性面板「数据绑定」区块的「数据项」按钮打开），样式仿经典 HMI 变量选择对话框：
  *  - 左侧树：数据源 → 分组（如设备名）；点数据源 = 看它的全部数据项，点分组 = 只看该组；
  *  - 右侧表格：名称 / 数据类型 / 单位，「名称」表头下带一个快速过滤输入框（按名称模糊匹配）；
- *    数据类型来自设备配置接口（采集地址 AddressString 里的 DataType，经 DataTypeList 翻译成文本）；
+ *    数据类型来自设备配置接口（采集地址 AddressString 里的 DataType，渲染时经 i18n 翻译成文本）；
  *  - 单击行选中，双击行 = 选中并确定；底部「显示全部」勾选后忽略左侧分组、显示当前数据源全部数据项；
  *  - 「确定」把选择回传（onApply），「关闭」不改任何东西。
  */
 import { NButton, NCheckbox, NInput, NModal, NScrollbar } from 'naive-ui'
 import { computed, defineComponent, ref, watch, type PropType } from 'vue'
-import { DataTypeList } from '../config/devConfig/enum'
 import { dataSourceList, getDataSource } from './dataSource'
 import type { BindingOption, DataBinding } from './types'
 import { tt } from './widgets/common'
 
+/**
+ * 数据类型索引 → i18n key（顺序与 devConfig/enum.ts 的 getDataTypeList 一致）。
+ * 不直接用那边的 DataTypeList：它在模块加载时就用 t() 生成文本，而语言包是异步加载的，
+ * 加载完成前取到的是裸 key（显示成 config.unsignedInt16），且语言切换后也不会自己刷新；
+ * 这里改为渲染时 tt() 现翻译，语言包加载 / 切换都能正确显示
+ */
+const DATA_TYPE_KEYS = ['config.unsignedInt16', 'config.signedInt16', 'config.unsignedInt32', 'config.signedInt32', 'config.float32', 'config.asciiChar', 'config.boolean']
+
 /** 数据类型索引 → 显示文本；没有类型信息（如本地数据源）显示「—」 */
 const dataTypeName = (o: BindingOption) => {
   if (o.dataType === undefined || o.dataType === null) return '—'
-  return DataTypeList.find(e => e.value === o.dataType)?.label || String(o.dataType)
+  const key = DATA_TYPE_KEYS[o.dataType]
+  return key ? tt(key) : String(o.dataType)
 }
 
 export default defineComponent({

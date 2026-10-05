@@ -18,6 +18,15 @@ export interface DataBinding {
   label?: string
 }
 
+/**
+ * 多数据绑定条目（widget.props.bindings，multiBinding 组件用，如标准趋势）：
+ * 可为每条数据自定义上 / 下公差，临时覆盖数据源（配方）给的值；null / 不填 = 跟随数据源
+ */
+export interface MultiBindingEntry extends DataBinding {
+  upper?: number | null
+  lower?: number | null
+}
+
 /** 数据点状态：ok 在公差内 / high 超上限 / low 超下限 / offline 尚无数据 / none 无公差信息 */
 export type PointStatus = 'ok' | 'high' | 'low' | 'offline' | 'none'
 

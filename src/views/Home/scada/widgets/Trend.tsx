@@ -9,7 +9,7 @@
 import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { formatValue } from '../geometry'
 import { getDataSource } from '../dataSource'
-import type { DataBinding, DataPoint, WidgetDefinition } from '../types'
+import type { DataBinding, DataPoint, MultiBindingEntry, WidgetDefinition } from '../types'
 import { STATUS_COLORS, tt, widgetProps } from './common'
 import { formatDate } from './controlCommon'
 import { icons } from './icons'
@@ -35,11 +35,16 @@ const Trend = defineComponent({
   props: widgetProps,
   setup(props) {
     const p = computed(() => props.widget.props)
-    const bindings = computed<DataBinding[]>(() =>
-      Array.isArray(p.value.bindings) ? (p.value.bindings as DataBinding[]).filter(b => b && typeof b === 'object' && !!b.source && !!b.key) : []
+    const bindings = computed<MultiBindingEntry[]>(() =>
+      Array.isArray(p.value.bindings) ? (p.value.bindings as MultiBindingEntry[]).filter(b => b && typeof b === 'object' && !!b.source && !!b.key) : []
     )
     const spanMs = computed(() => Math.max(5, Number(p.value.timeSpan) || 60) * 1000)
     const readOf = (b: DataBinding): DataPoint | undefined => getDataSource(b.source)?.read(b.key)
+    /** 生效的上 / 下公差：绑定里自定义的优先（临时覆盖），没填（null / undefined）跟随数据源（配方） */
+    const limitsOf = (b: MultiBindingEntry, pt?: DataPoint) => ({
+      upper: typeof b.upper === 'number' && Number.isFinite(b.upper) ? b.upper : pt?.upper,
+      lower: typeof b.lower === 'number' && Number.isFinite(b.lower) ? b.lower : pt?.lower
+    })
     /** 图例 / 提示用名称：数据源里的当前名称优先，数据项已被删时退回绑定时记下的名称 */
     const labelOf = (b: DataBinding) => {
       const opt = getDataSource(b.source)?.options().find(o => o.key === b.key)
@@ -114,12 +119,37 @@ const Trend = defineComponent({
       return Number.isFinite(d) && p.value.decimals !== null && p.value.decimals !== '' ? d : pt?.precision
     }
 
+    // ---- 图例实际高度：绑定多时图例自动换行（不省略名称），量出真实高度让图表区自适应
+    const legendRef = ref<HTMLElement>()
+    const legendH = ref(LEGEND_H)
+    let legendRo: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined') {
+      legendRo = new ResizeObserver(() => {
+        const el = legendRef.value
+        if (el) legendH.value = Math.max(LEGEND_H, el.offsetHeight)
+      })
+    }
+    watch(legendRef, (el, old) => {
+      if (!legendRo) return
+      if (old) legendRo.unobserve(old)
+      if (el) {
+        legendRo.observe(el)
+        legendH.value = Math.max(LEGEND_H, el.offsetHeight)
+      } else {
+        legendH.value = LEGEND_H
+      }
+    })
+    onBeforeUnmount(() => {
+      if (legendRo) legendRo.disconnect()
+      legendRo = null
+    })
+
     // ---- 几何计算
     const geometry = computed(() => {
       void rev.value // 采样后重算
       const showLegend = p.value.showLegend !== false
       const w = props.widget.w
-      const h = props.widget.h - (showLegend ? LEGEND_H : 0)
+      const h = props.widget.h - (showLegend ? legendH.value : 0)
       const x0 = ML
       const x1 = Math.max(x0 + 10, w - MR)
       const y0 = MT
@@ -128,8 +158,15 @@ const Trend = defineComponent({
       const t0 = t1 - spanMs.value
       const firstPoint = bindings.value.length ? readOf(bindings.value[0]) : undefined
       const showLimits = p.value.showLimits !== false
-      const upper = showLimits ? firstPoint?.upper : undefined
-      const lower = showLimits ? firstPoint?.lower : undefined
+      // 每条绑定各自的公差线（自定义值优先，否则跟随数据源），用对应曲线的颜色区分
+      const limits = showLimits
+        ? bindings.value
+            .map((b, i) => {
+              const eff = limitsOf(b, readOf(b))
+              return { color: SERIES_COLORS[i % SERIES_COLORS.length], upper: eff.upper, lower: eff.lower }
+            })
+            .filter(e => e.upper !== undefined || e.lower !== undefined)
+        : []
       const standard = showLimits ? firstPoint?.standard : undefined
 
       // Y 轴范围：窗口内全部采样值 + 公差线
@@ -138,8 +175,10 @@ const Trend = defineComponent({
         const buf = buffers.get(bufKey(b))
         if (buf) buf.forEach(s => { if (s.t >= t0 - 1000) vals.push(s.v) })
       })
-      if (upper !== undefined) vals.push(upper)
-      if (lower !== undefined) vals.push(lower)
+      limits.forEach(e => {
+        if (e.upper !== undefined) vals.push(e.upper)
+        if (e.lower !== undefined) vals.push(e.lower)
+      })
       if (standard !== undefined) vals.push(standard)
       let min = vals.length ? Math.min(...vals) : 0
       let max = vals.length ? Math.max(...vals) : 1
@@ -176,7 +215,7 @@ const Trend = defineComponent({
         return { x: xOf(t), label: formatDate(t, fmt), anchor: i === 0 ? 'start' : i === 4 ? 'end' : 'middle' }
       })
       const hasData = lines.some(l => l.pts.length > 0)
-      return { w, h, x0, x1, y0, y1, xOf, yOf, lines, yTicks, xTicks, upper, lower, standard, firstPoint, hasData, showLegend }
+      return { w, h, x0, x1, y0, y1, xOf, yOf, lines, yTicks, xTicks, limits, standard, firstPoint, hasData, showLegend }
     })
 
     return () => {
@@ -188,15 +227,16 @@ const Trend = defineComponent({
         <div class={'w-full h-full flex flex-col rounded-md overflow-hidden border border-solid border-gray-300'}
           style={{ background: p.value.bg || '#ffffff', color: p.value.fg || '#1f2937' }} data-scada-trend>
           {g.showLegend && (
-            <div class={'px-2 flex items-center gap-3 overflow-hidden shrink-0 text-xs'} style={{ height: LEGEND_H + 'px' }}>
+            /* 绑定多时自动换行，名称完整显示不省略；真实高度由 ResizeObserver 量出，图表区自适应 */
+            <div ref={legendRef} class={'px-2 flex flex-wrap items-center gap-x-3 gap-y-0 shrink-0 text-xs'} style={{ minHeight: LEGEND_H + 'px' }}>
               {bindings.value.length ? (
                 bindings.value.map((b, i) => {
                   const pt = readOf(b)
                   return (
-                    <span key={bufKey(b)} class={'flex items-center gap-1 min-w-0 shrink'} title={labelOf(b)}>
+                    <span key={bufKey(b)} class={'flex items-center gap-1 whitespace-nowrap'} style={{ lineHeight: LEGEND_H + 'px' }}>
                       <span class={'shrink-0 rounded-full'} style={{ width: '8px', height: '8px', background: SERIES_COLORS[i % SERIES_COLORS.length] }} />
-                      <span class={'truncate'}>{labelOf(b)}</span>
-                      <span class={'shrink-0 font-bold value-number'}>
+                      <span>{labelOf(b)}</span>
+                      <span class={'font-bold value-number'}>
                         {pt && pt.value !== null && pt.value !== undefined ? formatValue(pt.value, dec) : '--'}{pt?.unit ? ' ' + pt.unit : ''}
                       </span>
                     </span>
@@ -226,22 +266,31 @@ const Trend = defineComponent({
             {/* 坐标轴 */}
             <line x1={g.x0} x2={g.x0} y1={g.y0} y2={g.y1} stroke="#9ca3af" stroke-width="1" />
             <line x1={g.x0} x2={g.x1} y1={g.y1} y2={g.y1} stroke="#9ca3af" stroke-width="1" />
-            {/* 公差虚线 + 数值标注在线旁 */}
+            {/* 公差虚线 + 数值标注在线旁：每条绑定各自一组，单绑定沿用红/蓝状态色，多绑定用对应曲线色区分 */}
             {g.standard !== undefined && (
               <line x1={g.x0} x2={g.x1} y1={g.yOf(g.standard)} y2={g.yOf(g.standard)} stroke="#9ca3af" stroke-width="1" stroke-dasharray="2 3" />
             )}
-            {g.upper !== undefined && (
-              <g>
-                <line x1={g.x0} x2={g.x1} y1={g.yOf(g.upper)} y2={g.yOf(g.upper)} stroke={STATUS_COLORS.high} stroke-width="1" stroke-dasharray="4 3" />
-                <text x={g.x1 - 3} y={g.yOf(g.upper) - 3} text-anchor="end" font-size="9" fill={STATUS_COLORS.high}>{limitLabel(g.upper)}</text>
-              </g>
-            )}
-            {g.lower !== undefined && (
-              <g>
-                <line x1={g.x0} x2={g.x1} y1={g.yOf(g.lower)} y2={g.yOf(g.lower)} stroke={STATUS_COLORS.low} stroke-width="1" stroke-dasharray="4 3" />
-                <text x={g.x1 - 3} y={g.yOf(g.lower) + 10} text-anchor="end" font-size="9" fill={STATUS_COLORS.low}>{limitLabel(g.lower)}</text>
-              </g>
-            )}
+            {g.limits.map((e, i) => {
+              const single = g.limits.length === 1
+              const cu = single ? STATUS_COLORS.high : e.color
+              const cl = single ? STATUS_COLORS.low : e.color
+              return (
+                <g key={'lim' + i}>
+                  {e.upper !== undefined && (
+                    <g>
+                      <line x1={g.x0} x2={g.x1} y1={g.yOf(e.upper)} y2={g.yOf(e.upper)} stroke={cu} stroke-width="1" stroke-dasharray="4 3" />
+                      <text x={g.x1 - 3} y={g.yOf(e.upper) - 3} text-anchor="end" font-size="9" fill={cu}>{limitLabel(e.upper)}</text>
+                    </g>
+                  )}
+                  {e.lower !== undefined && (
+                    <g>
+                      <line x1={g.x0} x2={g.x1} y1={g.yOf(e.lower)} y2={g.yOf(e.lower)} stroke={cl} stroke-width="1" stroke-dasharray="4 3" />
+                      <text x={g.x1 - 3} y={g.yOf(e.lower) + 10} text-anchor="end" font-size="9" fill={cl}>{limitLabel(e.lower)}</text>
+                    </g>
+                  )}
+                </g>
+              )
+            })}
             {/* 曲线 */}
             {g.lines.map(l => l.pts && (
               <polyline key={l.key} points={l.pts} fill="none" stroke={l.color} stroke-width={lw} stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" />
