@@ -257,6 +257,25 @@ export default defineComponent({
       return -val
     })
 
+    /**
+     * 面板的 left / transform(scale) 不能放在 JSX 的 style 里（修复：拖动过后点按键时键盘定位抖动）。
+     * 原因：Vue 的 patchStyle 每次重渲染都会无条件重写 style 对象里的每个键（不做值比较），而 v-drag 拖动后
+     * 用内联 left / top / transform 记录新位置 —— 按一个虚拟键（areaValue 变化）就触发一次重渲染，
+     * left / transform 被写回初始值（top 不在 style 对象里所以保留），键盘横向跳回原位；松开时 v-drag 留在
+     * document 上的 mouseup → dragEnd（window.data.move 仍指向键盘）又把拖动后的位置写回去，
+     * 形成「按下跳、松开回」的抖动。改成命令式写入后 Vue 不再管定位，v-drag 独占 left / top / transform。
+     */
+    const panelRef = ref<HTMLElement>()
+    const syncPanelStyle = () => {
+      const el = panelRef.value
+      if (!el) return
+      // v-drag 一旦开始拖动就会写内联 top（dragStart 里 left/top 换算进矩阵），之后定位完全交给它，这里不再覆盖
+      if (el.style.top !== '') return
+      el.style.left = leftMove.value + 'px'
+      el.style.transform = `scale(${winScale.value})`
+    }
+    watch([winScale, leftMove], () => syncPanelStyle())
+
     // 打开键盘、以及每次为某个输入框打开（同一个输入框再次打开、键盘开着时点了另一个输入框）都重新带入内容
     watch(() => [store.keyboardSeq, keyborardShow.value] as const, ([, show]) => {
       if (show) loadFromTarget()
@@ -322,6 +341,7 @@ export default defineComponent({
           onKeyPress: button => onKeyPress(button)
         });
         applyLayout()
+        syncPanelStyle()
         if (keyborardShow.value) loadFromTarget()
       })
     })
@@ -382,7 +402,8 @@ export default defineComponent({
             isMounted.value &&
             <>
               {/* 亮色工业风面板：铝面板浅灰、小圆角、细边框，不用毛玻璃 / 渐变 */}
-              <div v-drag={'.global-keyboard-value'} data-num-mode={commonData.isNum ? 'true' : 'false'} style={{ zIndex: 3000, willChange: 'transform', contain: 'layout style paint', transform: `scale(${winScale.value})`, left: leftMove.value + 'px', background: '#e9edf1', border: '1px solid #c2cbd4', borderRadius: '8px', boxShadow: '0 16px 40px rgba(15,23,42,0.22), 0 4px 12px rgba(15,23,42,0.12)', padding: '0 10px 14px' }} class={classnames(KEYBOARD_ROOT_CLASS, 'absolute bottom-40 flex flex-col items-center justify-end', { 'w-[354px]': commonData.isNum, 'w-[1000px]': !commonData.isNum, 'h-[540px]': !commonData.isTextarea, 'h-[570px]': commonData.isTextarea })} v-show={keyborardShow.value}>
+              {/* left / transform(scale) 由 syncPanelStyle 命令式写入（不进 JSX style，避免重渲染时覆盖 v-drag 的拖动定位） */}
+              <div ref={panelRef} v-drag={'.global-keyboard-value'} data-num-mode={commonData.isNum ? 'true' : 'false'} style={{ zIndex: 3000, willChange: 'transform', contain: 'layout style paint', background: '#e9edf1', border: '1px solid #c2cbd4', borderRadius: '8px', boxShadow: '0 16px 40px rgba(15,23,42,0.22), 0 4px 12px rgba(15,23,42,0.12)', padding: '0 10px 14px' }} class={classnames(KEYBOARD_ROOT_CLASS, 'absolute bottom-40 flex flex-col items-center justify-end', { 'w-[354px]': commonData.isNum, 'w-[1000px]': !commonData.isNum, 'h-[540px]': !commonData.isTextarea, 'h-[570px]': commonData.isTextarea })} v-show={keyborardShow.value}>
                 {/* 标题栏：背景透明，底部分隔线用 borderBottom（2px 钢蓝）实现，不再用 boxShadow */}
                 <div class={'w-full global-keyboard-value flex justify-between items-center shrink-0 drag-handle'} style={{ background: 'transparent', borderRadius: '8px 8px 0 0', padding: '8px 12px', marginBottom: '8px', borderBottom: '2px solid #4d75a1', cursor: 'move' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>

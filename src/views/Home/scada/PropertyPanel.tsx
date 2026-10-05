@@ -92,7 +92,6 @@ export default defineComponent({
       }
     )
 
-    const sourceOptions = computed(() => dataSourceList().map(p => ({ label: p.label(), value: p.id })))
     const sourceId = ref<string>(dataSourceList()[0]?.id || '')
     watch(
       () => selected.value?.id,
@@ -245,15 +244,10 @@ export default defineComponent({
           </Section>
           <Section sid="binding" title={tt('scada.panel.binding') + (optionalBinding ? tt('scada.panel.optional') : '')}>
             <Row label={tt('scada.panel.source')}>
-              <NSelect
-                size="small"
-                value={sourceId.value || null}
-                options={sourceOptions.value}
-                onUpdateValue={(v: string) => {
-                  sourceId.value = v
-                  if (w.binding && w.binding.source !== v) scada.setBinding(w.id, null)
-                }}
-              />
+              {/* 纯显示框：数据源跟随选择浮窗里选中的数据项自动更新，不在这里切换 */}
+              <div class={'h-[28px] px-2 flex items-center text-xs text-gray-700 bg-gray-50 border border-solid border-gray-200 rounded truncate'} data-scada-binding-source title={getDataSource(sourceId.value)?.label() || ''}>
+                {getDataSource(sourceId.value)?.label() || '—'}
+              </div>
             </Row>
             <Row label={tt('scada.panel.item')}>
               {/* 点按钮弹出 HMI 风格的数据项选择浮窗（左侧分组树 + 右侧表格 + 名称列下的快速过滤） */}
