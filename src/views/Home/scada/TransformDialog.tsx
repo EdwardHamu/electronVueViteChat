@@ -119,9 +119,20 @@ export default defineComponent({
       return snap
     }
 
-    /** 一键复制属性 JSON（选区在弹窗/焦点切换下容易被清掉，按钮兜底保证能拿到内容） */
+    /**
+     * 浮窗里展示的属性 JSON 是「冻结快照」而不是实时渲染：
+     * 数据源每秒轮询，preview / runtimeOverrides 跟着变会让整个弹窗每秒重渲染，
+     * 浮窗里的文本节点一被重写，用户刚拖出来的选区立刻被销毁（表现为"无法选中"）。
+     * 打开浮窗时截一份静态文本，想看最新值点「刷新」。
+     */
+    const propsSnapshotText = ref('')
+    const refreshSnapshot = () => {
+      propsSnapshotText.value = JSON.stringify(widgetSnapshot(), null, 2)
+    }
+
+    /** 一键复制属性 JSON（复制的是浮窗里当前显示的快照） */
     const copySnapshot = () => {
-      const text = JSON.stringify(widgetSnapshot(), null, 2)
+      const text = propsSnapshotText.value || JSON.stringify(widgetSnapshot(), null, 2)
       const done = () => {
         const m = window.$message as unknown as { success?: (t: string) => void } | undefined
         m && m.success && m.success(tt('config.copySuccess'))
@@ -167,8 +178,16 @@ export default defineComponent({
             <NButton size="small" quaternary disabled={!draft.value} onClick={() => (draft.value = '')}>
               {tt('scada.panel.transformClear')}
             </NButton>
-            {/* 浮窗展示当前组件的属性对象（实时，含运行时覆盖），写 ctx.setProp / 读 ctx.widget.props 时对照 */}
-            <NPopover trigger="click" placement="right-start" style={{ padding: '0' }}>
+            {/* 浮窗展示当前组件的属性对象（打开时冻结的快照——实时渲染会每秒重写文本节点、销毁用户选区），
+                写 ctx.setProp / 读 ctx.widget.props 时对照，点「刷新」取最新值 */}
+            <NPopover
+              trigger="click"
+              placement="right-start"
+              style={{ padding: '0' }}
+              onUpdateShow={(v: boolean) => {
+                if (v) refreshSnapshot()
+              }}
+            >
               {{
                 trigger: () => (
                   <NButton size="small" data-transform-props>
@@ -177,7 +196,10 @@ export default defineComponent({
                 ),
                 default: () => (
                   <div style={{ width: '380px' }}>
-                    <div class={'flex items-center justify-end px-2 pt-1'}>
+                    <div class={'flex items-center justify-end gap-1 px-2 pt-1'}>
+                      <NButton size="tiny" quaternary onClick={refreshSnapshot}>
+                        {tt('scada.panel.transformPropsRefresh')}
+                      </NButton>
                       <NButton size="tiny" quaternary onClick={copySnapshot}>
                         {tt('config.copy')}
                       </NButton>
@@ -193,7 +215,7 @@ export default defineComponent({
                         }}
                         onMousedown={(e: MouseEvent) => e.stopPropagation()}
                       >
-                        {JSON.stringify(widgetSnapshot(), null, 2)}
+                        {propsSnapshotText.value}
                       </pre>
                     </NScrollbar>
                   </div>

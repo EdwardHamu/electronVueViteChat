@@ -880,6 +880,7 @@
       "scriptWhen": "Startup: runs once when entering display mode\nLoop: runs repeatedly at the interval while displaying\nExit: runs before the app quits",
       "scriptHint": "Write plain JS statements (no wrapper function needed). Global object scada:\nscada.read(nameOrKey, source?): read a data item (DataPoint, auto-subscribed)\nscada.value(nameOrKey): numeric value (null when no data)\nscada.write(nameOrKey, value): write to a writable source (e.g. internal variables)\nscada.widgets(): all widgets (id / type / title)\nscada.setProp(titleOrId, key, value): change widget properties at runtime (any prop key plus hidden/x/y/w/h; temporary override, not persisted)\nscada.getProp(titleOrId, key): read a property (incl. runtime overrides)\nscada.state: object shared by the three scripts; scada.log(...): console output",
       "transformProps": "Widget props",
+      "transformPropsRefresh": "Refresh",
       "pickerKey": "Key",
       "pickerUnit": "Unit",
       "pickerAll": "All",
