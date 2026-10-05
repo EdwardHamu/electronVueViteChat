@@ -361,6 +361,8 @@
       "help": "Help",
       "objects": "Insertable objects (double-click to insert; right-click props / variables for read or write code)",
       "menuGet": "Read value",
+      "menuRead": "Read variable",
+      "menuWrite": "Write variable",
       "menuSet": "Write value",
       "api": "Script API",
       "widgets": "Widgets",

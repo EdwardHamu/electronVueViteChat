@@ -361,6 +361,8 @@
       "help": "Ayuda",
       "objects": "Objetos insertables (doble clic para insertar; clic derecho en propiedades / variables para leer o escribir)",
       "menuGet": "Leer valor",
+      "menuRead": "Leer variable",
+      "menuWrite": "Escribir variable",
       "menuSet": "Escribir valor",
       "api": "API de script",
       "widgets": "Componentes",

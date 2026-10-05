@@ -361,6 +361,8 @@
       "help": "Trợ giúp",
       "objects": "Đối tượng có thể chèn (nhấp đúp để chèn; nhấp phải thuộc tính / biến để chọn đọc hoặc ghi)",
       "menuGet": "Đọc giá trị",
+      "menuRead": "Đọc biến",
+      "menuWrite": "Ghi biến",
       "menuSet": "Ghi giá trị",
       "api": "API script",
       "widgets": "Thành phần",

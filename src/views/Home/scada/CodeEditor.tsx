@@ -25,8 +25,8 @@ export default defineComponent({
     placeholder: { type: String, default: '' },
     /** 行号模式（脚本编辑器用）：左侧行号槽 + 不自动换行（横向滚动），行号才能和内容逐行对齐 */
     lineNumbers: { type: Boolean, default: false },
-    /** 自动换行（脚本编辑器工具栏开关）：长行折行显示、无横向滚动；开启时行号槽隐藏（逻辑行会占多个视觉行，行号无法对齐） */
-    wrap: { type: Boolean, default: false }
+    /** 自动换行（默认开启）：长行折行显示、无横向滚动；开启时行号槽隐藏（逻辑行会占多个视觉行，行号无法对齐） */
+    wrap: { type: Boolean, default: true }
   },
   emits: {
     updateValue: (_v: string) => true

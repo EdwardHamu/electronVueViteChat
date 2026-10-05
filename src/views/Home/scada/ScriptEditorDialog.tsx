@@ -16,6 +16,7 @@ import {
   DataObjectRound, DataArrayRound, AddCommentRound, HelpOutlineRound, SearchRound, WrapTextRound
 } from '@vicons/material'
 import { Variable as VariableIcon } from '@vicons/tabler'
+import BindingPickerDialog from './BindingPickerDialog'
 import CodeEditor from './CodeEditor'
 import { openScriptHelp } from './ScriptHelpDialog'
 import { compileScript } from './scripts'
@@ -57,8 +58,8 @@ export default defineComponent({
     const edRef = ref<{ textarea?: HTMLTextAreaElement }>()
     const find = reactive({ text: '', replace: '', whole: false, count: -1 })
     const findShow = ref(false)
-    /** 自动换行（工具栏开关，开启时编辑区长行折行、行号槽隐藏） */
-    const wordWrap = ref(false)
+    /** 自动换行（工具栏开关，默认开启；开启时编辑区长行折行、行号槽隐藏） */
+    const wordWrap = ref(true)
     const openFind = (which: 'find' | 'replace') => {
       findShow.value = true
       setTimeout(() => (which === 'find' ? findInputRef.value?.focus?.() : replaceInputRef.value?.focus?.()), 60)
@@ -333,6 +334,40 @@ export default defineComponent({
       style: option.insert ? { cursor: 'pointer' } : undefined
     })
 
+    /** 编辑区右键菜单：读取变量 / 写入变量 → 复用数据绑定的选择数据弹窗，选中后在光标处插入对应代码 */
+    const edMenu = reactive({ show: false, x: 0, y: 0 })
+    const pickAction = ref<'read' | 'write'>('read')
+    const pickerShow = ref(false)
+    const edMenuOptions = computed<DropdownOption[]>(() => {
+      const list: DropdownOption[] = [{ key: 'read', label: tt('scada.editor.menuRead') }]
+      // transform 模式没有写入 API（ctx.get 只读），只给「读取变量」
+      if (props.mode === 'script') list.push({ key: 'write', label: tt('scada.editor.menuWrite') })
+      return list
+    })
+    const onEditorContextmenu = (e: MouseEvent) => {
+      if (props.mode === 'plain') return // 自定义组件代码没有 scada / ctx 数据接口
+      e.preventDefault()
+      e.stopPropagation()
+      edMenu.x = e.clientX
+      edMenu.y = e.clientY
+      edMenu.show = true
+    }
+    const onEdMenuSelect = (key: string | number) => {
+      edMenu.show = false
+      pickAction.value = key === 'write' ? 'write' : 'read'
+      pickerShow.value = true
+    }
+    const onPickerApply = (b: { source: string; key: string; label?: string }) => {
+      pickerShow.value = false
+      const code = props.mode === 'transform'
+        ? `ctx.get('${b.key}', '${b.source}')`
+        : pickAction.value === 'write'
+          ? `scada.write('${b.key}', '', '${b.source}')`
+          : `scada.value('${b.key}', '${b.source}')`
+      // 等弹窗关闭（焦点陷阱解除）后再插入，否则 execCommand 时焦点还被弹窗扣着，插不进编辑区
+      setTimeout(() => insertText(code), 0)
+    }
+
     // ---------------- 保存 / 快捷键 ----------------
     const doSave = () => {
       if (!runCheck()) return // 语法检查不通过不允许保存
@@ -464,9 +499,26 @@ export default defineComponent({
               </div>
               {/* 编辑区 + 右侧查找/对象树 */}
               <div class={'flex gap-2'} style={{ height: 'min(440px, 56vh)' }}>
-                <div class={'flex-1 min-w-0'}>
+                <div class={'flex-1 min-w-0'} onContextmenu={onEditorContextmenu}>
                   <CodeEditor ref={edRef} value={draft.value} language="js" lineNumbers wrap={wordWrap.value} placeholder={'// JS'} onUpdateValue={(v: string) => (draft.value = v)} />
                 </div>
+                {/* 编辑区右键菜单：读取/写入变量（复用数据绑定的选择数据弹窗） */}
+                <NDropdown
+                  trigger="manual"
+                  placement="bottom-start"
+                  show={edMenu.show}
+                  x={edMenu.x}
+                  y={edMenu.y}
+                  options={edMenuOptions.value}
+                  onClickoutside={() => (edMenu.show = false)}
+                  onSelect={onEdMenuSelect}
+                />
+                <BindingPickerDialog
+                  show={pickerShow.value}
+                  value={null}
+                  onClose={() => (pickerShow.value = false)}
+                  onApply={onPickerApply}
+                />
                 {props.mode !== 'plain' && (
                   <div class={'w-[250px] shrink-0 flex flex-col gap-1.5 min-h-0'}>
                     <div class={'text-xs text-gray-600'}>{tt('scada.editor.objects')}</div>
