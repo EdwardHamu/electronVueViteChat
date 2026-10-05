@@ -32,7 +32,13 @@ installDialogNoAutoFocus()
 listenAltF5(any => {
   window.location.reload()
 })
-document.onselectstart = function () {
+// 全局禁止鼠标选中文字（HMI 触摸屏防误选）。
+// 例外：输入框 / 文本域 / contenteditable，以及显式声明可选中的区域（加 .selectable-text 类，
+// 如数据处理函数弹窗的「组件属性」浮窗）——这些地方返回 undefined 走浏览器默认行为，可以正常拖选复制。
+document.onselectstart = function (e) {
+  const node = e && e.target
+  const el = node instanceof Element ? node : node && node.parentElement
+  if (el && el.closest('input, textarea, [contenteditable], .selectable-text')) return
   return false;
 };
 let app = createApp(App)

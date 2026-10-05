@@ -206,7 +206,7 @@ export default defineComponent({
                     </div>
                     <NScrollbar style={{ maxHeight: '320px' }}>
                       <pre
-                        class={'transform-props-pre m-0 px-3 pb-2 pt-1 text-xs leading-5'}
+                        class={'transform-props-pre selectable-text m-0 px-3 pb-2 pt-1 text-xs leading-5'}
                         style={{
                           fontFamily: 'ui-monospace, Consolas, monospace',
                           whiteSpace: 'pre-wrap',
