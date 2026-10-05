@@ -174,7 +174,6 @@ export default defineComponent({
         maskClosable={false}
         autoFocus={false}
         style={{ width: '490px', maxWidth: '96vw' }}
-        headerStyle={{ padding: '8px 14px' }}
         contentStyle={{ padding: '8px 14px' }}
         footerStyle={{ padding: '6px 14px 10px' }}
         onUpdateShow={(v: boolean) => {

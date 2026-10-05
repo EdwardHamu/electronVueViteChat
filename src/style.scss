@@ -892,3 +892,10 @@ body {
     min-width: 0;
   }
 }
+
+// ---------------------------------------------------------------- naive-ui 卡片 / 弹窗头部全局收紧（布局更紧凑）
+// NCard 和 NModal(preset="card") 共用 .n-card-header，默认 padding 偏大（约 19px 24px）。
+// naive-ui 的样式是运行时注入的（排在本文件之后、同特异性会赢），所以这里必须用 !important
+.n-card > .n-card-header {
+  padding: 8px 14px !important;
+}
