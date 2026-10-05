@@ -30,7 +30,7 @@ import FormulaConfigNew from "./config/formulaConfigNew";
 import { noKeyBoardInputClass } from "./config/sysConfig/enum";
 import { KEYBOARD_ROOT_CLASS } from "@/utils/virtualKeyboard";
 import Ecc from "./ecc";
-import Scada from "./scada";
+import Scada, { openDisplayMenu } from "./scada";
 import { useI18n } from "vue-i18n";
 import { usei18nStore } from "@/store/i18n";
 // import { useSvc } from "./svc";
@@ -231,7 +231,7 @@ export default defineComponent({
                       <Statistical />
                     </div>
                   </NTabPane>
-                  <NTabPane displayDirective="if" name="scada" class="scada-pane" tab={t('menu.scada')} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'scada' ? activeStyle : {} } }}>
+                  <NTabPane displayDirective="if" name="scada" class="scada-pane" tab={t('menu.scada')} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'scada' ? activeStyle : {} }, 'data-allow-contextmenu': '', onContextmenu: (e: MouseEvent) => { if (curTabValue.value === 'scada') openDisplayMenu(e); else e.preventDefault() } }}>
                     <div class={'h-full'}>
                       <Scada />
                     </div>
@@ -301,7 +301,7 @@ export default defineComponent({
                         <Statistical />
                       </div>
                     </NTabPane>
-                    <NTabPane displayDirective="if" name="scada" class="scada-pane" tab={t('menu.scada')} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'scada' ? activeStyle : {} } }}>
+                    <NTabPane displayDirective="if" name="scada" class="scada-pane" tab={t('menu.scada')} tabProps={{ style: { ...commonStyle, ...curTabValue.value == 'scada' ? activeStyle : {} }, 'data-allow-contextmenu': '', onContextmenu: (e: MouseEvent) => { if (curTabValue.value === 'scada') openDisplayMenu(e); else e.preventDefault() } }}>
                       <div class={'h-full'}>
                         <Scada />
                       </div>

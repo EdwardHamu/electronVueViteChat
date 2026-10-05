@@ -46,6 +46,19 @@ import VariableDialog from './VariableDialog'
 import { tt } from './widgets/common'
 import './widgets'
 
+/**
+ * 展示模式右键菜单状态（模块级）：菜单不再在画布上任意右键触发，
+ * 改为右键顶部「数据组态」tab 时打开（Home/index.tsx 的 tabProps 调 openDisplayMenu）。
+ */
+export const displayMenu = reactive({ show: false, x: 0, y: 0 })
+export const openDisplayMenu = (e: MouseEvent) => {
+  e.preventDefault()
+  if (useScadaStore().editing) return // 编辑模式没有展示菜单
+  displayMenu.x = e.clientX
+  displayMenu.y = e.clientY
+  displayMenu.show = true
+}
+
 export default defineComponent({
   name: 'ScadaPage',
   setup() {
@@ -62,7 +75,7 @@ export default defineComponent({
     let ro: ResizeObserver | null = null
     const refreshing = ref(false)
     /** 展示模式右键菜单 */
-    const menu = reactive({ show: false, x: 0, y: 0 })
+    const menu = displayMenu
     /** 操作说明弹窗（原先顶栏里的提示文字） */
     const helpShow = ref(false)
     /** 导入 / 导出组态包 */
@@ -395,14 +408,7 @@ export default defineComponent({
       else if (key === 'import') onImportClick()
     }
 
-    // ---------------------------------------------------------------- 展示模式右键菜单（触摸屏长按同样触发 contextmenu）
-    const onContextMenu = (e: MouseEvent) => {
-      if (scada.editing) return
-      e.preventDefault()
-      menu.x = e.clientX
-      menu.y = e.clientY
-      menu.show = true
-    }
+    // ---------------------------------------------------------------- 展示模式右键菜单：改由右键顶部「数据组态」tab 打开（openDisplayMenu）
     const menuOptions = computed<DropdownOption[]>(() => [
       {
         key: 'info',
@@ -514,7 +520,6 @@ export default defineComponent({
           ref={rootRef}
           class={['flex flex-col overflow-hidden bg-white', fs ? 'fixed inset-0 z-[1990]' : 'w-full h-full']}
           data-fullscreen={fs ? '1' : undefined}
-          onContextmenu={onContextMenu}
         >
           {editing ? renderToolbar() : null}
           {editing ? renderHelp() : null}

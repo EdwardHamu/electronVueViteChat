@@ -41,6 +41,15 @@ document.onselectstart = function (e) {
   if (el && el.closest('input, textarea, [contenteditable], .selectable-text')) return
   return false;
 };
+// 全局屏蔽右键菜单（含触摸屏长按触发的 contextmenu）：
+// 只有显式声明了右键功能的区域（data-allow-contextmenu，如顶部「数据组态」tab 的展示菜单）走自己的处理，
+// 其余一律 preventDefault，不弹浏览器 / WebView 默认菜单。
+document.addEventListener('contextmenu', function (e) {
+  const node = e.target
+  const el = node instanceof Element ? node : node && node.parentElement
+  if (el && el.closest('[data-allow-contextmenu]')) return
+  e.preventDefault()
+})
 let app = createApp(App)
 const pinia = createPinia()
 // for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
