@@ -878,7 +878,7 @@
       "scriptSet": "Đã cài đặt - bấm để sửa",
       "scriptNone": "Chưa cài đặt",
       "scriptWhen": "Khởi động: chạy một lần khi vào chế độ trình chiếu\nLặp: chạy lặp lại theo chu kỳ khi đang trình chiếu\nKết thúc: chạy trước khi thoát ứng dụng",
-      "scriptHint": "Viết câu lệnh JS thuần (không cần bọc hàm). Đối tượng toàn cục scada:\nscada.read(tênHoặcKey, nguồn?): đọc mục dữ liệu (DataPoint, tự động đăng ký)\nscada.value(tênHoặcKey): lấy giá trị số (null nếu chưa có dữ liệu)\nscada.write(tênHoặcKey, giáTrị): ghi vào nguồn cho phép ghi (vd. biến nội bộ)\nscada.widgets(): tất cả thành phần [{id, type, title}]\nscada.setProp(tiêuĐềHoặcId, thuộcTính, giáTrị): đổi thuộc tính lúc chạy (mọi prop + hidden/x/y/w/h; tạm thời, không lưu)\nscada.getProp(tiêuĐềHoặcId, thuộcTính): đọc thuộc tính (gồm override)\nscada.state: đối tượng dùng chung cho ba script; scada.log(...): in ra console",
+      "scriptHint": "Viết câu lệnh JS thuần (không cần bọc hàm). Đối tượng toàn cục scada:\nscada.read(tênHoặcKey, nguồn?): đọc mục dữ liệu (DataPoint, tự động đăng ký)\nscada.value(tênHoặcKey): lấy giá trị số (null nếu chưa có dữ liệu)\nscada.write(tênHoặcKey, giáTrị): ghi vào nguồn cho phép ghi (vd. biến nội bộ)\nscada.widgets(): tất cả thành phần (id / type / title)\nscada.setProp(tiêuĐềHoặcId, thuộcTính, giáTrị): đổi thuộc tính lúc chạy (mọi prop + hidden/x/y/w/h; tạm thời, không lưu)\nscada.getProp(tiêuĐềHoặcId, thuộcTính): đọc thuộc tính (gồm override)\nscada.state: đối tượng dùng chung cho ba script; scada.log(...): in ra console",
       "pickerKey": "Khóa",
       "pickerUnit": "Đơn vị",
       "pickerAll": "Tất cả",

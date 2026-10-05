@@ -878,7 +878,7 @@
       "scriptSet": "Configurado - clic para editar",
       "scriptNone": "Sin configurar",
       "scriptWhen": "Inicio: se ejecuta una vez al entrar en modo presentación\nCíclico: se ejecuta repetidamente según el intervalo\nSalida: se ejecuta antes de cerrar la aplicación",
-      "scriptHint": "Escriba sentencias JS (sin envolver en función). Objeto global scada:\nscada.read(nombreOClave, fuente?): leer un dato (DataPoint, suscripción automática)\nscada.value(nombreOClave): valor numérico (null sin datos)\nscada.write(nombreOClave, valor): escribir en fuentes escribibles (p. ej. variables internas)\nscada.widgets(): todos los componentes [{id, type, title}]\nscada.setProp(títuloOId, clave, valor): modificar propiedades en tiempo de ejecución (cualquier prop + hidden/x/y/w/h; temporal, no se guarda)\nscada.getProp(títuloOId, clave): leer propiedad (incl. overrides)\nscada.state: objeto compartido por los tres scripts; scada.log(...): salida por consola",
+      "scriptHint": "Escriba sentencias JS (sin envolver en función). Objeto global scada:\nscada.read(nombreOClave, fuente?): leer un dato (DataPoint, suscripción automática)\nscada.value(nombreOClave): valor numérico (null sin datos)\nscada.write(nombreOClave, valor): escribir en fuentes escribibles (p. ej. variables internas)\nscada.widgets(): todos los componentes (id / type / title)\nscada.setProp(títuloOId, clave, valor): modificar propiedades en tiempo de ejecución (cualquier prop + hidden/x/y/w/h; temporal, no se guarda)\nscada.getProp(títuloOId, clave): leer propiedad (incl. overrides)\nscada.state: objeto compartido por los tres scripts; scada.log(...): salida por consola",
       "pickerKey": "Clave",
       "pickerUnit": "Unidad",
       "pickerAll": "Todos",
