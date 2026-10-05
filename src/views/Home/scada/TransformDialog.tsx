@@ -148,7 +148,7 @@ export default defineComponent({
               {tt('scada.panel.transformClear')}
             </NButton>
             {/* 浮窗展示当前组件的属性对象（实时，含运行时覆盖），写 ctx.setProp / 读 ctx.widget.props 时对照 */}
-            <NPopover trigger="click" placement="top" style={{ padding: '0' }}>
+            <NPopover trigger="click" placement="right-start" style={{ padding: '0' }}>
               {{
                 trigger: () => (
                   <NButton size="small" data-transform-props>
@@ -157,7 +157,17 @@ export default defineComponent({
                 ),
                 default: () => (
                   <NScrollbar style={{ maxHeight: '340px', width: '380px' }}>
-                    <pre class={'m-0 px-3 py-2 text-xs leading-5'} style={{ fontFamily: 'ui-monospace, Consolas, monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                    <pre
+                      class={'m-0 px-3 py-2 text-xs leading-5'}
+                      style={{
+                        fontFamily: 'ui-monospace, Consolas, monospace',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-all',
+                        userSelect: 'text',
+                        cursor: 'text'
+                      }}
+                      onMousedown={(e: MouseEvent) => e.stopPropagation()}
+                    >
                       {JSON.stringify(widgetSnapshot(), null, 2)}
                     </pre>
                   </NScrollbar>
