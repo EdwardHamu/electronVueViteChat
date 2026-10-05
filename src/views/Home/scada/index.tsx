@@ -26,7 +26,7 @@
  *  - package.ts / zip.ts 组态包（布局 + 资源打成 zip）导入导出：有宿主时由宿主 Export/Preview/ImportScadaPackage 完成（另存为 / 打开对话框），
  *                        没有宿主（浏览器调试）时前端打包下载 / file input 读取；ImportDialog.tsx 导入弹窗（两种来源共用）
  */
-import { NButton, NButtonGroup, NDropdown, NModal, NPopconfirm, NTag, type DropdownOption } from 'naive-ui'
+import { NButton, NButtonGroup, NDropdown, NModal, NPopconfirm, NScrollbar, NTag, type DropdownOption } from 'naive-ui'
 import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useMain } from '@/store'
 import ArrangeBar from './ArrangeBar'
@@ -77,8 +77,9 @@ export default defineComponent({
     const refreshing = ref(false)
     /** 展示模式右键菜单 */
     const menu = displayMenu
-    /** 操作说明弹窗（原先顶栏里的提示文字） */
+    /** 操作说明弹窗（原先顶栏里的提示文字）；helpSection = 左侧目录当前选中的章节 */
     const helpShow = ref(false)
+    const helpSection = ref('palette')
     /** 导入 / 导出组态包 */
     const fileInputRef = ref<HTMLInputElement>()
     const importFile = ref<File | null>(null)
@@ -424,23 +425,55 @@ export default defineComponent({
     }
 
     const HELP_SECTIONS = ['palette', 'canvas', 'widget', 'arrange', 'shortcuts', 'variables', 'display', 'control']
-    /** 操作说明弹窗：分组列出组件库 / 画布 / 组件 / 展示模式 / 控制组件的操作方式 */
-    const renderHelp = () => (
-      <NModal show={helpShow.value} preset="card" title={tt('scada.help.title')} style={{ width: 'min(560px, 94vw)' }} closable maskClosable onUpdateShow={(v: boolean) => (helpShow.value = v)}>
-        <div class={'flex flex-col gap-3'} data-scada-help-content>
-          {HELP_SECTIONS.map(k => (
-            <div key={k}>
-              <div class={'text-sm font-bold text-gray-700 mb-1'}>{tt(`scada.help.${k}`)}</div>
-              <ul class={'m-0 pl-5 text-xs text-gray-600 leading-5'}>
-                {tt(`scada.help.${k}Text`).split('\n').map((line, i) => (
-                  <li key={i}>{line}</li>
+    /** 操作说明弹窗：左侧章节目录 + 右侧章节内容（与脚本帮助弹窗同一形式） */
+    const renderHelp = () => {
+      const cur = HELP_SECTIONS.includes(helpSection.value) ? helpSection.value : HELP_SECTIONS[0]
+      return (
+        <NModal
+          show={helpShow.value}
+          preset="card"
+          title={tt('scada.help.title')}
+          closable
+          maskClosable
+          autoFocus={false}
+          style={{ width: 'min(780px, 96vw)' }}
+          contentStyle={{ padding: '0' }}
+          onUpdateShow={(v: boolean) => (helpShow.value = v)}
+        >
+          <div class={'flex'} style={{ height: 'min(480px, 64vh)' }} data-scada-help-content>
+            {/* 左侧章节目录 */}
+            <div class={'w-[150px] shrink-0 border-0 border-r border-solid border-gray-200 py-2 bg-gray-50'}>
+              <NScrollbar class={'h-full'}>
+                {HELP_SECTIONS.map(k => (
+                  <div
+                    key={k}
+                    data-scada-help-section={k}
+                    class={[
+                      'px-3 py-2 text-xs cursor-pointer leading-4 border-0 border-l-2 border-solid',
+                      k === cur ? 'bg-white text-[#4d75a1] font-bold border-[#4d75a1]' : 'text-gray-600 border-transparent hover:bg-gray-100'
+                    ]}
+                    onClick={() => (helpSection.value = k)}
+                  >
+                    {tt(`scada.help.${k}`)}
+                  </div>
                 ))}
-              </ul>
+              </NScrollbar>
             </div>
-          ))}
-        </div>
-      </NModal>
-    )
+            {/* 右侧章节内容 */}
+            <NScrollbar class={'flex-1 min-w-0'}>
+              <div class={'px-4 py-3'}>
+                <div class={'text-sm font-bold text-gray-700 mb-2'}>{tt(`scada.help.${cur}`)}</div>
+                <ul class={'m-0 pl-5 text-xs text-gray-600 leading-5 selectable-text'}>
+                  {tt(`scada.help.${cur}Text`).split('\n').map((line, i) => (
+                    <li key={i}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+            </NScrollbar>
+          </div>
+        </NModal>
+      )
+    }
 
     /** 编辑模式的顶部工具栏（两行：常用开关 / 缩放 / 保存；排列工具栏）；展示模式不渲染顶栏，画布占满整页 */
     const renderToolbar = () => {
