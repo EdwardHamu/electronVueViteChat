@@ -3,7 +3,8 @@
  * 弹窗里编辑的是本地草稿，用组件当前绑定的数据实时预览输出（预览有独立的 ctx.state，不影响画布里的实例），
  * 点「确定」才写回 WidgetInstance.transform；语法错误时不允许确定。
  */
-import { NButton, NInput, NModal, NSelect } from 'naive-ui'
+import { NButton, NModal, NSelect } from 'naive-ui'
+import CodeEditor from './CodeEditor'
 import { computed, defineComponent, ref, watch, type PropType } from 'vue'
 import { getDataSource } from './dataSource'
 import { formatValue } from './geometry'
@@ -106,15 +107,15 @@ export default defineComponent({
       const p = preview.value
       return (
         <div class={'flex flex-col gap-2'} onKeydown={onKeydown}>
-          <NInput
-            type="textarea"
-            value={draft.value}
-            placeholder={tt('scada.panel.transformPlaceholder')}
-            autosize={{ minRows: 10, maxRows: 18 }}
-            inputProps={{ spellcheck: false, autocapitalize: 'off', autocorrect: 'off' } as any}
-            style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '13px' }}
-            onUpdateValue={(v: string) => (draft.value = v)}
-          />
+          {/* 带语法高亮的代码编辑器（和全局脚本 / 自定义组件代码弹窗同一个 CodeEditor），高度由外层容器决定 */}
+          <div style={{ height: '340px' }}>
+            <CodeEditor
+              value={draft.value}
+              language="js"
+              placeholder={tt('scada.panel.transformPlaceholder')}
+              onUpdateValue={(v: string) => (draft.value = v)}
+            />
+          </div>
           <div class={'flex items-center gap-2 flex-wrap'}>
             <NSelect
               class={'w-[200px]'}
