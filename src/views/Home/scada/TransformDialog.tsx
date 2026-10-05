@@ -119,6 +119,26 @@ export default defineComponent({
       return snap
     }
 
+    /** 一键复制属性 JSON（选区在弹窗/焦点切换下容易被清掉，按钮兜底保证能拿到内容） */
+    const copySnapshot = () => {
+      const text = JSON.stringify(widgetSnapshot(), null, 2)
+      const done = () => {
+        const m = window.$message as unknown as { success?: (t: string) => void } | undefined
+        m && m.success && m.success(tt('config.copySuccess'))
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => {})
+      } else {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+        done()
+      }
+    }
+
     const renderBody = () => {
       const p = preview.value
       return (
@@ -156,21 +176,27 @@ export default defineComponent({
                   </NButton>
                 ),
                 default: () => (
-                  <NScrollbar style={{ maxHeight: '340px', width: '380px' }}>
-                    <pre
-                      class={'m-0 px-3 py-2 text-xs leading-5'}
-                      style={{
-                        fontFamily: 'ui-monospace, Consolas, monospace',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-all',
-                        userSelect: 'text',
-                        cursor: 'text'
-                      }}
-                      onMousedown={(e: MouseEvent) => e.stopPropagation()}
-                    >
-                      {JSON.stringify(widgetSnapshot(), null, 2)}
-                    </pre>
-                  </NScrollbar>
+                  <div style={{ width: '380px' }}>
+                    <div class={'flex items-center justify-end px-2 pt-1'}>
+                      <NButton size="tiny" quaternary onClick={copySnapshot}>
+                        {tt('config.copy')}
+                      </NButton>
+                    </div>
+                    <NScrollbar style={{ maxHeight: '320px' }}>
+                      <pre
+                        class={'transform-props-pre m-0 px-3 pb-2 pt-1 text-xs leading-5'}
+                        style={{
+                          fontFamily: 'ui-monospace, Consolas, monospace',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-all',
+                          cursor: 'text'
+                        }}
+                        onMousedown={(e: MouseEvent) => e.stopPropagation()}
+                      >
+                        {JSON.stringify(widgetSnapshot(), null, 2)}
+                      </pre>
+                    </NScrollbar>
+                  </div>
                 )
               }}
             </NPopover>
@@ -206,6 +232,7 @@ export default defineComponent({
           closable
           maskClosable={false}
           autoFocus={false}
+          trapFocus={false}
           style={{ width: '760px', maxWidth: '96vw' }}
           onUpdateShow={(v: boolean) => {
             if (!v) close()

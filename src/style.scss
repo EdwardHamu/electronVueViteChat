@@ -899,3 +899,11 @@ body {
 .n-card > .n-card-header {
   padding: 8px 14px !important;
 }
+
+/* 数据处理函数弹窗里的「组件属性」浮窗：JSON 内容必须可被鼠标选中复制
+ * （全局有 span/img user-select:none，naive-ui 运行时注入样式也可能干扰，这里用 !important 兜底） */
+.transform-props-pre,
+.transform-props-pre * {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
