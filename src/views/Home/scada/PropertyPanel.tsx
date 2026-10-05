@@ -20,6 +20,7 @@ import { hasHostBridge, INLINE_MAX_BYTES, isDataUrl, isResourceUrl, readBlobAsDa
 import { useScadaStore } from './store'
 import { transformErrors } from './transform'
 import TransformDialog from './TransformDialog'
+import WidgetPropsPopover from './WidgetPropsPopover'
 import CodeDialog, { codeParts } from './CodeDialog'
 import BindingPickerDialog from './BindingPickerDialog'
 import ScriptDialog from './ScriptDialog'
@@ -546,7 +547,11 @@ export default defineComponent({
 
     return () => (
       <div class={'h-full flex flex-col bg-white'}>
-        <div class={'px-3 py-2 text-sm font-bold border-0 border-b border-solid border-gray-200 shrink-0'}>{tt('scada.properties')}</div>
+        <div class={'px-3 py-2 border-0 border-b border-solid border-gray-200 shrink-0 flex items-center gap-2'}>
+          <span class={'text-sm font-bold flex-1 truncate'}>{tt('scada.properties')}</span>
+          {/* 右上角「组件属性」：浮窗显示当前选中组件的对象快照（向左弹，面板贴着屏幕右缘）；未选中单个组件时置灰 */}
+          <WidgetPropsPopover widget={selected.value || undefined} placement="left-start" size="tiny" />
+        </div>
         {/* 悬浮滚动条：NScrollbar 隐藏原生滚动条、把滑轨浮在内容之上，不挤压内部宽度；trigger=none 让滑轨常显（触摸屏没有 hover） */}
         <NScrollbar class={'flex-1 min-h-0'} trigger="none">
           {/* 多栏时把 columns 放在内层：外层高度固定 + 多栏会横向溢出，内层高度自适应才能按内容均分两栏 */}

@@ -3,13 +3,14 @@
  * 弹窗里编辑的是本地草稿，用组件当前绑定的数据实时预览输出（预览有独立的 ctx.state，不影响画布里的实例），
  * 点「确定」才写回 WidgetInstance.transform；语法错误时不允许确定。
  */
-import { NButton, NInput, NModal, NPopover, NScrollbar, NSelect } from 'naive-ui'
+import { NButton, NInput, NModal, NSelect } from 'naive-ui'
 import { computed, defineComponent, ref, watch, type PropType } from 'vue'
 import { getDataSource } from './dataSource'
 import { formatValue } from './geometry'
 import { getWidgetDefinition } from './registry'
 import { useScadaStore } from './store'
-import { resolveParam, runtimeOverrides } from './runtime'
+import { resolveParam } from './runtime'
+import WidgetPropsPopover from './WidgetPropsPopover'
 import { compileTransform, runTransform, TRANSFORM_EXAMPLES, type TransformContext } from './transform'
 import type { DataPoint, WidgetInstance } from './types'
 import { tt } from './widgets/common'
@@ -101,55 +102,6 @@ export default defineComponent({
       }
     }
 
-    /** 「组件属性」浮窗内容：当前组件对象的实时快照（写 ctx.setProp / 读 ctx.widget.props 时对照用） */
-    const widgetSnapshot = () => {
-      const w = props.widget
-      if (!w) return null
-      const snap: Record<string, any> = {
-        id: w.id,
-        type: w.type,
-        title: w.title || '',
-        x: w.x, y: w.y, w: w.w, h: w.h,
-        hidden: !!w.hidden,
-        binding: w.binding || null,
-        props: w.props
-      }
-      const ov = runtimeOverrides[w.id]
-      if (ov && Object.keys(ov).length) snap.runtimeOverrides = ov
-      return snap
-    }
-
-    /**
-     * 浮窗里展示的属性 JSON 是「冻结快照」而不是实时渲染：
-     * 数据源每秒轮询，preview / runtimeOverrides 跟着变会让整个弹窗每秒重渲染，
-     * 浮窗里的文本节点一被重写，用户刚拖出来的选区立刻被销毁（表现为"无法选中"）。
-     * 打开浮窗时截一份静态文本，想看最新值点「刷新」。
-     */
-    const propsSnapshotText = ref('')
-    const refreshSnapshot = () => {
-      propsSnapshotText.value = JSON.stringify(widgetSnapshot(), null, 2)
-    }
-
-    /** 一键复制属性 JSON（复制的是浮窗里当前显示的快照） */
-    const copySnapshot = () => {
-      const text = propsSnapshotText.value || JSON.stringify(widgetSnapshot(), null, 2)
-      const done = () => {
-        const m = window.$message as unknown as { success?: (t: string) => void } | undefined
-        m && m.success && m.success(tt('config.copySuccess'))
-      }
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done).catch(() => {})
-      } else {
-        const ta = document.createElement('textarea')
-        ta.value = text
-        document.body.appendChild(ta)
-        ta.select()
-        document.execCommand('copy')
-        document.body.removeChild(ta)
-        done()
-      }
-    }
-
     const renderBody = () => {
       const p = preview.value
       return (
@@ -178,50 +130,8 @@ export default defineComponent({
             <NButton size="small" quaternary disabled={!draft.value} onClick={() => (draft.value = '')}>
               {tt('scada.panel.transformClear')}
             </NButton>
-            {/* 浮窗展示当前组件的属性对象（打开时冻结的快照——实时渲染会每秒重写文本节点、销毁用户选区），
-                写 ctx.setProp / 读 ctx.widget.props 时对照，点「刷新」取最新值 */}
-            <NPopover
-              trigger="click"
-              placement="right-start"
-              style={{ padding: '0' }}
-              onUpdateShow={(v: boolean) => {
-                if (v) refreshSnapshot()
-              }}
-            >
-              {{
-                trigger: () => (
-                  <NButton size="small" data-transform-props>
-                    {tt('scada.panel.transformProps')}
-                  </NButton>
-                ),
-                default: () => (
-                  <div style={{ width: '380px' }}>
-                    <div class={'flex items-center justify-end gap-1 px-2 pt-1'}>
-                      <NButton size="tiny" quaternary onClick={refreshSnapshot}>
-                        {tt('scada.panel.transformPropsRefresh')}
-                      </NButton>
-                      <NButton size="tiny" quaternary onClick={copySnapshot}>
-                        {tt('config.copy')}
-                      </NButton>
-                    </div>
-                    <NScrollbar style={{ maxHeight: '320px' }}>
-                      <pre
-                        class={'transform-props-pre selectable-text m-0 px-3 pb-2 pt-1 text-xs leading-5'}
-                        style={{
-                          fontFamily: 'ui-monospace, Consolas, monospace',
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-all',
-                          cursor: 'text'
-                        }}
-                        onMousedown={(e: MouseEvent) => e.stopPropagation()}
-                      >
-                        {propsSnapshotText.value}
-                      </pre>
-                    </NScrollbar>
-                  </div>
-                )
-              }}
-            </NPopover>
+            {/* 「组件属性」浮窗（共享组件）：写 ctx.setProp / 读 ctx.widget.props 时对照 */}
+            <WidgetPropsPopover widget={props.widget} placement="right-start" />
             <div class={'flex-1'} />
             {!props.widget?.binding && <span class={'text-xs text-orange-500'}>{tt('scada.panel.transformNoBinding')}</span>}
           </div>
