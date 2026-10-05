@@ -18,7 +18,6 @@ import { icons } from './icons'
 const SERIES_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#f59e0b', '#7c3aed', '#0891b2', '#be185d', '#4b5563']
 
 const LEGEND_H = 22
-const ML = 46 // 左侧留给 Y 轴刻度
 const MR = 12
 const MT = 8
 const MB = 20 // 底部留给 X 轴刻度
@@ -154,11 +153,9 @@ const Trend = defineComponent({
     // ---- 几何计算
     const geometry = computed(() => {
       void rev.value // 采样后重算
-      const showLegend = p.value.showLegend !== false
+      const showLegend = p.value.showLegend === true // 图例默认关闭, 显式打开才显示
       const w = props.widget.w
       const h = props.widget.h - (showLegend ? legendH.value : 0)
-      const x0 = ML
-      const x1 = Math.max(x0 + 10, w - MR)
       const y0 = MT
       const y1 = Math.max(y0 + 10, h - MB)
       const t1 = now.value
@@ -198,6 +195,13 @@ const Trend = defineComponent({
         min -= pad
         max += pad
       }
+      // Y 轴预留宽度随刻度文本位数自适应：按最长刻度的字符数估宽（font-size 9 的数字约 5.5px/字符 + 轴线左 5px 间距 + 4px 边距），
+      // 不再固定 46px——数值位数少时把空间还给曲线区，位数多时自动加宽不被截断
+      const yDec = decimalsOf(firstPoint)
+      const yLabels = [0, 1, 2, 3, 4].map(i => String(formatValue(min + ((max - min) * i) / 4, yDec)))
+      const maxChars = yLabels.reduce((m, s2) => Math.max(m, s2.length), 1)
+      const x0 = Math.min(Math.max(16, 9 + maxChars * 5.5), Math.max(16, w * 0.4))
+      const x1 = Math.max(x0 + 10, w - MR)
       const xOf = (t: number) => x0 + ((t - t0) / (t1 - t0)) * (x1 - x0)
       const yOf = (v: number) => y1 - ((v - min) / (max - min)) * (y1 - y0)
 
@@ -214,7 +218,7 @@ const Trend = defineComponent({
       // 刻度：Y 轴 5 个，X 轴 5 个
       const yTicks = [0, 1, 2, 3, 4].map(i => {
         const v = min + ((max - min) * i) / 4
-        return { y: yOf(v), label: formatValue(v, decimalsOf(firstPoint)) }
+        return { y: yOf(v), label: yLabels[i] }
       })
       const fmt = String(p.value.timeFormat || '').trim() || 'HH:mm:ss'
       const xTicks = [0, 1, 2, 3, 4].map(i => {
@@ -323,7 +327,7 @@ export const trendDefinition: WidgetDefinition = {
   minSize: { w: 160, h: 100 },
   needsBinding: false,
   multiBinding: true,
-  defaultProps: () => ({ bindings: [], timeSpan: 60, timeFormat: 'HH:mm:ss', showLegend: true, showLimits: true, lineWidth: 2, decimals: null, bg: '#ffffff', fg: '#1f2937' }),
+  defaultProps: () => ({ bindings: [], timeSpan: 60, timeFormat: 'HH:mm:ss', showLegend: false, showLimits: true, lineWidth: 2, decimals: null, bg: '#ffffff', fg: '#1f2937' }),
   propSchema: [
     { key: 'timeSpan', label: () => tt('scada.prop.timeSpan'), type: 'number', min: 5, max: 86400, step: 1 },
     { key: 'timeFormat', label: () => tt('scada.prop.timeFormat'), type: 'text', placeholder: 'HH:mm:ss' },
