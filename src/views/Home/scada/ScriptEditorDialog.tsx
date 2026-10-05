@@ -163,15 +163,19 @@ export default defineComponent({
       })
 
     // ---------------- 检查 ----------------
-    const doCheck = () => {
+    /** 运行语法检查并更新状态条，返回是否通过（保存前强制调用，不通过则禁止保存） */
+    const runCheck = (): boolean => {
       const r = props.mode === 'transform' ? compileTransform(draft.value) : compileScript(draft.value)
       if (r.error) {
         checkMsg.value = { ok: false, text: r.error }
         msg('error', r.error)
-      } else {
-        checkMsg.value = { ok: true, text: tt('scada.editor.checkOk') }
-        msg('success', tt('scada.editor.checkOk'))
+        return false
       }
+      checkMsg.value = { ok: true, text: tt('scada.editor.checkOk') }
+      return true
+    }
+    const doCheck = () => {
+      if (runCheck()) msg('success', tt('scada.editor.checkOk'))
     }
 
     // ---------------- 查找 / 替换 ----------------
@@ -330,10 +334,12 @@ export default defineComponent({
 
     // ---------------- 保存 / 快捷键 ----------------
     const doSave = () => {
+      if (!runCheck()) return // 语法检查不通过不允许保存
       emit('save', draft.value)
       msg('success', tt('scada.editor.saved'))
     }
     const apply = () => {
+      if (!runCheck()) return // 语法检查不通过不允许保存
       emit('save', draft.value)
       emit('close')
     }
