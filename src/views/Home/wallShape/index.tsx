@@ -15,7 +15,7 @@ import { computeWallShape, MIN_WALL_POINTS, wallShapeChartId, wallShapeConId } f
  * 参考 ecc/index.tsx：取当前设备全部壁厚数据组（WALL01..08，N 个测点按 360/N° 等角分布），
  * 由实测壁厚推导平均/最大/最小壁厚、偏心度、偏心角与内孔偏移，绘制线缆横截面。
  * 测点不足 MIN_WALL_POINTS（4）个时仅弹出警告，不绘图。
- * 4、5 个测点时偏心量 / 偏心角用一阶谐波拟合（见 enum.ts computeWallShape），偏心角是连续值，
+ * 偏心量 / 偏心角对所有测点数统一用一阶谐波拟合（见 enum.ts computeWallShape），偏心角是连续值，
  * 扇形光束可以指向两个测点之间；4 测点的标签布局单独处理（见 updateLabels / gridFor）。
  */
 export default defineComponent({
@@ -207,7 +207,7 @@ export default defineComponent({
       const elements: any[] = []
 
       // ── 扇形光束：指示偏心方向（与 ecc 一致的画法）──
-      // 内孔向最薄壁方向偏移，偏心方向即 angleMin；max==min（无偏心）时不绘制
+      // 内孔向最薄壁方向偏移，偏心方向即 angleMin；拟合偏移量 d 为 0（无偏心）时不绘制
       const fanCenterAngle = d.angleMin
       const fanHalfAngle = 25  // 半角 25°，总宽 50°
       const fanSliceCount = 50
