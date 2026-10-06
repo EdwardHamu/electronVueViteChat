@@ -337,6 +337,16 @@
   "home": {
     "welcome": "欢迎！"
   },
+  "wallShape": {
+    "points": "测点数",
+    "avg": "平均壁厚",
+    "max": "最大壁厚",
+    "min": "最小壁厚",
+    "ecc": "偏心度",
+    "angle": "偏心角",
+    "notEnough": "壁厚测点不足6个（当前{n}个），无法绘制外形图",
+    "noData": "等待壁厚数据…"
+  },
   "scada": {
     "editor": {
       "open": "打开脚本编辑器",

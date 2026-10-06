@@ -337,6 +337,16 @@
   "home": {
     "welcome": "Xin chào!"
   },
+  "wallShape": {
+    "points": "Số điểm đo",
+    "avg": "Độ dày TB",
+    "max": "Độ dày max",
+    "min": "Độ dày min",
+    "ecc": "Độ lệch tâm",
+    "angle": "Góc lệch tâm",
+    "notEnough": "Chưa đủ 6 điểm đo độ dày (hiện có {n}), không thể vẽ biên dạng",
+    "noData": "Đang chờ dữ liệu độ dày…"
+  },
   "scada": {
     "editor": {
       "open": "Mở trình soạn thảo script",

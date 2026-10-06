@@ -337,6 +337,16 @@
   "home": {
     "welcome": "Hello!"
   },
+  "wallShape": {
+    "points": "Points",
+    "avg": "Avg Wall",
+    "max": "Max Wall",
+    "min": "Min Wall",
+    "ecc": "Eccentricity",
+    "angle": "Ecc Angle",
+    "notEnough": "Less than 6 wall thickness points (got {n}), cannot draw the cross-section",
+    "noData": "Waiting for wall thickness data…"
+  },
   "scada": {
     "editor": {
       "open": "Open Script Editor",

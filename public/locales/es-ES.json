@@ -337,6 +337,16 @@
   "home": {
     "welcome": "¡Hola!"
   },
+  "wallShape": {
+    "points": "Puntos",
+    "avg": "Espesor medio",
+    "max": "Espesor máx",
+    "min": "Espesor mín",
+    "ecc": "Excentricidad",
+    "angle": "Ángulo exc.",
+    "notEnough": "Menos de 6 puntos de espesor (hay {n}), no se puede dibujar el perfil",
+    "noData": "Esperando datos de espesor…"
+  },
   "scada": {
     "editor": {
       "open": "Abrir editor de scripts",

@@ -26,8 +26,9 @@ import { useI18n } from "vue-i18n";
 import { usei18nStore } from "@/store/i18n";
 import { useMyI18n } from "@/hooks/useMyI18n";
 import Ecc from "../ecc";
-import { DeviceClassEnum, DeviceClassHasShapeList, DeviceClassNameMap } from "../config/devConfigNew/enum";
+import { DeviceClassEnum, DeviceClassHasShapeList, DeviceClassNameMap, WALL_DATA_CLASSES } from "../config/devConfigNew/enum";
 import LineShape from "../LineShape";
+import WallShape from "../wallShape";
 
 let defCfgData: DataConfigEntity[] = [
   {
@@ -128,6 +129,16 @@ export default defineComponent({
     }
     const chartType = computed(() => configStore.chartType)
     const curChartDeviceType = computed(() => Number(configStore.curChartDeviceType))
+    /**
+     * 当前所选数据是否来自超声波偏心仪（UltrasonicWave）设备：
+     * DeviceGroupEntity 上没有驱动名，但只有该驱动的设备才有 WALL01..08 壁厚数据组，
+     * 故以「所属设备存在壁厚数据组」判定；命中时外形图用 WallShape 替代 Ecc。
+     */
+    const isUltrasonicShape = computed(() => {
+      const devGId = configStore.curChartDataGroup?.DeviceGroupId
+      if (!devGId) return false
+      return configStore.chartDataGroupList.some(e => e.DeviceGroupId === devGId && WALL_DATA_CLASSES.includes(Number(e.DataClass)))
+    })
     const chartAdressList = computed(() => configStore.chartDataAdressList)
     // getSysCfg()
     const getAllActiveConfigData = () => {
@@ -663,7 +674,7 @@ export default defineComponent({
           {
             chartType.value == 1 && curChartDeviceType.value == DeviceClassEnum.Ecc &&
             <div class={'h-full shrink mt-2 overflow-visible relative '}  >
-              <Ecc />
+              {isUltrasonicShape.value ? <WallShape /> : <Ecc />}
             </div>
           }
           {
