@@ -165,6 +165,7 @@ export default defineComponent({
             btnShowList={[1, 1, 1]}
             rowClickFn={rowClick}
             defIsEditing={true}
+            hideEditSwitch={true}
           />
 
           <AdressForm />

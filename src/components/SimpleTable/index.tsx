@@ -73,6 +73,11 @@ export default defineComponent({
     defIsEditing: {
       type: Boolean,
       default: false
+    },
+    // 隐藏右下角「表格编辑」开关（编辑态由 defIsEditing 决定）
+    hideEditSwitch: {
+      type: Boolean,
+      default: false
     }
   },
   setup(props) {
@@ -362,7 +367,7 @@ export default defineComponent({
 
 
             {props.renderBtn && props.renderBtn()}
-            <div class={"ml-auto"}>
+            {!props.hideEditSwitch && <div class={"ml-auto"}>
               <NSwitch value={alldata.isEditing} onUpdate:value={(v: boolean) => {
                 alldata.isEditing = v
               }}
@@ -373,7 +378,7 @@ export default defineComponent({
                 }}
                 size='large'
               ></NSwitch>
-            </div>
+            </div>}
           </div >
         }
 
