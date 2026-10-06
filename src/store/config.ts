@@ -100,7 +100,7 @@ export const useConfigStore = defineStore('config', {
       chartType: getLocalStorage('chartType', 0) as number,
       curChartDeviceType: getLocalStorage('curChartDeviceType', '') as string,
 
-      /** 展示模式：开启后产品分类下的数据采集不到真数据时用随机假数据（保留5位小数） */
+      /** 展示模式：开启后不再采集真数据，产品分类下的数据全部使用随机假数据（保留5位小数） */
       demoMode: getLocalStorage('demoMode', 0) as number,
       /** 展示模式假数据随机范围，按变量（数据组 GId）配置 { min, max } */
       demoRanges: getLocalStorage('demoRanges', {}) as Record<string, { min: number, max: number }>,

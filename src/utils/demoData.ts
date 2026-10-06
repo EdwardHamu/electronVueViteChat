@@ -26,7 +26,7 @@ export const getDemoRange = (gid: string): { min: number, max: number } => {
 
 /**
  * 生成一个变量的随机假数据（保留5位小数）。
- * 仅在展示模式开启、且采集不到真数据时作为 GetRealtimeData 的兜底返回。
+ * 展示模式开启后不再采集真数据，GetRealtimeData 直接返回该假数据。
  */
 export const makeFakeDataValue = (gid: string): DataValue => {
   const { min, max } = getDemoRange(gid)
