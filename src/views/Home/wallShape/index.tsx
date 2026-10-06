@@ -194,6 +194,50 @@ export default defineComponent({
       const labelRadius = axisMax * 1.09 * 0.85
       const elements: any[] = []
 
+      // ── 扇形光束：指示偏心方向（与 ecc 一致的画法）──
+      // 内孔向最薄壁方向偏移，偏心方向即 angleMin；max==min（无偏心）时不绘制
+      const fanCenterAngle = d.angleMin
+      const fanHalfAngle = 25  // 半角 25°，总宽 50°
+      const fanSliceCount = 50
+      const fanOuterRadius = d.R
+
+      if (d.d > 0) {
+        const angleStartRad = (fanCenterAngle - fanHalfAngle) * Math.PI / 180
+        const angleEndRad = (fanCenterAngle + fanHalfAngle) * Math.PI / 180
+
+        for (let i = 0; i < fanSliceCount; i++) {
+          const a1 = angleStartRad + (i / fanSliceCount) * (angleEndRad - angleStartRad)
+          const a2 = angleStartRad + ((i + 1) / fanSliceCount) * (angleEndRad - angleStartRad)
+
+          // 颜色插值：中轴橙 → 边缘深蓝
+          const midAngleDeg = fanCenterAngle - fanHalfAngle + ((i + 0.5) / fanSliceCount) * (fanHalfAngle * 2)
+          const t = Math.abs(midAngleDeg - fanCenterAngle) / fanHalfAngle
+          const r = Math.round(255 * (1 - t))
+          const g = Math.round(140 * (1 - t) + 58 * t)
+          const b = Math.round(98 * t)
+          const opacity = 0.7 * (1 - t * 0.5)
+
+          const c1 = myChart.convertToPixel({ xAxisIndex: 0, yAxisIndex: 0 }, [0, 0])
+          const c3 = myChart.convertToPixel({ xAxisIndex: 0, yAxisIndex: 0 }, [fanOuterRadius * Math.cos(a2), fanOuterRadius * Math.sin(a2)])
+          const c4 = myChart.convertToPixel({ xAxisIndex: 0, yAxisIndex: 0 }, [fanOuterRadius * Math.cos(a1), fanOuterRadius * Math.sin(a1)])
+
+          if (!c1 || !c3 || !c4 || isNaN(c1[0])) continue
+
+          elements.push({
+            type: 'polygon',
+            shape: {
+              points: [[c1[0], c1[1]], [c3[0], c3[1]], [c4[0], c4[1]]],
+            },
+            style: {
+              fill: `rgb(${r},${g},${b})`,
+              opacity,
+            },
+            silent: true,
+            zlevel: -2,
+          })
+        }
+      }
+
       for (let i = 0; i < d.n; i++) {
         const angle = i * d.step
         const angleRad = angle * Math.PI / 180
