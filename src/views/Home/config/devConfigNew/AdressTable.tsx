@@ -14,6 +14,7 @@ import { useMyI18n } from "@/hooks/useMyI18n";
 import { AlarmTypeNameList, UnilateralNameList } from "../dataCofigNew/enum";
 import AdressForm from "./AdressForm";
 import { sleep } from "@/utils/utils";
+import { getDataTypeList } from "../devConfig/enum";
 
 const defSubAdressItem: ModbusAdressSubItem = {
   Area: 0,
@@ -80,6 +81,9 @@ export default defineComponent({
       data: [] as DataAddressEntity[],
       coloumns: [
         { label: t('config.dataName'), prop: 'Name', flex: 2, },
+        // 数据类型 / 起始地址来自 AddressString JSON（getData 时解析到行上）
+        { label: t('config.dataType'), prop: 'DataType', flex: 1, mapFn: (col: any, item: DataAddressEntity & { DataType?: number }) => { const n = Number(item.DataType); return Number.isFinite(n) ? (getDataTypeList()[n]?.label || '') : '' } },
+        { label: t('config.startAddress'), prop: 'Index', flex: 1, },
         // { label: '数据分类', prop: 'DeviceClass', flex: 2, mapFn: (col: any, item: DataAddressEntity) => { return DeviceClassNameMap[item.DeviceClass] } },
         // { label: '数据类型', prop: 'DataClass', flex: 2, mapFn: (col: any, item: DataAddressEntity) => { return DataClassNameMap[item.DataClass] } },
         // { label: '参数类型', prop: 'ParamClass', flex: 2, mapFn: (col: any, item: DataAddressEntity) => { return ParamClassNameMap[item.ParamClass] } },
@@ -111,7 +115,9 @@ export default defineComponent({
           return {
             ...e,
             SlaveId: subItem.SlaveId,
-            Length: subItem.Length
+            Length: subItem.Length,
+            DataType: subItem.DataType,
+            Index: subItem.Index
           }
         })
         // res.push({
@@ -142,8 +148,10 @@ export default defineComponent({
       sleep(100).then(() => {
         refreshDevConfigNewEnums()
         alldata.coloumns[0].label = t('config.dataName')
-        alldata.coloumns[1].label = t('config.readWritePermission')
-        alldata.coloumns[2].label = t('config.status')
+        alldata.coloumns[1].label = t('config.dataType')
+        alldata.coloumns[2].label = t('config.startAddress')
+        alldata.coloumns[3].label = t('config.readWritePermission')
+        alldata.coloumns[4].label = t('config.status')
       })
 
     })
