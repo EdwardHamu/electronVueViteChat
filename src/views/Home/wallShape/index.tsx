@@ -275,6 +275,8 @@ export default defineComponent({
 
         const textOffset = 14
         const topExtraOffset = sinA > 0.3 ? -12 : 0
+        // x 轴最右端附近（角度≈0°/360°）的测点标签整体向左移 12px，避免贴边
+        const rightExtraOffset = cosA > 0.9 ? -12 : 0
         let textAlign: string
         if (cosA > 0.3) textAlign = 'left'
         else if (cosA < -0.3) textAlign = 'right'
@@ -286,7 +288,7 @@ export default defineComponent({
 
         elements.push({
           type: 'text',
-          left: labelPx[0] + textOffset * cosA - 30,
+          left: labelPx[0] + textOffset * cosA - 30 + rightExtraOffset,
           top: labelPx[1] - textOffset * sinA + topExtraOffset,
           style: {
             text: alldata.values[i].toFixed(prec.value),
