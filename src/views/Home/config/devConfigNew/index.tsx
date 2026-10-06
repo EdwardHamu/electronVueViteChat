@@ -141,7 +141,7 @@ export default defineComponent({
                 default: () => (
                   <div class={'flex w-full h-full overflow-hidden'}>
                     {/* 左侧栏：连接配置 */}
-                    <div class={'w-[400px] flex-shrink-0 flex flex-col con-sidebar-form pr-3 mr-3'}
+                    <div class={'w-[400px] flex-shrink-0 flex flex-col con-sidebar-form p-3 mr-3'}
                       style={{ borderRight: '1px solid #c2cbd4' }}>
                       <div class={'text-lg font-bold mb-2 text-[#4d75a1]'}>{t('config.connectionConfiguration')}</div>
                       <NScrollbar class={'flex-1 min-h-0'}>
