@@ -1,0 +1,1 @@
+cd ./output/dist && cp index.html D:/NTCode/NTSPC_M/SPC.M/SPC.Main/Resources/wwwroot && cp -r locales D:/NTCode/NTSPC_M/SPC.M/SPC.Main/Resources/wwwroot && echo 复制完成
