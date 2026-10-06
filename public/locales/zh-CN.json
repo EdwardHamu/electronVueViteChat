@@ -58,6 +58,16 @@
     "toleranceDwon": "下公差"
   },
   "config": {
+    "demoMode": "展示模式",
+    "demoRangeBtn": "假数据范围",
+    "demoRangeTitle": "展示模式假数据随机范围",
+    "demoRangeDevice": "设备",
+    "demoRangeVar": "变量",
+    "demoRangeMin": "最小值",
+    "demoRangeMax": "最大值",
+    "demoRangeEmpty": "该产品分类下没有变量",
+    "demoRangeTip": "未配置的变量默认 {min} ~ {max}，假数据保留5位小数",
+    "save": "保存",
     "advancedSettings": "高级设置",
     "basicConfiguration": "基本配置",
     "acquisitionConfiguration": "采集配置",

@@ -58,6 +58,16 @@
     "toleranceDwon": "Lower Tolerance"
   },
   "config": {
+    "demoMode": "Demo Mode",
+    "demoRangeBtn": "Fake Data Range",
+    "demoRangeTitle": "Demo Mode Fake Data Range",
+    "demoRangeDevice": "Device",
+    "demoRangeVar": "Variable",
+    "demoRangeMin": "Min",
+    "demoRangeMax": "Max",
+    "demoRangeEmpty": "No variables under this product category",
+    "demoRangeTip": "Unconfigured variables default to {min} ~ {max}, fake data keeps 5 decimals",
+    "save": "Save",
     "advancedSettings": "Advanced Settings",
     "basicConfiguration": "Basic Configuration",
     "acquisitionConfiguration": "Acquisition Configuration",

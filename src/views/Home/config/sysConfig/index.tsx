@@ -4,7 +4,7 @@ import { callSpc, chooseFolder, getPrinterList, getSysConfig, setSavedSysConfig,
 import { callBrige } from "@/utils/callm";
 import { callFnName } from "@/utils/enum";
 import { showKeyBoard, sleep } from "@/utils/utils";
-import { NButton, NDialogProvider, NModal, NScrollbar, NTag, useMessage } from "naive-ui";
+import { NButton, NDialogProvider, NFormItem, NModal, NScrollbar, NSwitch, NTag, useMessage } from "naive-ui";
 import { mapState } from "pinia";
 import { computed, defineComponent, onMounted, reactive, ref, watch } from "vue";
 import { useMyI18n } from "@/hooks/useMyI18n";
@@ -12,6 +12,7 @@ import { ActualResult, SysConfigEntity, SysConfigModel } from "~/me";
 import AcCode from "./AcCode";
 import { formDivideStyle, noKeyBoardInputClass, optionMap } from "./enum";
 import SerialNoRule from "./SerialNoRule";
+import DemoRangeDialog from "./DemoRangeDialog";
 
 export default defineComponent({
   name: 'SysConfig',
@@ -22,7 +23,8 @@ export default defineComponent({
     const loading = ref(false)
     const msg = useMessage()
     const alldata = reactive({
-      cfgData: {} as SysConfigModel
+      cfgData: {} as SysConfigModel,
+      demoRangeShow: false,
     })
     const cfgData = computed(() => {
       return configStore.sysConfig
@@ -68,6 +70,20 @@ export default defineComponent({
               }, width: 12
             },
             { type: 'switch', label: t('config.touchKeyboardInput'), prop: 'InputType', checkedValue: 1, uncheckedValue: 0, defaultValue: 1, width: 12 },
+            {
+              // 展示模式：开关与范围配置即时持久化（localStorage），不随表单保存
+              type: 'free', label: t('config.demoMode'), prop: 'DemoMode', renderComp: () => {
+                // free 类型不渲染表单 label，这里自带 NFormItem 以与其他配置项观感一致
+                return <NFormItem label={t('config.demoMode')} showFeedback={false}>
+                  <div class={'flex items-center gap-3'}>
+                    <NSwitch value={!!configStore.demoMode} data-demo-mode-switch
+                      onUpdateValue={(v: boolean) => configStore.setDemoMode(v ? 1 : 0)} />
+                    <NButton size="small" disabled={!configStore.demoMode} data-demo-range-btn
+                      onClick={() => { alldata.demoRangeShow = true }}>{t('config.demoRangeBtn')}</NButton>
+                  </div>
+                </NFormItem>
+              }, width: 12
+            },
             // { type: 'text', label: '', prop: 'InputType', text: '', width: 24 },
             // { type: 'text', label: '', prop: 'Version', text: '', width: 24 },
           ]
@@ -106,6 +122,8 @@ export default defineComponent({
               } else if (child.type === 'free') {
                 if (child.prop === 'Cdkey' || child.label === '激活码' || child.label === t('config.enterActivationCode')) {
                   child.label = t('config.enterActivationCode')
+                } else if (child.prop === 'DemoMode') {
+                  child.label = t('config.demoMode')
                 }
               }
             })
@@ -178,6 +196,7 @@ export default defineComponent({
 
         <div class={'w-full h-full  overflow-x-hidden -top-5 px-4 text-lg bg-[#f5f6f6] '} style={{ height: 'calc(100% + 20px)' }}>
           <MyFormWrap class={'limit-item-width-form'} labelWidth={180} ref={myFormRef} form={alldata.cfgData} optionMap={formOpt.optionMap} hideBtn={true} itemList={formOpt.itemList} submitFn={submit} btnStyleStr={'margin-right:50px;margin-bottom:10px;'} loading={loading.value} />
+          <DemoRangeDialog show={alldata.demoRangeShow} onClose={() => { alldata.demoRangeShow = false }} />
         </div>
         // </NScrollbar>
 

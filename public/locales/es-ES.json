@@ -58,6 +58,16 @@
     "toleranceDwon": "Tolerancia inferior"
   },
   "config": {
+    "demoMode": "Modo demostración",
+    "demoRangeBtn": "Rango de datos falsos",
+    "demoRangeTitle": "Rango aleatorio de datos falsos",
+    "demoRangeDevice": "Dispositivo",
+    "demoRangeVar": "Variable",
+    "demoRangeMin": "Mín",
+    "demoRangeMax": "Máx",
+    "demoRangeEmpty": "No hay variables en esta categoría de producto",
+    "demoRangeTip": "Variables sin configurar usan {min} ~ {max}, datos falsos con 5 decimales",
+    "save": "Guardar",
     "advancedSettings": "Configuración avanzada",
     "basicConfiguration": "Configuración básica",
     "acquisitionConfiguration": "Configuración de adquisición",
