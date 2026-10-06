@@ -51,12 +51,13 @@ import './widgets'
  * 展示模式右键菜单状态（模块级）：菜单不再在画布上任意右键触发，
  * 改为右键顶部「数据组态」tab 时打开（Home/index.tsx 的 tabProps 调 openDisplayMenu）。
  */
-export const displayMenu = reactive({ show: false, x: 0, y: 0 })
+export const displayMenu = reactive({ show: false, x: 0, y: 0, openedAt: 0 })
 export const openDisplayMenu = (e: MouseEvent) => {
   e.preventDefault()
   if (useScadaStore().editing) return // 编辑模式没有展示菜单
   displayMenu.x = e.clientX
   displayMenu.y = e.clientY
+  displayMenu.openedAt = Date.now()
   displayMenu.show = true
 }
 
@@ -557,7 +558,15 @@ export default defineComponent({
               x={menu.x}
               y={menu.y}
               options={menuOptions.value}
-              onClickoutside={() => (menu.show = false)}
+              onClickoutside={(e: MouseEvent) => {
+                // 右键（或触摸长按）「数据组态」tab 时：contextmenu 先把菜单（重新）打开，clickoutside 在 mouseup 才触发，
+                // 不拦截的话菜单刚开就被同一次右键关掉 → 表现为「右键菜单有时失效」。
+                // 来自 tab 自身的 clickoutside 一律忽略（那是重开菜单的同一手势）；再按打开时间戳兜底。
+                const t = e && (e.target as HTMLElement | null)
+                if (t && typeof t.closest === 'function' && t.closest('[data-allow-contextmenu]')) return
+                if (Date.now() - displayMenu.openedAt < 150) return
+                menu.show = false
+              }}
               onSelect={onMenuSelect}
             />
           )}
