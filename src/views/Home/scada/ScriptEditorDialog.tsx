@@ -257,20 +257,25 @@ export default defineComponent({
       const widgetSource = props.widget ? [props.widget] : scada.current.widgets
       const widgets: TreeOption[] = widgetSource.map(w => {
         // 节点文案: 组件类型中文名 + (自定义命名) + id 前 4 位省略号
-        const typeName = getWidgetDefinition(w.type)?.label() || w.type
+        const def = getWidgetDefinition(w.type)
+        const typeName = def?.label() || w.type
         const named = (w.title || '').trim()
         const shortId = w.id.length > 4 ? w.id.slice(0, 4) + '…' : w.id
         return {
         key: 'w:' + w.id,
         label: `${typeName}${named ? `（${named}）` : ''} · ${shortId}`,
         insert: `'${w.id}'`,
-        children: Object.keys(w.props || {}).map(k => ({
-          key: `w:${w.id}:${k}`,
-          label: k,
-          insert: mode === 'script' ? `scada.getProp('${w.id}', '${k}')` : `ctx.widget.props['${k}']`,
-          getCode: mode === 'script' ? `scada.getProp('${w.id}', '${k}')` : `ctx.widget.props['${k}']`,
-          setCode: mode === 'script' ? `scada.setProp('${w.id}', '${k}', '')` : `ctx.setProp('${k}', '')`
-        }))
+        children: Object.keys(w.props || {}).map(k => {
+          // 属性节点: 中文配置名（属性key）; 属性 schema 里没有的键退回只显示 key
+          const cn = def?.propSchema?.find(f => f.key === k)?.label() || ''
+          return {
+            key: `w:${w.id}:${k}`,
+            label: cn ? `${cn}（${k}）` : k,
+            insert: mode === 'script' ? `scada.getProp('${w.id}', '${k}')` : `ctx.widget.props['${k}']`,
+            getCode: mode === 'script' ? `scada.getProp('${w.id}', '${k}')` : `ctx.widget.props['${k}']`,
+            setCode: mode === 'script' ? `scada.setProp('${w.id}', '${k}', '')` : `ctx.setProp('${k}', '')`
+          }
+        })
         }
       }) as TreeOption[]
       const vars: TreeOption[] = scada.variables.map(v => ({
