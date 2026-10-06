@@ -14,7 +14,9 @@ import { computeWallShape, MIN_WALL_POINTS, wallShapeChartId, wallShapeConId } f
  * 超声波偏心仪（UltrasonicWave）壁厚外形图。
  * 参考 ecc/index.tsx：取当前设备全部壁厚数据组（WALL01..08，N 个测点按 360/N° 等角分布），
  * 由实测壁厚推导平均/最大/最小壁厚、偏心度、偏心角与内孔偏移，绘制线缆横截面。
- * 测点不足 MIN_WALL_POINTS 个时仅弹出警告，不绘图。
+ * 测点不足 MIN_WALL_POINTS（4）个时仅弹出警告，不绘图。
+ * 4、5 个测点时偏心量 / 偏心角用一阶谐波拟合（见 enum.ts computeWallShape），偏心角是连续值，
+ * 扇形光束可以指向两个测点之间；4 测点的标签布局单独处理（见 updateLabels / gridFor）。
  */
 export default defineComponent({
   name: 'WallShape',
@@ -114,11 +116,21 @@ export default defineComponent({
       alldata.chartHeight = size - 20
     }
 
+    /**
+     * 作图区四周留白。4 测点（0°/90°/180°/270°）的标签全部落在坐标轴两端，水平两个标签要整段放到箭头尾端外侧，
+     * 30px 不够放 "0.000" 这类 18px 粗体数字，四边统一加到 60px（四边必须相等：x、y 轴量程相同，作图区不是正方形时圆会变形）。
+     */
+    const gridFor = (n: number) => {
+      const m = n === 4 ? 60 : 30
+      return { left: m, right: m, top: m, bottom: m }
+    }
+
     const initChart = () => {
       const ele = document.getElementById(wallShapeChartId)
       if (!ele) return
       if (myChart) { myChart.dispose(); myChart = null }
       myChart = echarts.init(ele)
+      const n = derived.value?.n ?? wallGroups.value.length
       const axis = {
         type: 'value',
         min: -1,
@@ -129,7 +141,7 @@ export default defineComponent({
         splitLine: { show: false }
       }
       myChart.setOption({
-        grid: { left: 30, right: 30, top: 30, bottom: 30 },
+        grid: gridFor(n),
         xAxis: { ...axis },
         yAxis: { ...axis },
         series: [
@@ -273,6 +285,28 @@ export default defineComponent({
           silent: true,
         })
 
+        const text = alldata.values[i].toFixed(prec.value)
+        const fill = thicknessColor(alldata.values[i])
+
+        // 4 测点：标签锚定在箭头尾端外侧（右 / 上 / 左 / 下），不压箭头和坐标轴
+        if (d.n === 4) {
+          const gap = 6
+          elements.push({
+            type: 'text',
+            x: labelPx[0] + gap * Math.round(cosA),
+            y: labelPx[1] - gap * Math.round(sinA),
+            style: {
+              text,
+              align: cosA > 0.5 ? 'left' : cosA < -0.5 ? 'right' : 'center',
+              verticalAlign: sinA > 0.5 ? 'bottom' : sinA < -0.5 ? 'top' : 'middle',
+              fill,
+              font: 'bold 18px sans-serif',
+            },
+            silent: true,
+          })
+          continue
+        }
+
         const textOffset = 14
         const topExtraOffset = sinA > 0.3 ? -12 : 0
         // x 轴最右端附近（角度≈0°/360°）的测点标签整体向左移 12px，避免贴边
@@ -291,10 +325,10 @@ export default defineComponent({
           left: labelPx[0] + textOffset * cosA - 30 + rightExtraOffset,
           top: labelPx[1] - textOffset * sinA + topExtraOffset,
           style: {
-            text: alldata.values[i].toFixed(prec.value),
+            text,
             textAlign,
             textVerticalAlign,
-            fill: thicknessColor(alldata.values[i]),
+            fill,
             font: 'bold 18px sans-serif',
           },
           silent: true,
@@ -309,6 +343,7 @@ export default defineComponent({
       const d = derived.value
       const range = d ? d.R / 0.85 : 1
       myChart.setOption({
+        grid: gridFor(d?.n ?? wallGroups.value.length),
         xAxis: { min: -range, max: range },
         yAxis: { min: -range, max: range },
         series: [{ data: [[0, 0]] }, { data: [[0, 0]] }]

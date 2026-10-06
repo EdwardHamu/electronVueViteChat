@@ -356,7 +356,7 @@
     "min": "Độ dày min",
     "ecc": "Độ lệch tâm",
     "angle": "Góc lệch tâm",
-    "notEnough": "Chưa đủ 6 điểm đo độ dày (hiện có {n}), không thể vẽ biên dạng",
+    "notEnough": "Chưa đủ 4 điểm đo độ dày (hiện có {n}), không thể vẽ biên dạng",
     "noData": "Đang chờ dữ liệu độ dày…"
   },
   "scada": {

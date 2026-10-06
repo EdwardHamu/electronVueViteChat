@@ -356,7 +356,7 @@
     "min": "Min Wall",
     "ecc": "Eccentricity",
     "angle": "Ecc Angle",
-    "notEnough": "Less than 6 wall thickness points (got {n}), cannot draw the cross-section",
+    "notEnough": "Less than 4 wall thickness points (got {n}), cannot draw the cross-section",
     "noData": "Waiting for wall thickness data…"
   },
   "scada": {
