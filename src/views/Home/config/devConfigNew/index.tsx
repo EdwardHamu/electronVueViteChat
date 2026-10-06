@@ -2,13 +2,15 @@ import SimpleTable from "@/components/SimpleTable";
 import { useConfigStore } from "@/store/config";
 import { callBrige } from "@/utils/callm";
 import { callFnName } from "@/utils/enum";
-import { NButton, NDrawer, NDrawerContent, useDialog } from "naive-ui";
+import { NButton, NDrawer, NDrawerContent, NScrollbar, useDialog } from "naive-ui";
 import { computed, defineComponent, reactive, ref, watch } from "vue";
 import { ConnectComModel, DeviceConfigEntity, simpleTableColumn } from "~/me";
+import type { Ref } from "vue";
+import type { MyFormWrapIns } from "@/components/MyFormWrap/MyFormWrap";
 import AddForm from "./addForm";
 import AdressForm from "./AdressForm";
 import AdressTable from "./AdressTable";
-import ConForm from "./ConForm";
+import { getConFormComp } from "./ConForm";
 import ConnectComForm from "./connect/ConnectComForm";
 import btnActiveImg from '@/assets/LineDspButton_inactive.png'
 import { useMyI18n } from "@/hooks/useMyI18n";
@@ -30,17 +32,20 @@ export default defineComponent({
     const configTab = computed(() => {
       return configStore.configTab
     })
-    const connectClick = (row: simpleTableColumn, item: DeviceConfigEntity) => {
-      // console.log("🪵 [index.tsx:21] ~ token ~ \x1b[0;32mrow\x1b[0m = ", row);
+    /** 连接配置表单实例（合并编辑抽屉左侧栏），由连接表单的 getFormRefFn 回传 */
+    let conFormRef: Ref<MyFormWrapIns | undefined> | null = null
+    /** 合并入口：一个按钮同时负责连接配置（左侧栏）与数据地址（主区域）的编辑 */
+    const configClick = (row: simpleTableColumn, item: DeviceConfigEntity) => {
       rowClick(row, item)
-      otherData.showConnectComForm = true
-    }
-    const adressClick = (row: simpleTableColumn, item: DeviceConfigEntity) => {
-      // console.log("🪵 [index.tsx:21] ~ token ~ \x1b[0;32mrow\x1b[0m = ", row);
-      otherData.showAdressForm = true
       configStore.setAddressShow(true)
-      // configStore.setConfigTab(tabNameEnum.dataAddress)
-      rowClick(row, item)
+    }
+    /** 保存左侧栏的连接配置（校验通过后写入 ConnectString） */
+    const saveConnect = () => {
+      conFormRef?.value?.submit((form: any) => {
+        const str = JSON.stringify(form)
+        otherData.curConnectStr = str
+        updateRow({ ConnectString: str })
+      })
     }
     const rowClick = (row: simpleTableColumn, item: DeviceConfigEntity) => {
       otherData.curConnectStr = item.ConnectString
@@ -75,17 +80,15 @@ export default defineComponent({
           }
         }
       },
-      { label: t('config.connectionConfiguration'), prop: 'ConnectString', flex: 1, btnText: t('config.edit'), btnFn: connectClick },
-      { label: t('config.dataAddress'), prop: 'address', flex: 1, btnText: t('config.edit'), btnFn: adressClick },
+      { label: t('config.connAndAddr'), prop: 'ConnectString', flex: 1, btnText: t('config.edit'), btnFn: configClick },
       { label: t('config.status'), prop: 'State', flex: 1, isSwitch: true, mapFn: (col: any, item: DeviceConfigEntity) => { return item.State == 1 ? t('config.enabled') : t('config.disabled') }, btnFn: stateClick },
       // { label: '', prop: 'op', flex: 1, btnText: '删除', btnFn: deleteClick, btnType: 'danger' },
     ])
     watch(() => i18nStore.langChangeCount, () => {
       columns.value[0].label = t('config.deviceType')
       columns.value[1].label = t('config.deviceName')
-      columns.value[2].label = t('config.connectionConfiguration')
-      columns.value[3].label = t('config.dataAddress')
-      columns.value[4].label = t('config.status')
+      columns.value[2].label = t('config.connAndAddr')
+      columns.value[3].label = t('config.status')
     })
 
     const getData = () => {
@@ -124,28 +127,40 @@ export default defineComponent({
             addAndEditAndDelFn={[addClick, () => { }, deleteClick]}
             addRowProp={'DriverName'} />
 
-          <ConForm connectStr={otherData.curConnectStr}
-            curRow={otherData.curRow}
-            updateParentFn={(v: DeviceConfigEntity) => {
-              updateRow(v)
-            }}
-            show={otherData.showConnectComForm} updateShowFn={(v: boolean) => {
-              otherData.showConnectComForm = v
-            }} />
-
           <AddForm />
 
 
           <NDrawer
             v-model:show={configStore.addressShow}
-            width="80vw" // 如果需要横向也铺满全屏，可以改为 100vw
+            width="92vw" // 如果需要横向也铺满全屏，可以改为 100vw
             placement="right"
             resizable
           >
-            <NDrawerContent title={t('config.dataAddress')} closable>
+            <NDrawerContent title={`${t('config.connectionConfiguration')} / ${t('config.dataAddress')}${otherData.curRow ? `（${otherData.curRow.DriverName} - ${otherData.curRow.Name}）` : ''}`} closable>
               {{
                 default: () => (
-                  <AdressTable />
+                  <div class={'flex w-full h-full overflow-hidden'}>
+                    {/* 左侧栏：连接配置 */}
+                    <div class={'w-[400px] flex-shrink-0 flex flex-col con-sidebar-form pr-3 mr-3'}
+                      style={{ borderRight: '1px solid #c2cbd4' }}>
+                      <div class={'text-lg font-bold mb-2 text-[#4d75a1]'}>{t('config.connectionConfiguration')}</div>
+                      <NScrollbar class={'flex-1 min-h-0'}>
+                        {(() => {
+                          const TargetForm = getConFormComp(otherData.curRow?.DriverName || '')
+                          // key 按设备行切换，保证换设备时表单重建并回填对应 ConnectString
+                          return <TargetForm key={otherData.curRow?.GId || ''}
+                            getFormRefFn={(r: Ref<MyFormWrapIns | undefined>) => { conFormRef = r }}
+                            show={true} connectStr={otherData.curConnectStr} />
+                        })()}
+                      </NScrollbar>
+                      <NButton class={'mt-2 flex-shrink-0'} type="primary" data-save-connect
+                        onClick={saveConnect}>{t('config.saveConnect')}</NButton>
+                    </div>
+                    {/* 主区域：数据地址 */}
+                    <div class={'flex-1 min-w-0 h-full overflow-hidden'}>
+                      <AdressTable />
+                    </div>
+                  </div>
                 ),
                 footer: () => (
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>

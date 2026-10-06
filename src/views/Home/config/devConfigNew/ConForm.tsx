@@ -15,6 +15,29 @@ import ConnectBetaTcpForm from "./connect/ConnectBetaTcpForm";
 import { driverNameEnum } from "./enum";
 import { useMyI18n } from "@/hooks/useMyI18n";
 
+/** 按驱动名取对应的连接配置表单组件（ConForm 弹窗与合并编辑抽屉共用） */
+export const getConFormComp = (driveName: string) => {
+  switch (driveName) {
+    case 'Modbus Tcp Client':
+      return ConnectTcpForm
+    case 'OPC DA Client':
+      return ConnectOpcDaForm
+    case 'OPC UA Client':
+      return ConnectOpcUaForm
+    case 'Siemens Tcp Client':
+      return ConnectSiemensForm
+    case 'Modbus Rtu Client':
+      return ConnectModbusRtuForm
+    case 'Modbus Ascii Client':
+      return ConnectModbusAsciiForm
+    case driverNameEnum.betaUltrasonic:
+      // 超声波偏心仪：Modbus TCP 连接参数 + 壁厚点数
+      return ConnectBetaTcpForm
+    default:
+      return ConnectComForm
+  }
+}
+
 export default defineComponent({
   name: 'ConForm  ',
   props: {
@@ -35,37 +58,7 @@ export default defineComponent({
       curConnectRefType: null
     })
     const getConForm = (driveName: string) => {
-      console.log("🪵 [ConForm.tsx:28] ~ token ~ \x1b[0;32mdriveName\x1b[0m = ", driveName);
-      let res = null;
-      switch (driveName) {
-        case 'Modbus Tcp Client':
-          res = ConnectTcpForm
-          break;
-        case 'OPC DA Client':
-          res = ConnectOpcDaForm
-          break;
-        case 'OPC UA Client':
-          res = ConnectOpcUaForm
-          break;
-        case 'Siemens Tcp Client':
-          res = ConnectSiemensForm
-          break;
-        case 'Modbus Rtu Client':
-          res = ConnectModbusRtuForm
-          break;
-        case 'Modbus Ascii Client':
-          res = ConnectModbusAsciiForm
-          break;
-        case driverNameEnum.betaUltrasonic:
-          // 超声波偏心仪：Modbus TCP 连接参数 + 壁厚点数
-          res = ConnectBetaTcpForm
-          break;
-        default:
-          res = ConnectComForm
-          break;
-      }
-      console.log("🪵 [ConForm.tsx:35] ~ token ~ \x1b[0;32mres\x1b[0m = ", res);
-      return res
+      return getConFormComp(driveName)
     }
 
     const submit = (form: any) => {

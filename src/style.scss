@@ -907,3 +907,14 @@ body {
   user-select: text !important;
   -webkit-user-select: text !important;
 }
+
+// ---------------------------------------------------------------- 设备配置合并编辑抽屉：左侧栏连接配置
+// 连接表单字段原本按 24 栅格 width:12（半行）排列，适合 800px 弹窗；
+// 在 400px 侧栏里改成单列铺满（NGrid 的列数是行内样式，这里用 flex 覆盖掉 grid 布局）
+.con-sidebar-form .n-grid {
+  display: flex !important;
+  flex-wrap: wrap !important;
+}
+.con-sidebar-form .n-grid > * {
+  width: 100% !important;
+}

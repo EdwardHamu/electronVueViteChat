@@ -58,6 +58,8 @@
     "toleranceDwon": "Tolerancia inferior"
   },
   "config": {
+    "connAndAddr": "Conexión/Direcciones",
+    "saveConnect": "Guardar conexión",
     "demoMode": "Modo demostración",
     "demoRangeBtn": "Rango de datos falsos",
     "demoRangeTitle": "Rango aleatorio de datos falsos",

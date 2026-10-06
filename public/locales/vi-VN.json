@@ -58,6 +58,8 @@
     "toleranceDwon": "Dung sai dưới"
   },
   "config": {
+    "connAndAddr": "Kết nối/Địa chỉ",
+    "saveConnect": "Lưu kết nối",
     "demoMode": "Chế độ trình diễn",
     "demoRangeBtn": "Phạm vi dữ liệu giả",
     "demoRangeTitle": "Phạm vi ngẫu nhiên dữ liệu giả",

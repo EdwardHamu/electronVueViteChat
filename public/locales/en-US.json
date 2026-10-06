@@ -58,6 +58,8 @@
     "toleranceDwon": "Lower Tolerance"
   },
   "config": {
+    "connAndAddr": "Conn/Data Address",
+    "saveConnect": "Save Connection",
     "demoMode": "Demo Mode",
     "demoRangeBtn": "Fake Data Range",
     "demoRangeTitle": "Demo Mode Fake Data Range",
