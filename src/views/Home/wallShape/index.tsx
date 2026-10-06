@@ -16,7 +16,7 @@ import { computeWallShape, MIN_WALL_POINTS, wallShapeChartId, wallShapeConId } f
  * 由实测壁厚推导平均/最大/最小壁厚、偏心度、偏心角与内孔偏移，绘制线缆横截面。
  * 测点不足 MIN_WALL_POINTS（4）个时仅弹出警告，不绘图。
  * 偏心量 / 偏心角对所有测点数统一用一阶谐波拟合（见 enum.ts computeWallShape），偏心角是连续值，
- * 扇形光束可以指向两个测点之间；4 测点的标签布局单独处理（见 updateLabels / gridFor）。
+ * 扇形光束可以指向两个测点之间；坐标轴上测点的标签锚定在箭头外侧（见 updateLabels / GRID）。
  */
 export default defineComponent({
   name: 'WallShape',
@@ -117,20 +117,16 @@ export default defineComponent({
     }
 
     /**
-     * 作图区四周留白。4 测点（0°/90°/180°/270°）的标签全部落在坐标轴两端，水平两个标签要整段放到箭头尾端外侧，
-     * 30px 不够放 "0.000" 这类 18px 粗体数字，四边统一加到 60px（四边必须相等：x、y 轴量程相同，作图区不是正方形时圆会变形）。
+     * 作图区四周留白。第 0 个测点总在 0°（偶数测点还有 180°），水平方向的标签要整段放到箭头尾端外侧，
+     * 30px 不够放 "0.000" 这类 18px 粗体数字，四边统一 60px（四边必须相等：x、y 轴量程相同，作图区不是正方形时圆会变形）。
      */
-    const gridFor = (n: number) => {
-      const m = n === 4 ? 60 : 30
-      return { left: m, right: m, top: m, bottom: m }
-    }
+    const GRID = { left: 60, right: 60, top: 60, bottom: 60 }
 
     const initChart = () => {
       const ele = document.getElementById(wallShapeChartId)
       if (!ele) return
       if (myChart) { myChart.dispose(); myChart = null }
       myChart = echarts.init(ele)
-      const n = derived.value?.n ?? wallGroups.value.length
       const axis = {
         type: 'value',
         min: -1,
@@ -141,7 +137,7 @@ export default defineComponent({
         splitLine: { show: false }
       }
       myChart.setOption({
-        grid: gridFor(n),
+        grid: GRID,
         xAxis: { ...axis },
         yAxis: { ...axis },
         series: [
@@ -288,8 +284,9 @@ export default defineComponent({
         const text = alldata.values[i].toFixed(prec.value)
         const fill = thicknessColor(alldata.values[i])
 
-        // 4 测点：标签锚定在箭头尾端外侧（右 / 上 / 左 / 下），不压箭头和坐标轴
-        if (d.n === 4) {
+        // 水平方向（0° / 180°）的测点，以及 4 测点的全部测点（都在坐标轴上）：
+        // 标签锚定在箭头尾端外侧，不压箭头和坐标轴。原来的 left/top 偏移写法在 0°/180° 会把标签压在箭头上
+        if (d.n === 4 || Math.abs(sinA) < 0.3) {
           const gap = 6
           elements.push({
             type: 'text',
@@ -309,8 +306,6 @@ export default defineComponent({
 
         const textOffset = 14
         const topExtraOffset = sinA > 0.3 ? -12 : 0
-        // x 轴最右端附近（角度≈0°/360°）的测点标签整体向左移 12px，避免贴边
-        const rightExtraOffset = cosA > 0.9 ? -12 : 0
         let textAlign: string
         if (cosA > 0.3) textAlign = 'left'
         else if (cosA < -0.3) textAlign = 'right'
@@ -322,7 +317,7 @@ export default defineComponent({
 
         elements.push({
           type: 'text',
-          left: labelPx[0] + textOffset * cosA - 30 + rightExtraOffset,
+          left: labelPx[0] + textOffset * cosA - 30,
           top: labelPx[1] - textOffset * sinA + topExtraOffset,
           style: {
             text,
@@ -343,7 +338,6 @@ export default defineComponent({
       const d = derived.value
       const range = d ? d.R / 0.85 : 1
       myChart.setOption({
-        grid: gridFor(d?.n ?? wallGroups.value.length),
         xAxis: { min: -range, max: range },
         yAxis: { min: -range, max: range },
         series: [{ data: [[0, 0]] }, { data: [[0, 0]] }]
